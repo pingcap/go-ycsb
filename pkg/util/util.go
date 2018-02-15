@@ -15,6 +15,7 @@ package util
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 )
 
@@ -30,4 +31,15 @@ func Fatal(args ...interface{}) {
 	fmt.Fprint(os.Stderr, args...)
 	fmt.Println("")
 	os.Exit(1)
+}
+
+var letters = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+// RandBytes gnerates a random bytes of alphabetic characters.
+func RandBytes(r *rand.Rand, length int) []byte {
+	str := make([]byte, length)
+	for i := range str {
+		str[i] = letters[r.Intn(len(letters))]
+	}
+	return str
 }
