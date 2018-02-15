@@ -30,13 +30,13 @@ import (
 
 // mysql properties
 const (
-	mysqlHost     = "mysql.host"
-	mysqlPort     = "mysql.port"
-	mysqlUser     = "mysql.user"
-	mysqlPassword = "mysql.password"
-	mysqlDBName   = "mysql.db"
-	mysqlVerbose  = "mysql.verbose"
-
+	mysqlHost      = "mysql.host"
+	mysqlPort      = "mysql.port"
+	mysqlUser      = "mysql.user"
+	mysqlPassword  = "mysql.password"
+	mysqlDBName    = "mysql.db"
+	mysqlVerbose   = "mysql.verbose"
+	mysqlDropTable = "mysql.droptable"
 	// TODO: support batch and auto commit
 )
 
@@ -84,15 +84,17 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 func (db *mysqlDB) createTable() error {
 	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
 
-	if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
-		return err
+	if db.p.GetBool(mysqlDropTable, false) {
+		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
+			return err
+		}
 	}
 
 	fieldCount := db.p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
 	fieldLength := db.p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
 
 	buf := new(bytes.Buffer)
-	s := fmt.Sprintf("CREATE TABLE %s (YCSB_KEY VARCHAR(%d) PRIMARY KEY", tableName, fieldLength)
+	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(%d) PRIMARY KEY", tableName, fieldLength)
 	buf.WriteString(s)
 
 	for i := int64(0); i < fieldCount; i++ {
