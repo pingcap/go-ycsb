@@ -123,9 +123,14 @@ func runShellReadCommand(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	if row == nil {
+		fmt.Printf("Read empty for %s\n", key)
+		return
+	}
+
 	fmt.Printf("Read %s ok\n", key)
 	for key, value := range row {
-		fmt.Printf("%s=%q", key, value)
+		fmt.Printf("%s=%q\n", key, value)
 	}
 }
 

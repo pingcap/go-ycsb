@@ -27,14 +27,6 @@ func Hash64(n int64) int64 {
 	return int64(hash.Sum64())
 }
 
-// Int64Buf returns a bytes of integer
-func Int64Buf(n int64) []byte {
-	var buf [8]byte
-
-	binary.BigEndian.PutUint64(buf[:], uint64(n))
-	return buf[:]
-}
-
 // BytesHash64 returns the fnv hash of a bytes
 func BytesHash64(b []byte) int64 {
 	hash := fnv.New64a()

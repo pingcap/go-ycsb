@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -190,8 +191,7 @@ func (c *core) buildValues(state *coreState, key string) map[string][]byte {
 func (c *core) buildRandomValue(state *coreState) []byte {
 	// TODO: use pool for the buffer
 	r := state.r
-	buf := make([]byte, c.fieldLengthGenerator.Next(r))
-	r.Read(buf)
+	buf := util.RandBytes(r, int(c.fieldLengthGenerator.Next(r)))
 	return buf
 }
 
@@ -199,7 +199,7 @@ func (c *core) buildDeterministicValue(state *coreState, key string, fieldKey st
 	// TODO: use pool for the buffer
 	r := state.r
 	size := c.fieldLengthGenerator.Next(r)
-	buf := make([]byte, 0, size+5)
+	buf := make([]byte, 0, size+21)
 	b := bytes.NewBuffer(buf)
 	b.WriteString(key)
 	b.WriteByte(':')
@@ -207,7 +207,7 @@ func (c *core) buildDeterministicValue(state *coreState, key string, fieldKey st
 	for int64(b.Len()) < size {
 		b.WriteByte(':')
 		n := util.BytesHash64(b.Bytes())
-		b.Write(util.Int64Buf(n))
+		b.WriteString(strconv.FormatUint(uint64(n), 64))
 	}
 	b.Truncate(int(size))
 	return b.Bytes()
