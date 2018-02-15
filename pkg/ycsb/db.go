@@ -15,9 +15,9 @@ package ycsb
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/magiconair/properties"
-	log "github.com/sirupsen/logrus"
 )
 
 // DBCreator creates a database layer.
@@ -76,7 +76,7 @@ var dbCreators = map[string]DBCreator{}
 func RegisterDBCreator(name string, creator DBCreator) {
 	_, ok := dbCreators[name]
 	if ok {
-		log.Fatalf("duplicate register database %s", name)
+		panic(fmt.Sprintf("duplicate register database %s", name))
 	}
 
 	dbCreators[name] = creator

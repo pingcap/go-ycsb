@@ -15,9 +15,9 @@ package ycsb
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/magiconair/properties"
-	log "github.com/sirupsen/logrus"
 )
 
 // WorkloadCreator creates a Workload
@@ -50,7 +50,7 @@ var workloadCreators = map[string]WorkloadCreator{}
 func RegisterWorkloadCreator(name string, creator WorkloadCreator) {
 	_, ok := workloadCreators[name]
 	if ok {
-		log.Fatalf("duplicate register workload %s", name)
+		panic(fmt.Sprintf("duplicate register workload %s", name))
 	}
 
 	workloadCreators[name] = creator
