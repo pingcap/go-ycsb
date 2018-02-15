@@ -238,7 +238,7 @@ func (basicDBCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	if db.verbose {
 		fmt.Println("***************** properties *****************")
 		for key, value := range p.Map() {
-			fmt.Printf(`"%s"="%s\n"`, key, value)
+			fmt.Printf("\"%s\"=\"%s\"\n", key, value)
 		}
 		fmt.Println("**********************************************")
 	}
