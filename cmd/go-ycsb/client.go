@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/spf13/cobra"
 
@@ -137,6 +138,23 @@ func (c *client) Run() {
 			globalWorkload.CleanupThread(ctx)
 		}(i)
 	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		dur := c.p.GetInt64("measurement.interval", 10)
+		t := time.NewTicker(time.Duration(dur) * time.Second)
+
+		for {
+			select {
+			case <-t.C:
+				measurement.Output()
+			case <-globalContext.Done():
+				return
+			}
+		}
+	}()
 
 	wg.Wait()
 }

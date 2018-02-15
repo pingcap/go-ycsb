@@ -26,6 +26,7 @@ import (
 
 	"fmt"
 
+	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	_ "github.com/pingcap/go-ycsb/pkg/workload"
@@ -67,6 +68,8 @@ func initialGlobal(dbName string, onProperties func()) {
 		onProperties()
 	}
 
+	measurement.InitMeasure(globalProps)
+
 	if len(tableName) == 0 {
 		tableName = globalProps.GetString(prop.TableName, prop.TableNameDefault)
 	}
@@ -83,6 +86,8 @@ func initialGlobal(dbName string, onProperties func()) {
 	if globalDB, err = dbCreator.Create(globalProps); err != nil {
 		util.Fatalf("create db %s failed %v", dbName, err)
 	}
+
+	globalDB = dbWrapper{globalDB}
 }
 
 func main() {
