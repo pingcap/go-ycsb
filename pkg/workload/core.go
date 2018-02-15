@@ -25,6 +25,7 @@ import (
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/generator"
+	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
@@ -323,6 +324,11 @@ func (c *core) doTransactionRead(ctx context.Context, db ycsb.DB, state *coreSta
 }
 
 func (c *core) doTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, state *coreState) error {
+	start := time.Now()
+	defer func() {
+		measurement.Measure("READ-MODIFY-WRITE", time.Now().Sub(start))
+	}()
+
 	r := state.r
 	keyNum := c.nextKeyNum(state)
 	keyName := c.buildKeyName(keyNum)
