@@ -15,6 +15,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"sync"
@@ -122,6 +123,7 @@ type client struct {
 }
 
 func (c *client) Run() {
+	start := time.Now()
 	threadCount := c.p.GetInt(prop.ThreadCount, 100)
 
 	var wg sync.WaitGroup
@@ -139,24 +141,28 @@ func (c *client) Run() {
 		}(i)
 	}
 
-	wg.Add(1)
+	measureCtx, measureCancel := context.WithCancel(globalContext)
 	go func() {
-		defer wg.Done()
-
 		dur := c.p.GetInt64("measurement.interval", 10)
 		t := time.NewTicker(time.Duration(dur) * time.Second)
+		defer t.Stop()
 
 		for {
 			select {
 			case <-t.C:
 				measurement.Output()
-			case <-globalContext.Done():
+			case <-measureCtx.Done():
 				return
 			}
 		}
 	}()
 
 	wg.Wait()
+
+	measureCancel()
+
+	fmt.Printf("Run finished, takes %s\n", time.Now().Sub(start))
+	measurement.Output()
 }
 
 func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool) {
