@@ -50,7 +50,7 @@ func (m *measurement) Output() {
 	defer m.RUnlock()
 
 	for op, opM := range m.opMeasurement {
-		fmt.Printf("%s:\n%s\n", op, opM.Summary())
+		fmt.Printf("%s - %s\n", op, opM.Summary())
 	}
 }
 

@@ -109,12 +109,12 @@ func (h *histogram) Summary() string {
 	}
 
 	buf := new(bytes.Buffer)
-	buf.WriteString(fmt.Sprintf("Operations  : %d\n", count))
-	buf.WriteString(fmt.Sprintf("Avg  Lan(us): %d\n", avg))
-	buf.WriteString(fmt.Sprintf("Min  Lan(us): %d\n", min))
-	buf.WriteString(fmt.Sprintf("Max  Lan(us): %d\n", max))
-	buf.WriteString(fmt.Sprintf("95th Lan(us): %d\n", per95))
-	buf.WriteString(fmt.Sprintf("99th Lan(us): %d\n", per99))
+	buf.WriteString(fmt.Sprintf("Count: %d, ", count))
+	buf.WriteString(fmt.Sprintf("Avg(us): %d, ", avg))
+	buf.WriteString(fmt.Sprintf("Min(us): %d, ", min))
+	buf.WriteString(fmt.Sprintf("Max(us): %d, ", max))
+	buf.WriteString(fmt.Sprintf("95th(us): %d, ", per95))
+	buf.WriteString(fmt.Sprintf("99th(us): %d", per99))
 
 	return buf.String()
 }
