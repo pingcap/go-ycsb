@@ -40,7 +40,7 @@ type worker struct {
 func newWorker(p *properties.Properties, threadID int, threadCount int) *worker {
 	w := new(worker)
 	w.p = p
-	w.doTransactions = p.GetBool("dotransactions", true)
+	w.doTransactions = p.GetBool(prop.DoTransactions, true)
 	w.threadID = threadID
 
 	var totalOpCount int64
@@ -57,7 +57,7 @@ func newWorker(p *properties.Properties, threadID int, threadCount int) *worker 
 	w.opCount = totalOpCount / int64(threadCount)
 
 	targetPerThreadPerms := float64(-1)
-	if v := p.GetInt64("target", 0); v > 0 {
+	if v := p.GetInt64(prop.Target, 0); v > 0 {
 		targetPerThread := float64(v) / float64(threadCount)
 		targetPerThreadPerms = targetPerThread / 1000.0
 	}
@@ -163,16 +163,18 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 	dbName := args[0]
 
 	initialGlobal(dbName, func() {
+		doTransFlag := "true"
 		if !doTransactions {
-			globalProps.Set("dotransactions", "false")
+			doTransFlag = "false"
 		}
+		globalProps.Set(prop.DoTransactions, doTransFlag)
 
 		if threadsArg > 0 {
 			globalProps.Set(prop.ThreadCount, strconv.Itoa(threadsArg))
 		}
 
 		if targetArg > 0 {
-			globalProps.Set("target", strconv.Itoa(targetArg))
+			globalProps.Set(prop.Target, strconv.Itoa(targetArg))
 		}
 	})
 

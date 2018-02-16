@@ -15,6 +15,8 @@ package main
 
 import (
 	"context"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
@@ -67,6 +69,11 @@ func initialGlobal(dbName string, onProperties func()) {
 	if onProperties != nil {
 		onProperties()
 	}
+
+	addr := globalProps.GetString(prop.DebugPprof, prop.DebugPprofDefault)
+	go func() {
+		http.ListenAndServe(addr, nil)
+	}()
 
 	measurement.InitMeasure(globalProps)
 

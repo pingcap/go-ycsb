@@ -88,4 +88,7 @@ const (
 	ExponentialPercentileDefault = float64(95)
 	ExponentialFrac              = "exponential.frac"
 	ExponentialFracDefault       = float64(0.8571428571)
+
+	DebugPprof        = "debug.pprof"
+	DebugPprofDefault = ":6060"
 )
