@@ -50,6 +50,15 @@ type mysqlDB struct {
 	// TODO: support caching prepare statement
 }
 
+type contextKey string
+
+const stateKey = contextKey("mysqlDB")
+
+type mysqlState struct {
+	// Do we need a LRU cache here?
+	stmtCache map[string]*sql.Stmt
+}
+
 func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	d := new(mysqlDB)
 	d.p = p
@@ -120,15 +129,56 @@ func (db *mysqlDB) Close() error {
 }
 
 func (db *mysqlDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
-	return ctx
+	state := &mysqlState{
+		stmtCache: make(map[string]*sql.Stmt),
+	}
+
+	return context.WithValue(ctx, stateKey, state)
 }
 
-func (db *mysqlDB) CleanupThread(_ context.Context) {
+func (db *mysqlDB) CleanupThread(ctx context.Context) {
+	state := ctx.Value(stateKey).(*mysqlState)
 
+	for _, stmt := range state.stmtCache {
+		stmt.Close()
+	}
 }
 
-func (db *mysqlDB) queryRows(ctx context.Context, query string, count int) ([]map[string][]byte, error) {
-	rows, err := db.db.QueryContext(ctx, query)
+func (db *mysqlDB) getAndCacheStmt(ctx context.Context, query string) (*sql.Stmt, error) {
+	state := ctx.Value(stateKey).(*mysqlState)
+
+	if stmt, ok := state.stmtCache[query]; ok {
+		return stmt, nil
+	}
+
+	stmt, err := db.db.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	state.stmtCache[query] = stmt
+	return stmt, nil
+}
+
+func (db *mysqlDB) clearCacheIfFailed(ctx context.Context, query string, err error) {
+	if err == nil {
+		return
+	}
+
+	state := ctx.Value(stateKey).(*mysqlState)
+	delete(state.stmtCache, query)
+}
+
+func (db *mysqlDB) queryRows(ctx context.Context, query string, count int, args ...interface{}) ([]map[string][]byte, error) {
+	if db.verbose {
+		fmt.Printf("%s %v\n", query, args)
+	}
+
+	stmt, err := db.getAndCacheStmt(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := stmt.QueryContext(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -164,16 +214,14 @@ func (db *mysqlDB) queryRows(ctx context.Context, query string, count int) ([]ma
 func (db *mysqlDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
-		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = "%s"`, table, key)
+		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = ?`, table)
 	} else {
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = "%s"`, strings.Join(fields, ","), table, key)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = ?`, strings.Join(fields, ","), table)
 	}
 
-	if db.verbose {
-		fmt.Println(query)
-	}
+	rows, err := db.queryRows(ctx, query, 1, key)
+	db.clearCacheIfFailed(ctx, query, err)
 
-	rows, err := db.queryRows(ctx, query, 1)
 	if err != nil {
 		return nil, err
 	} else if len(rows) == 0 {
@@ -186,77 +234,82 @@ func (db *mysqlDB) Read(ctx context.Context, table string, key string, fields []
 func (db *mysqlDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
-		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY >= "%s" LIMIT %d`, table, startKey, count)
+		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, table)
 	} else {
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= "%s" LIMIT %d`, strings.Join(fields, ","), table, startKey, count)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, strings.Join(fields, ","), table)
 	}
 
-	if db.verbose {
-		fmt.Println(query)
-	}
+	rows, err := db.queryRows(ctx, query, count, startKey, count)
+	db.clearCacheIfFailed(ctx, query, err)
 
-	rows, err := db.queryRows(ctx, query, count)
 	return rows, err
+}
+
+func (db *mysqlDB) execQuery(ctx context.Context, query string, args ...interface{}) error {
+	if db.verbose {
+		fmt.Printf("%s %v\n", query, args)
+	}
+
+	stmt, err := db.getAndCacheStmt(ctx, query)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.ExecContext(ctx, args...)
+	db.clearCacheIfFailed(ctx, query, err)
+	return err
 }
 
 func (db *mysqlDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
 	var query string
 	buf := new(bytes.Buffer)
 	firstField := true
+	args := make([]interface{}, 0, len(values)+1)
 	for field, value := range values {
 		if !firstField {
 			buf.WriteString(", ")
 		}
 
 		buf.WriteString(field)
-		buf.WriteString(`= "`)
-		buf.Write(value)
-		buf.WriteString(`"`)
+		buf.WriteString(`= ?`)
+		args = append(args, value)
 	}
+	args = append(args, key)
 
-	// TODO: use escape or prepare statement
-	query = fmt.Sprintf(`UPDATE %s SET %s WHERE YCSB_KEY = "%s"`, table, buf.Bytes(), key)
+	query = fmt.Sprintf(`UPDATE %s SET %s WHERE YCSB_KEY = ?`, table, buf.Bytes())
 
-	if db.verbose {
-		fmt.Println(query)
-	}
-
-	_, err := db.db.ExecContext(ctx, query)
-	return err
+	return db.execQuery(ctx, query, args...)
 }
 
 func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
-	fields := make([]string, 0, 1+len(values))
-	vs := make([][]byte, 0, 1+len(values))
+	args := make([]interface{}, 0, 1+len(values))
 
-	fields = append(fields, "YCSB_KEY")
-	vs = append(vs, []byte(key))
+	args = append(args, key)
 
+	buf := new(bytes.Buffer)
+	buf.WriteString("INSERT IGNORE INTO ")
+	buf.WriteString(table)
+	buf.WriteString(" (YCSB_KEY")
 	for field, value := range values {
-		fields = append(fields, field)
-		vs = append(vs, value)
+		args = append(args, value)
+		buf.WriteString(" ,")
+		buf.WriteString(field)
+	}
+	buf.WriteString(") VALUES (?")
+
+	for i := 0; i < len(values); i++ {
+		buf.WriteString(" ,?")
 	}
 
-	// TODO: use escape or prepare statement
-	query := fmt.Sprintf(`INSERT IGNORE INTO %s (%s) VALUES ("%s")`, table, strings.Join(fields, ", "), bytes.Join(vs, []byte(`", "`)))
+	buf.WriteByte(')')
 
-	if db.verbose {
-		fmt.Println(query)
-	}
-
-	_, err := db.db.ExecContext(ctx, query)
-	return err
+	return db.execQuery(ctx, buf.String(), args...)
 }
 
 func (db *mysqlDB) Delete(ctx context.Context, table string, key string) error {
-	query := fmt.Sprintf(`DELETE FROM %s WHERE YCSB_KEY = "%s"`, table, key)
+	query := fmt.Sprintf(`DELETE FROM %s WHERE YCSB_KEY = ?`, table)
 
-	if db.verbose {
-		fmt.Println(query)
-	}
-
-	_, err := db.db.ExecContext(ctx, query)
-	return err
+	return db.execQuery(ctx, query, key)
 }
 
 func init() {
