@@ -57,6 +57,4 @@ Available Commands:
 
 - [ ] Support more measurement, like HdrHistogram
 - [ ] Support raw and txn TiKV database
-- [ ] Use prepare statement for MySQL database
-- [ ] Optimize Go memory allocation
 - [ ] Add tests for generators
