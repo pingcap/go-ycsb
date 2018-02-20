@@ -35,11 +35,9 @@ func Fatal(args ...interface{}) {
 
 var letters = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-// RandBytes gnerates a random bytes of alphabetic characters.
-func RandBytes(r *rand.Rand, length int) []byte {
-	str := make([]byte, length)
-	for i := range str {
-		str[i] = letters[r.Intn(len(letters))]
+// RandBytes fills the bytes with alphabetic characters randomly
+func RandBytes(r *rand.Rand, b []byte) {
+	for i := range b {
+		b[i] = letters[r.Intn(len(letters))]
 	}
-	return str
 }
