@@ -21,6 +21,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/magiconair/properties"
@@ -73,6 +74,8 @@ type core struct {
 	zeroPadding                  int64
 	insertionRetryLimit          int64
 	insertionRetryInterval       int64
+
+	valuePool sync.Pool
 }
 
 func getFieldLengthGenerator(p *properties.Properties) ycsb.Generator {
@@ -189,10 +192,26 @@ func (c *core) buildValues(state *coreState, key string) map[string][]byte {
 	return values
 }
 
+func (c *core) getValueBuffer(size int) []byte {
+	buf := c.valuePool.Get().([]byte)
+	if cap(buf) >= size {
+		return buf[0:size]
+	}
+
+	return make([]byte, size)
+}
+
+func (c *core) putValues(values map[string][]byte) {
+	for _, value := range values {
+		c.valuePool.Put(value)
+	}
+}
+
 func (c *core) buildRandomValue(state *coreState) []byte {
 	// TODO: use pool for the buffer
 	r := state.r
-	buf := util.RandBytes(r, int(c.fieldLengthGenerator.Next(r)))
+	buf := c.getValueBuffer(int(c.fieldLengthGenerator.Next(r)))
+	util.RandBytes(r, buf)
 	return buf
 }
 
@@ -200,8 +219,8 @@ func (c *core) buildDeterministicValue(state *coreState, key string, fieldKey st
 	// TODO: use pool for the buffer
 	r := state.r
 	size := c.fieldLengthGenerator.Next(r)
-	buf := make([]byte, 0, size+21)
-	b := bytes.NewBuffer(buf)
+	buf := c.getValueBuffer(int(size + 21))
+	b := bytes.NewBuffer(buf[0:0])
 	b.WriteString(key)
 	b.WriteByte(':')
 	b.WriteString(fieldKey)
@@ -235,6 +254,8 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 	keyNum := c.keySequence.Next(r)
 	dbKey := c.buildKeyName(keyNum)
 	values := c.buildValues(state, dbKey)
+	defer c.putValues(values)
+
 	numOfRetries := int64(0)
 
 	var err error
@@ -347,6 +368,7 @@ func (c *core) doTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, sta
 	} else {
 		values = c.buildSingleValue(state, keyName)
 	}
+	defer c.putValues(values)
 
 	readValues, err := db.Read(ctx, c.table, keyName, fields)
 	if err != nil {
@@ -370,6 +392,7 @@ func (c *core) doTransactionInsert(ctx context.Context, db ycsb.DB, state *coreS
 	defer c.transactionInsertKeySequence.Acknowledge(keyNum)
 	dbKey := c.buildKeyName(keyNum)
 	values := c.buildValues(state, dbKey)
+	defer c.putValues(values)
 
 	return db.Insert(ctx, c.table, dbKey, values)
 }
@@ -404,6 +427,8 @@ func (c *core) doTransactionUpdate(ctx context.Context, db ycsb.DB, state *coreS
 	} else {
 		values = c.buildSingleValue(state, keyName)
 	}
+
+	defer c.putValues(values)
 
 	return db.Update(ctx, c.table, keyName, values)
 }
@@ -493,6 +518,13 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 
 	c.insertionRetryLimit = p.GetInt64(prop.InsertionRetryLimit, prop.InsertionRetryLimitDefault)
 	c.insertionRetryInterval = p.GetInt64(prop.InsertionRetryInterval, prop.InsertionRetryIntervalDefault)
+
+	fieldLength := p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
+	c.valuePool = sync.Pool{
+		New: func() interface{} {
+			return make([]byte, fieldLength)
+		},
+	}
 
 	return c, nil
 }
