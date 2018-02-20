@@ -227,7 +227,7 @@ func (c *core) buildDeterministicValue(state *coreState, key string, fieldKey st
 	for int64(b.Len()) < size {
 		b.WriteByte(':')
 		n := util.BytesHash64(b.Bytes())
-		b.WriteString(strconv.FormatUint(uint64(n), 64))
+		b.WriteString(strconv.FormatUint(uint64(n), 10))
 	}
 	b.Truncate(int(size))
 	return b.Bytes()
