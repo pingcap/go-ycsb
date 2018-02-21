@@ -19,6 +19,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/pingcap/go-ycsb/pkg/prop"
 
@@ -47,7 +48,8 @@ type mysqlDB struct {
 	p       *properties.Properties
 	db      *sql.DB
 	verbose bool
-	// TODO: support caching prepare statement
+
+	bufPool sync.Pool
 }
 
 type contextKey string
@@ -82,6 +84,12 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 	d.verbose = p.GetBool(mysqlVerbose, false)
 	d.db = db
+
+	d.bufPool = sync.Pool{
+		New: func() interface{} {
+			return new(bytes.Buffer)
+		},
+	}
 
 	if err := d.createTable(); err != nil {
 		return nil, err
@@ -260,9 +268,19 @@ func (db *mysqlDB) execQuery(ctx context.Context, query string, args ...interfac
 	return err
 }
 
+func (db *mysqlDB) getBuffer() *bytes.Buffer {
+	buf := db.bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	return buf
+}
+
 func (db *mysqlDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	var query string
-	buf := new(bytes.Buffer)
+	buf := db.getBuffer()
+	defer db.bufPool.Put(buf)
+
+	buf.WriteString("UPDATE ")
+	buf.WriteString(table)
+	buf.WriteString(" SET ")
 	firstField := true
 	args := make([]interface{}, 0, len(values)+1)
 	for field, value := range values {
@@ -274,19 +292,20 @@ func (db *mysqlDB) Update(ctx context.Context, table string, key string, values 
 		buf.WriteString(`= ?`)
 		args = append(args, value)
 	}
+	buf.WriteString(" WHERE YCSB_KEY = ?")
+
 	args = append(args, key)
 
-	query = fmt.Sprintf(`UPDATE %s SET %s WHERE YCSB_KEY = ?`, table, buf.Bytes())
-
-	return db.execQuery(ctx, query, args...)
+	return db.execQuery(ctx, buf.String(), args...)
 }
 
 func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	args := make([]interface{}, 0, 1+len(values))
-
 	args = append(args, key)
 
-	buf := new(bytes.Buffer)
+	buf := db.getBuffer()
+	defer db.bufPool.Put(buf)
+
 	buf.WriteString("INSERT IGNORE INTO ")
 	buf.WriteString(table)
 	buf.WriteString(" (YCSB_KEY")
