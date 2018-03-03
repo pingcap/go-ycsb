@@ -39,6 +39,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/basic"
 	// Register MySQL database
 	_ "github.com/pingcap/go-ycsb/db/mysql"
+	// Register TiKV database
+	_ "github.com/pingcap/go-ycsb/db/tikv"
 )
 
 var (

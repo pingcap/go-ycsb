@@ -1,3 +1,4 @@
+
 # Gopkg.toml example
 #
 # Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
@@ -16,13 +17,8 @@
 #   source = "github.com/myfork/project2"
 #
 # [[override]]
-#   name = "github.com/x/y"
-#   version = "2.4.0"
-#
-# [prune]
-#   non-go = false
-#   go-tests = true
-#   unused-packages = true
+#  name = "github.com/x/y"
+#  version = "2.4.0"
 
 
 [[constraint]]
@@ -41,6 +37,32 @@
   name = "github.com/spf13/cobra"
   branch = "master"
 
-[prune]
-  go-tests = true
-  unused-packages = true
+[[constraint]]
+  name = "github.com/pingcap/tidb"
+  branch = "master"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/pingcap/tipb"
+
+[[constraint]]
+  name = "github.com/prometheus/client_golang"
+  version = "0.8.0"
+
+[[constraint]]
+  name = "github.com/opentracing/opentracing-go"
+  version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/grpc-ecosystem/go-grpc-prometheus"
+  version = "1.1.0"
+
+
+[[constraint]]
+  name = "google.golang.org/grpc"
+  source = "https://github.com/grpc/grpc-go.git"
+  version = "=1.7.5"
+
+[[override]]
+  name = "github.com/grpc-ecosystem/go-grpc-middleware"
+  revision = "82921fcf811d228d2fa202bc31238b356bf9f8d5"
