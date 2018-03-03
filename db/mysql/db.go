@@ -19,9 +19,9 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/pingcap/go-ycsb/pkg/prop"
+	"github.com/pingcap/go-ycsb/pkg/util"
 
 	// mysql package
 	_ "github.com/go-sql-driver/mysql"
@@ -49,7 +49,7 @@ type mysqlDB struct {
 	db      *sql.DB
 	verbose bool
 
-	bufPool sync.Pool
+	bufPool *util.BufPool
 }
 
 type contextKey string
@@ -85,11 +85,7 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	d.verbose = p.GetBool(mysqlVerbose, false)
 	d.db = db
 
-	d.bufPool = sync.Pool{
-		New: func() interface{} {
-			return new(bytes.Buffer)
-		},
-	}
+	d.bufPool = util.NewBufPool()
 
 	if err := d.createTable(); err != nil {
 		return nil, err
@@ -268,14 +264,8 @@ func (db *mysqlDB) execQuery(ctx context.Context, query string, args ...interfac
 	return err
 }
 
-func (db *mysqlDB) getBuffer() *bytes.Buffer {
-	buf := db.bufPool.Get().(*bytes.Buffer)
-	buf.Reset()
-	return buf
-}
-
 func (db *mysqlDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	buf := db.getBuffer()
+	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
 
 	buf.WriteString("UPDATE ")
@@ -303,7 +293,7 @@ func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values 
 	args := make([]interface{}, 0, 1+len(values))
 	args = append(args, key)
 
-	buf := db.getBuffer()
+	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
 
 	buf.WriteString("INSERT IGNORE INTO ")

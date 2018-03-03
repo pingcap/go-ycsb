@@ -33,3 +33,10 @@ func BytesHash64(b []byte) int64 {
 	hash.Write(b)
 	return int64(hash.Sum64())
 }
+
+// StringHash64 returns the fnv hash of a string
+func StringHash64(s string) int64 {
+	hash := fnv.New64a()
+	hash.Write(Slice(s))
+	return int64(hash.Sum64())
+}
