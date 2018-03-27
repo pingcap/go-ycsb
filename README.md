@@ -52,9 +52,9 @@ Available Commands:
 
 - basic
 - mysql
+- tikv
 
 ## TODO
 
 - [ ] Support more measurement, like HdrHistogram
-- [ ] Support raw and txn TiKV database
 - [ ] Add tests for generators
