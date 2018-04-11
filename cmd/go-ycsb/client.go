@@ -175,7 +175,8 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 		}
 		globalProps.Set(prop.DoTransactions, doTransFlag)
 
-		if threadsArg > 0 {
+		if threadsArg > 1 {
+			// We set the threadArg via command line.
 			globalProps.Set(prop.ThreadCount, strconv.Itoa(threadsArg))
 		}
 
