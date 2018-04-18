@@ -265,6 +265,14 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 			break
 		}
 
+		select {
+		case <-ctx.Done():
+			if ctx.Err() == context.Canceled {
+				return nil
+			}
+		default:
+		}
+
 		// Retry if configured. Without retrying, the load process will fail
 		// even if one single insertion fails. User can optionally configure
 		// an insertion retry limit (default is 0) to enable retry.
