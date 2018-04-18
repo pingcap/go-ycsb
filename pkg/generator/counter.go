@@ -49,7 +49,7 @@ func NewCounter(start int64) *Counter {
 
 // Next implements Generator Next interface.
 func (c *Counter) Next(_ *rand.Rand) int64 {
-	return atomic.AddInt64(&c.counter, 1)
+	return atomic.AddInt64(&c.counter, 1) - 1
 }
 
 // Last implements Generator Last interface.
