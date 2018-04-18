@@ -55,6 +55,16 @@ func newWorker(p *properties.Properties, threadID int, threadCount int) *worker 
 		}
 	}
 
+	if totalOpCount < int64(threadCount) {
+		msg := fmt.Sprintf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
+			prop.OperationCount,
+			prop.InsertCount,
+			prop.RecordCount,
+			totalOpCount,
+			threadCount)
+		panic(msg)
+	}
+
 	w.opCount = totalOpCount / int64(threadCount)
 
 	targetPerThreadPerms := float64(-1)
