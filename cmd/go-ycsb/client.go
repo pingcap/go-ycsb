@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/magiconair/properties"
+	"os"
 )
 
 type worker struct {
@@ -56,13 +57,14 @@ func newWorker(p *properties.Properties, threadID int, threadCount int) *worker 
 	}
 
 	if totalOpCount < int64(threadCount) {
-		msg := fmt.Sprintf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
+		fmt.Printf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
 			prop.OperationCount,
 			prop.InsertCount,
 			prop.RecordCount,
 			totalOpCount,
 			threadCount)
-		panic(msg)
+
+		os.Exit(-1)
 	}
 
 	w.opCount = totalOpCount / int64(threadCount)
