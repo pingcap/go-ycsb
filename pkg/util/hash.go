@@ -24,7 +24,11 @@ func Hash64(n int64) int64 {
 	binary.BigEndian.PutUint64(b[0:8], uint64(n))
 	hash := fnv.New64a()
 	hash.Write(b[0:8])
-	return int64(hash.Sum64())
+	result := int64(hash.Sum64())
+	if result < 0 {
+		return -result
+	}
+	return result
 }
 
 // BytesHash64 returns the fnv hash of a bytes
