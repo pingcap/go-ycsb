@@ -22,7 +22,6 @@ import (
 
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
 	"github.com/magiconair/properties"
-	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/pingcap/tidb/mysql"
@@ -56,8 +55,8 @@ func createDB(p *properties.Properties) (ycsb.DB, error) {
 		return nil, err
 	}
 
-	fieldIndices := createFieldIndices(p)
-	fields := allFields(p)
+	fieldIndices := util.CreateFieldIndices(p)
+	fields := util.AllFields(p)
 	bufPool := util.NewBufPool()
 
 	return &fDB{
@@ -115,6 +114,23 @@ func (db *fDB) decodeRow(ctx context.Context, row []byte, fields []string) (map[
 	}
 
 	return res, nil
+}
+
+func (db *fDB) createRowData(buf *bytes.Buffer, values map[string][]byte) ([]byte, error) {
+	cols := make([]types.Datum, 0, len(values))
+	colIDs := make([]int64, 0, len(values))
+
+	for k, v := range values {
+		i := db.fieldIndices[k]
+		var d types.Datum
+		d.SetBytes(v)
+
+		cols = append(cols, d)
+		colIDs = append(colIDs, i)
+	}
+
+	rowData, err := tablecodec.EncodeRow(&stmtctx.StatementContext{}, cols, colIDs, buf.Bytes(), nil)
+	return rowData, err
 }
 
 func (db *fDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
@@ -203,23 +219,6 @@ func (db *fDB) Update(ctx context.Context, table string, key string, values map[
 	return err
 }
 
-func (db *fDB) createRowData(buf *bytes.Buffer, values map[string][]byte) ([]byte, error) {
-	cols := make([]types.Datum, 0, len(values))
-	colIDs := make([]int64, 0, len(values))
-
-	for k, v := range values {
-		i := db.fieldIndices[k]
-		var d types.Datum
-		d.SetBytes(v)
-
-		cols = append(cols, d)
-		colIDs = append(colIDs, i)
-	}
-
-	rowData, err := tablecodec.EncodeRow(&stmtctx.StatementContext{}, cols, colIDs, buf.Bytes(), nil)
-	return rowData, err
-}
-
 func (db *fDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	// Simulate TiDB data
 	buf := db.bufPool.Get()
@@ -231,7 +230,7 @@ func (db *fDB) Insert(ctx context.Context, table string, key string, values map[
 	}
 
 	rowKey := db.getRowKey(table, key)
-	_, err = db.db.Transact(func(tr fdb.Transaction) (_ interface{}, e error) {
+	_, err = db.db.Transact(func(tr fdb.Transaction) (ret interface{}, e error) {
 		tr.Set(fdb.Key(rowKey), rowData)
 		return
 	})
@@ -252,26 +251,6 @@ type fdbCreator struct {
 
 func (c fdbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	return createDB(p)
-}
-
-func createFieldIndices(p *properties.Properties) map[string]int64 {
-	fieldCount := p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
-	m := make(map[string]int64, fieldCount)
-	for i := int64(0); i < fieldCount; i++ {
-		field := fmt.Sprintf("field%d", i)
-		m[field] = i
-	}
-	return m
-}
-
-func allFields(p *properties.Properties) []string {
-	fieldCount := p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
-	fields := make([]string, 0, fieldCount)
-	for i := int64(0); i < fieldCount; i++ {
-		field := fmt.Sprintf("field%d", i)
-		fields = append(fields, field)
-	}
-	return fields
 }
 
 func init() {

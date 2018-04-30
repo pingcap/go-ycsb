@@ -8,16 +8,16 @@
   revision = "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
 
 [[projects]]
-  name = "github.com/apache/thrift"
-  packages = ["lib/go/thrift"]
-  revision = "b2a4d4ae21c789b689dd162deb819665567f481c"
-  version = "0.10.0"
+  name = "github.com/apple/foundationdb"
+  packages = ["bindings/go/src/fdb"]
+  revision = "9ad8d02386d4a6a5efecf898df80f2747695c627"
+  version = "5.1.7"
 
 [[projects]]
   branch = "master"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
-  revision = "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9"
+  revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
   branch = "master"
@@ -33,15 +33,22 @@
 
 [[projects]]
   name = "github.com/coreos/etcd"
-  packages = ["auth/authpb","clientv3","etcdserver/api/v3rpc/rpctypes","etcdserver/etcdserverpb","mvcc/mvccpb"]
-  revision = "fb5cd6f1c72c2b98e0c4453444cdfba306da867b"
-  version = "v3.2.14"
+  packages = [
+    "auth/authpb",
+    "clientv3",
+    "etcdserver/api/v3rpc/rpctypes",
+    "etcdserver/etcdserverpb",
+    "mvcc/mvccpb",
+    "pkg/types"
+  ]
+  revision = "eddf599c689ec85f4752060edff5a72e81e9106a"
+  version = "v3.2.18"
 
 [[projects]]
   branch = "master"
   name = "github.com/cznic/mathutil"
   packages = ["."]
-  revision = "7764e6a2216aaa02c36f75aad62538d39c2962c2"
+  revision = "4bcf60dc891f30c8d3c839cdc8f7e5a2cd91ea0e"
 
 [[projects]]
   name = "github.com/go-sql-driver/mysql"
@@ -51,9 +58,16 @@
 
 [[projects]]
   name = "github.com/golang/protobuf"
-  packages = ["proto","protoc-gen-go/descriptor","ptypes","ptypes/any","ptypes/duration","ptypes/timestamp"]
-  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
-  version = "v1.0.0"
+  packages = [
+    "proto",
+    "protoc-gen-go/descriptor",
+    "ptypes",
+    "ptypes/any",
+    "ptypes/duration",
+    "ptypes/timestamp"
+  ]
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -69,7 +83,12 @@
 
 [[projects]]
   name = "github.com/grpc-ecosystem/go-grpc-middleware"
-  packages = [".","tags","tracing/opentracing","util/metautils"]
+  packages = [
+    ".",
+    "tags",
+    "tracing/opentracing",
+    "util/metautils"
+  ]
   revision = "82921fcf811d228d2fa202bc31238b356bf9f8d5"
 
 [[projects]]
@@ -104,7 +123,11 @@
 
 [[projects]]
   name = "github.com/opentracing/opentracing-go"
-  packages = [".","ext","log"]
+  packages = [
+    ".",
+    "ext",
+    "log"
+  ]
   revision = "1949ddbfd147afd4d964a9f00b24eb291e0e7c38"
   version = "v1.0.2"
 
@@ -117,32 +140,97 @@
 [[projects]]
   branch = "master"
   name = "github.com/pingcap/goleveldb"
-  packages = ["leveldb","leveldb/cache","leveldb/comparer","leveldb/errors","leveldb/filter","leveldb/iterator","leveldb/journal","leveldb/memdb","leveldb/opt","leveldb/storage","leveldb/table","leveldb/util"]
+  packages = [
+    "leveldb",
+    "leveldb/cache",
+    "leveldb/comparer",
+    "leveldb/errors",
+    "leveldb/filter",
+    "leveldb/iterator",
+    "leveldb/journal",
+    "leveldb/memdb",
+    "leveldb/opt",
+    "leveldb/storage",
+    "leveldb/table",
+    "leveldb/util"
+  ]
   revision = "b9ff6c35079e0b7925a4028005fc2dbc37aec69a"
 
 [[projects]]
   branch = "master"
   name = "github.com/pingcap/kvproto"
-  packages = ["pkg/coprocessor","pkg/eraftpb","pkg/errorpb","pkg/kvrpcpb","pkg/metapb","pkg/pdpb","pkg/raft_serverpb","pkg/tikvpb"]
-  revision = "41770d3a08920ddbed2af44227ca763e92d99dec"
+  packages = [
+    "pkg/coprocessor",
+    "pkg/eraftpb",
+    "pkg/errorpb",
+    "pkg/kvrpcpb",
+    "pkg/metapb",
+    "pkg/pdpb",
+    "pkg/raft_serverpb",
+    "pkg/tikvpb"
+  ]
+  revision = "81cae1d0c5dcbc4fde9be2aca702bf6f7f322883"
 
 [[projects]]
+  branch = "master"
   name = "github.com/pingcap/pd"
   packages = ["pd-client"]
-  revision = "5609c954949db441e770a2ae70ef8cdd65d19eb0"
-  version = "v1.1.0-beta"
+  revision = "5e120ed617983e03b08ba45d4d54fdcdde1f4ab8"
 
 [[projects]]
   branch = "master"
   name = "github.com/pingcap/tidb"
-  packages = ["config","kv","meta","meta/autoid","metrics","model","mysql","parser/opcode","sessionctx","sessionctx/binloginfo","sessionctx/stmtctx","sessionctx/variable","store/tikv","store/tikv/oracle","store/tikv/oracle/oracles","store/tikv/tikvrpc","structure","tablecodec","terror","types","types/json","util","util/auth","util/charset","util/chunk","util/codec","util/format","util/goroutine_pool","util/hack","util/kvcache","util/logutil"]
-  revision = "1a812fc19b2327c1b701f930dc541e06450a4bc0"
+  packages = [
+    "config",
+    "kv",
+    "meta",
+    "meta/autoid",
+    "metrics",
+    "model",
+    "mysql",
+    "parser/opcode",
+    "sessionctx",
+    "sessionctx/binloginfo",
+    "sessionctx/stmtctx",
+    "sessionctx/variable",
+    "store/tikv",
+    "store/tikv/oracle",
+    "store/tikv/oracle/oracles",
+    "store/tikv/tikvrpc",
+    "structure",
+    "tablecodec",
+    "terror",
+    "types",
+    "types/json",
+    "util",
+    "util/auth",
+    "util/charset",
+    "util/chunk",
+    "util/codec",
+    "util/format",
+    "util/goroutine_pool",
+    "util/hack",
+    "util/kvcache",
+    "util/logutil",
+    "util/memory"
+  ]
+  revision = "cd15501cf94b006a2e4f1811da2db6f42856de1d"
 
 [[projects]]
   branch = "master"
   name = "github.com/pingcap/tipb"
-  packages = ["go-binlog","go-tipb","sharedbytes"]
-  revision = "b7be7b8a36454b0361b5b2ffc539a0b8f11cde07"
+  packages = [
+    "go-binlog",
+    "go-tipb",
+    "sharedbytes"
+  ]
+  revision = "7bd6d6a96d5ea70152e2bf5c3367c822adf4bee7"
+
+[[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
 
 [[projects]]
   name = "github.com/prometheus/client_golang"
@@ -159,20 +247,29 @@
 [[projects]]
   branch = "master"
   name = "github.com/prometheus/common"
-  packages = ["expfmt","internal/bitbucket.org/ww/goautoneg","model"]
-  revision = "6fb6fce6f8b75884b92e1889c150403fc0872c5e"
+  packages = [
+    "expfmt",
+    "internal/bitbucket.org/ww/goautoneg",
+    "model"
+  ]
+  revision = "d811d2e9bf898806ecfb6ef6296774b13ffc314c"
 
 [[projects]]
   branch = "master"
   name = "github.com/prometheus/procfs"
-  packages = [".","internal/util","nfs","xfs"]
-  revision = "d274e363d5759d1c916232217be421f1cc89c5fe"
+  packages = [
+    ".",
+    "internal/util",
+    "nfs",
+    "xfs"
+  ]
+  revision = "8b1c2da0d56deffdbb9e48d4414b4e674bd8083e"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "d682213848ed68c0a260ca37d6dd5ace8423f5ba"
-  version = "v1.0.4"
+  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
+  version = "v1.0.5"
 
 [[projects]]
   name = "github.com/spaolacci/murmur3"
@@ -184,59 +281,142 @@
   branch = "master"
   name = "github.com/spf13/cobra"
   packages = ["."]
-  revision = "c6c44e6fdcc30161c7f4480754da7230d01c06e3"
+  revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
 
 [[projects]]
   name = "github.com/spf13/pflag"
   packages = ["."]
-  revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
+  revision = "583c0c0531f06d5278b7d917446061adc344b5cd"
+  version = "v1.0.1"
+
+[[projects]]
+  name = "github.com/twinj/uuid"
+  packages = ["."]
+  revision = "835a10bbd6bce40820349a68b1368a62c3c5617c"
   version = "v1.0.0"
 
 [[projects]]
   name = "github.com/uber/jaeger-client-go"
-  packages = [".","config","internal/baggage","internal/baggage/remote","internal/spanlog","log","rpcmetrics","thrift-gen/agent","thrift-gen/baggage","thrift-gen/jaeger","thrift-gen/sampling","thrift-gen/zipkincore","utils"]
-  revision = "3ac96c6e679cb60a74589b0d0aa7c70a906183f7"
-  version = "v2.11.2"
+  packages = [
+    ".",
+    "config",
+    "internal/baggage",
+    "internal/baggage/remote",
+    "internal/spanlog",
+    "internal/throttler",
+    "internal/throttler/remote",
+    "log",
+    "rpcmetrics",
+    "thrift",
+    "thrift-gen/agent",
+    "thrift-gen/baggage",
+    "thrift-gen/jaeger",
+    "thrift-gen/sampling",
+    "thrift-gen/zipkincore",
+    "utils"
+  ]
+  revision = "b043381d944715b469fd6b37addfd30145ca1758"
+  version = "v2.14.0"
 
 [[projects]]
   name = "github.com/uber/jaeger-lib"
   packages = ["metrics"]
-  revision = "7f95f4f7e80028096410abddaae2556e4c61b59f"
-  version = "v1.3.1"
+  revision = "4267858c0679cd4e47cefed8d7f70fd386cfb567"
+  version = "v1.4.0"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "91a49db82a88618983a78a06c1cbd4e00ab749ab"
+  revision = "ae8bce0030810cf999bb2b9868ae5c7c58e6343b"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
-  revision = "22ae77b79946ea320088417e4d50825671d82d57"
+  packages = [
+    "context",
+    "http/httpguts",
+    "http2",
+    "http2/hpack",
+    "idna",
+    "internal/timeseries",
+    "lex/httplex",
+    "trace"
+  ]
+  revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = ["unix","windows"]
-  revision = "dd2ff4accc098aceecb86b36eaa7829b2a17b1c9"
+  packages = [
+    "unix",
+    "windows"
+  ]
+  revision = "4adea008a5e5f820b6028611ae0b6b3fbcec534b"
 
 [[projects]]
   name = "golang.org/x/text"
-  packages = ["collate","collate/build","encoding","encoding/charmap","encoding/internal","encoding/internal/identifier","encoding/japanese","encoding/korean","encoding/simplifiedchinese","encoding/traditionalchinese","encoding/unicode","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","internal/utf8internal","language","runes","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
+  packages = [
+    "collate",
+    "collate/build",
+    "encoding",
+    "encoding/charmap",
+    "encoding/internal",
+    "encoding/internal/identifier",
+    "encoding/japanese",
+    "encoding/korean",
+    "encoding/simplifiedchinese",
+    "encoding/traditionalchinese",
+    "encoding/unicode",
+    "internal/colltab",
+    "internal/gen",
+    "internal/tag",
+    "internal/triegen",
+    "internal/ucd",
+    "internal/utf8internal",
+    "language",
+    "runes",
+    "secure/bidirule",
+    "transform",
+    "unicode/bidi",
+    "unicode/cldr",
+    "unicode/norm",
+    "unicode/rangetable"
+  ]
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
 
 [[projects]]
   branch = "master"
   name = "google.golang.org/genproto"
-  packages = ["googleapis/api/annotations","googleapis/rpc/status"]
-  revision = "2c5e7ac708aaa719366570dd82bda44541ca2a63"
+  packages = [
+    "googleapis/api/annotations",
+    "googleapis/rpc/status"
+  ]
+  revision = "86e600f69ee4704c6efbf6a2a40a5c10700e76c2"
 
 [[projects]]
   name = "google.golang.org/grpc"
-  packages = [".","balancer","codes","connectivity","credentials","grpclb/grpc_lb_v1/messages","grpclog","health/grpc_health_v1","internal","keepalive","metadata","naming","peer","resolver","stats","status","tap","transport"]
+  packages = [
+    ".",
+    "balancer",
+    "codes",
+    "connectivity",
+    "credentials",
+    "grpclb/grpc_lb_v1/messages",
+    "grpclog",
+    "health/grpc_health_v1",
+    "internal",
+    "keepalive",
+    "metadata",
+    "naming",
+    "peer",
+    "resolver",
+    "stats",
+    "status",
+    "tap",
+    "transport"
+  ]
   revision = "5b3c4e850e90a4cf6a20ebd46c8b32a0a3afcb9e"
   source = "https://github.com/grpc/grpc-go.git"
   version = "v1.7.5"
@@ -250,6 +430,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "63d10d90d70bac14b4b94e539feae202ea7d24f4bce82b18dec1112de505e2ac"
+  inputs-digest = "5688e3f832b55a0bce62e8098c67d5eaec8b46468ef3a56055fe9b32a089f2c2"
   solver-name = "gps-cdcl"
   solver-version = 1

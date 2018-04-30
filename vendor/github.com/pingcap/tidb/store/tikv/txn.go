@@ -15,12 +15,14 @@ package tikv
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/juju/errors"
 	"github.com/pingcap/tidb/kv"
 	"github.com/pingcap/tidb/metrics"
-	"github.com/pingcap/tipb/go-binlog"
+	"github.com/pingcap/tidb/sessionctx"
+	binlog "github.com/pingcap/tipb/go-binlog"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -39,8 +41,10 @@ type tikvTxn struct {
 	commitTS  uint64
 	valid     bool
 	lockKeys  [][]byte
+	mu        sync.Mutex // For thread-safe LockKeys function.
 	dirty     bool
 	setCnt    int64
+	vars      *kv.Variables
 }
 
 func newTiKVTxn(store *tikvStore) (*tikvTxn, error) {
@@ -63,7 +67,13 @@ func newTikvTxnWithStartTS(store *tikvStore, startTS uint64) (*tikvTxn, error) {
 		startTS:   startTS,
 		startTime: time.Now(),
 		valid:     true,
+		vars:      kv.DefaultVars,
 	}, nil
+}
+
+func (txn *tikvTxn) SetVars(vars *kv.Variables) {
+	txn.vars = vars
+	txn.snapshot.vars = vars
 }
 
 // SetMemBufCap sets the transaction's MemBuffer capability, to reduce memory allocations.
@@ -168,7 +178,13 @@ func (txn *tikvTxn) Commit(ctx context.Context) error {
 		return errors.Trace(err)
 	}
 
-	committer, err := newTwoPhaseCommitter(txn)
+	// connID is used for log.
+	var connID uint64
+	val := ctx.Value(sessionctx.ConnID)
+	if val != nil {
+		connID = val.(uint64)
+	}
+	committer, err := newTwoPhaseCommitter(txn, connID)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -207,9 +223,11 @@ func (txn *tikvTxn) Rollback() error {
 
 func (txn *tikvTxn) LockKeys(keys ...kv.Key) error {
 	metrics.TiKVTxnCmdCounter.WithLabelValues("lock_keys").Inc()
+	txn.mu.Lock()
 	for _, key := range keys {
 		txn.lockKeys = append(txn.lockKeys, key)
 	}
+	txn.mu.Unlock()
 	return nil
 }
 

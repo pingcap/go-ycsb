@@ -15,6 +15,7 @@
 package tikv
 
 import (
+	"io"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -30,6 +31,7 @@ import (
 	"github.com/pingcap/tidb/metrics"
 	"github.com/pingcap/tidb/store/tikv/tikvrpc"
 	"github.com/pingcap/tidb/terror"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -37,7 +39,7 @@ import (
 
 // MaxConnectionCount is the max gRPC connections that will be established with
 // each tikv-server.
-var MaxConnectionCount = 16
+var MaxConnectionCount uint = 16
 
 // MaxSendMsgSize set max gRPC request message size sent to server. If any request message size is larger than
 // current value, an error will be reported from gRPC.
@@ -64,19 +66,22 @@ const (
 type Client interface {
 	// Close should release all data.
 	Close() error
-	// SendReq sends Request.
-	SendReq(ctx context.Context, addr string, req *tikvrpc.Request) (*tikvrpc.Response, error)
+	// SendRequest sends Request.
+	SendRequest(ctx context.Context, addr string, req *tikvrpc.Request, timeout time.Duration) (*tikvrpc.Response, error)
 }
 
 type connArray struct {
 	index uint32
 	v     []*grpc.ClientConn
+	// Bind with a background goroutine to process coprocessor streaming timeout.
+	streamTimeout chan *tikvrpc.Lease
 }
 
-func newConnArray(maxSize int, addr string, security config.Security) (*connArray, error) {
+func newConnArray(maxSize uint, addr string, security config.Security) (*connArray, error) {
 	a := &connArray{
-		index: 0,
-		v:     make([]*grpc.ClientConn, maxSize),
+		index:         0,
+		v:             make([]*grpc.ClientConn, maxSize),
+		streamTimeout: make(chan *tikvrpc.Lease, 1024),
 	}
 	if err := a.Init(addr, security); err != nil {
 		return nil, err
@@ -124,6 +129,8 @@ func (a *connArray) Init(addr string, security config.Security) error {
 		}
 		a.v[i] = conn
 	}
+	go tikvrpc.CheckStreamTimeoutLoop(a.streamTimeout)
+
 	return nil
 }
 
@@ -140,6 +147,7 @@ func (a *connArray) Close() {
 			a.v[i] = nil
 		}
 	}
+	close(a.streamTimeout)
 }
 
 // rpcClient is RPC client struct.
@@ -162,7 +170,7 @@ func newRPCClient(security config.Security) *rpcClient {
 	}
 }
 
-func (c *rpcClient) getConn(addr string) (*grpc.ClientConn, error) {
+func (c *rpcClient) getConnArray(addr string) (*connArray, error) {
 	c.RLock()
 	if c.isClosed {
 		c.RUnlock()
@@ -177,7 +185,7 @@ func (c *rpcClient) getConn(addr string) (*grpc.ClientConn, error) {
 			return nil, err
 		}
 	}
-	return array.Get(), nil
+	return array, nil
 }
 
 func (c *rpcClient) createConnArray(addr string) (*connArray, error) {
@@ -207,8 +215,8 @@ func (c *rpcClient) closeConns() {
 	c.Unlock()
 }
 
-// SendReq sends a Request to server and receives Response.
-func (c *rpcClient) SendReq(ctx context.Context, addr string, req *tikvrpc.Request) (*tikvrpc.Response, error) {
+// SendRequest sends a Request to server and receives Response.
+func (c *rpcClient) SendRequest(ctx context.Context, addr string, req *tikvrpc.Request, timeout time.Duration) (*tikvrpc.Response, error) {
 	start := time.Now()
 	reqType := req.Type.String()
 	storeID := strconv.FormatUint(req.Context.GetPeer().GetStoreId(), 10)
@@ -216,85 +224,44 @@ func (c *rpcClient) SendReq(ctx context.Context, addr string, req *tikvrpc.Reque
 		metrics.TiKVSendReqHistogram.WithLabelValues(reqType, storeID).Observe(time.Since(start).Seconds())
 	}()
 
-	conn, err := c.getConn(addr)
+	connArray, err := c.getConnArray(addr)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-	client := tikvpb.NewTikvClient(conn)
-	resp, err := c.callRPC(ctx, client, req)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	return resp, nil
-}
+	client := tikvpb.NewTikvClient(connArray.Get())
 
-func (c *rpcClient) callRPC(ctx context.Context, client tikvpb.TikvClient, req *tikvrpc.Request) (*tikvrpc.Response, error) {
-	resp := &tikvrpc.Response{}
-	resp.Type = req.Type
-	var err error
-	switch req.Type {
-	case tikvrpc.CmdGet:
-		resp.Get, err = client.KvGet(ctx, req.Get)
-	case tikvrpc.CmdScan:
-		resp.Scan, err = client.KvScan(ctx, req.Scan)
-	case tikvrpc.CmdPrewrite:
-		resp.Prewrite, err = client.KvPrewrite(ctx, req.Prewrite)
-	case tikvrpc.CmdCommit:
-		resp.Commit, err = client.KvCommit(ctx, req.Commit)
-	case tikvrpc.CmdCleanup:
-		resp.Cleanup, err = client.KvCleanup(ctx, req.Cleanup)
-	case tikvrpc.CmdBatchGet:
-		resp.BatchGet, err = client.KvBatchGet(ctx, req.BatchGet)
-	case tikvrpc.CmdBatchRollback:
-		resp.BatchRollback, err = client.KvBatchRollback(ctx, req.BatchRollback)
-	case tikvrpc.CmdScanLock:
-		resp.ScanLock, err = client.KvScanLock(ctx, req.ScanLock)
-	case tikvrpc.CmdResolveLock:
-		resp.ResolveLock, err = client.KvResolveLock(ctx, req.ResolveLock)
-	case tikvrpc.CmdGC:
-		resp.GC, err = client.KvGC(ctx, req.GC)
-	case tikvrpc.CmdDeleteRange:
-		resp.DeleteRange, err = client.KvDeleteRange(ctx, req.DeleteRange)
-	case tikvrpc.CmdRawGet:
-		resp.RawGet, err = client.RawGet(ctx, req.RawGet)
-	case tikvrpc.CmdRawPut:
-		resp.RawPut, err = client.RawPut(ctx, req.RawPut)
-	case tikvrpc.CmdRawDelete:
-		resp.RawDelete, err = client.RawDelete(ctx, req.RawDelete)
-	case tikvrpc.CmdRawScan:
-		resp.RawScan, err = client.RawScan(ctx, req.RawScan)
-	case tikvrpc.CmdCop:
-		resp.Cop, err = client.Coprocessor(ctx, req.Cop)
-	case tikvrpc.CmdCopStream:
-		var stream tikvpb.Tikv_CoprocessorStreamClient
-		stream, err = client.CoprocessorStream(ctx, req.Cop)
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
-		// Read the first streaming response to get CopStreamResponse.
-		// This can make error handling much easier, because SendReq() retry on
-		// region error automatically.
-		var first *coprocessor.Response
-		first, err = resp.CopStream.Recv()
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
-		resp.CopStream = &tikvrpc.CopStreamResponse{
-			Tikv_CoprocessorStreamClient: stream,
-			Response:                     first,
-		}
-	case tikvrpc.CmdMvccGetByKey:
-		resp.MvccGetByKey, err = client.MvccGetByKey(ctx, req.MvccGetByKey)
-	case tikvrpc.CmdMvccGetByStartTs:
-		resp.MvccGetByStartTS, err = client.MvccGetByStartTs(ctx, req.MvccGetByStartTs)
-	case tikvrpc.CmdSplitRegion:
-		resp.SplitRegion, err = client.SplitRegion(ctx, req.SplitRegion)
-	default:
-		return nil, errors.Errorf("invalid request type: %v", req.Type)
+	if req.Type != tikvrpc.CmdCopStream {
+		ctx1, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		return tikvrpc.CallRPC(ctx1, client, req)
 	}
+
+	// Coprocessor streaming request.
+	// Use context to support timeout for grpc streaming client.
+	ctx1, cancel := context.WithCancel(ctx)
+	resp, err := tikvrpc.CallRPC(ctx1, client, req)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+
+	// Put the lease object to the timeout channel, so it would be checked periodically.
+	copStream := resp.CopStream
+	copStream.Timeout = timeout
+	copStream.Lease.Cancel = cancel
+	connArray.streamTimeout <- &copStream.Lease
+
+	// Read the first streaming response to get CopStreamResponse.
+	// This can make error handling much easier, because SendReq() retry on
+	// region error automatically.
+	var first *coprocessor.Response
+	first, err = copStream.Recv()
+	if err != nil {
+		if errors.Cause(err) != io.EOF {
+			return nil, errors.Trace(err)
+		}
+		log.Debug("copstream returns nothing for the request.")
+	}
+	copStream.Response = first
 	return resp, nil
 }
 

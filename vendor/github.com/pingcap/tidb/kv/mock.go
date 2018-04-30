@@ -113,6 +113,10 @@ func (t *mockTxn) Reset() {
 	t.valid = false
 }
 
+func (t *mockTxn) SetVars(vars *Variables) {
+
+}
+
 // NewMockTxn new a mockTxn.
 func NewMockTxn() Transaction {
 	return &mockTxn{
@@ -186,6 +190,10 @@ type mockSnapshot struct {
 
 func (s *mockSnapshot) Get(k Key) ([]byte, error) {
 	return s.store.Get(k)
+}
+
+func (s *mockSnapshot) SetPriority(priority int) {
+
 }
 
 func (s *mockSnapshot) BatchGet(keys []Key) (map[string][]byte, error) {
