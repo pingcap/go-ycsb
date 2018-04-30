@@ -12,6 +12,10 @@ make
 ./bin/go-ycsb
 ```
 
+Notice:
+
++ To use FoundationDB, you must install [client](https://www.foundationdb.org/download/) library at first.
+
 ## Usage 
 
 Mostly, we can start from the offical document [Running-a-Workload](https://github.com/brianfrankcooper/YCSB/wiki/Running-a-Workload).
@@ -53,6 +57,19 @@ Available Commands:
 - basic
 - mysql
 - tikv
+- foundationdb
+
+## Database Configuration
+
+You can pass the database configuraitons through `-p field=value` in the command line directly.
+
+### FoundationDB
+
+|field|default value|description|
+|-|-|-|
+|fdb.cluster|""|The cluster file used for FoundationDB, if not set, will use the [default](https://apple.github.io/foundationdb/administration.html#default-cluster-file)|
+|fdb.dbname|"DB"|The cluster database name|
+|fdb.apiversion|510|API version, now only 5.1 is supported|
 
 ## TODO
 
