@@ -92,6 +92,9 @@ func initialGlobal(dbName string, onProperties func()) {
 	}
 
 	dbCreator := ycsb.GetDBCreator(dbName)
+	if dbCreator == nil {
+		util.Fatalf("%s is not registered", dbName)
+	}
 	if globalDB, err = dbCreator.Create(globalProps); err != nil {
 		util.Fatalf("create db %s failed %v", dbName, err)
 	}
