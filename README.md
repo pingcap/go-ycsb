@@ -57,7 +57,7 @@ Available Commands:
 - basic
 - mysql
 - tikv
-- foundationdb
+- foundationdb or fdb
 
 ## Database Configuration
 

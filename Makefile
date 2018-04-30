@@ -1,5 +1,4 @@
 FDBCLI_VERSION := $(shell fdbcli -v 2>/dev/null)
-TAGS=
 
 default: build
 
