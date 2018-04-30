@@ -44,8 +44,8 @@ func createRawDB(p *properties.Properties) (ycsb.DB, error) {
 		return nil, err
 	}
 
-	fieldIndices := createFieldIndices(p)
-	fields := allFields(p)
+	fieldIndices := util.CreateFieldIndices(p)
+	fields := util.AllFields(p)
 	bufPool := util.NewBufPool()
 
 	return &rawDB{

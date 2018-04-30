@@ -46,12 +46,12 @@ func RandBytes(r *rand.Rand, b []byte) {
 
 // BufPool is a bytes.Buffer pool
 type BufPool struct {
-	p sync.Pool
+	p *sync.Pool
 }
 
 // NewBufPool creates a buffer pool.
 func NewBufPool() *BufPool {
-	p := sync.Pool{
+	p := &sync.Pool{
 		New: func() interface{} {
 			return new(bytes.Buffer)
 		},

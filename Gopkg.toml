@@ -66,3 +66,7 @@
 [[override]]
   name = "github.com/grpc-ecosystem/go-grpc-middleware"
   revision = "82921fcf811d228d2fa202bc31238b356bf9f8d5"
+
+[[constraint]]
+  name = "github.com/apple/foundationdb"
+  version = "5.1.0"

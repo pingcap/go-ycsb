@@ -7,6 +7,13 @@
 //
 // Release history and compatibility issues
 //
+// 2018-04-25: New functions for determing Max/Min of nullable values. Ex:
+//  func MaxPtr(a, b *int) *int {
+//  func MinPtr(a, b *int) *int {
+//  func MaxBytePtr(a, b *byte) *byte {
+//  func MinBytePtr(a, b *byte) *byte {
+//  ...
+//
 // 2017-10-14: New variadic functions for Max/Min. Ex:
 //  func MaxVal(val int, vals ...int) int {
 //  func MinVal(val int, vals ...int) int {
@@ -638,6 +645,36 @@ func Min(a, b int) int {
 	return b
 }
 
+// MaxPtr returns a pointer to the larger of a and b, or nil.
+func MaxPtr(a, b *int) *int {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a > *b {
+		return a
+	}
+
+	return b
+}
+
+// MinPtr returns a pointer to the smaller of a and b, or nil.
+func MinPtr(a, b *int) *int {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a < *b {
+		return a
+	}
+
+	return b
+}
+
 // MaxVal returns the largest argument passed.
 func MaxVal(val int, vals ...int) int {
 	res := val
@@ -677,6 +714,36 @@ func UMax(a, b uint) uint {
 // UMin returns the smaller of a and b.
 func UMin(a, b uint) uint {
 	if a < b {
+		return a
+	}
+
+	return b
+}
+
+// UMaxPtr returns a pointer to the larger of a and b, or nil.
+func UMaxPtr(a, b *uint) *uint {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a > *b {
+		return a
+	}
+
+	return b
+}
+
+// UMinPtr returns a pointer to the smaller of a and b, or nil.
+func UMinPtr(a, b *uint) *uint {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a < *b {
 		return a
 	}
 
@@ -728,6 +795,36 @@ func MinByte(a, b byte) byte {
 	return b
 }
 
+// MaxBytePtr returns a pointer to the larger of a and b, or nil.
+func MaxBytePtr(a, b *byte) *byte {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a > *b {
+		return a
+	}
+
+	return b
+}
+
+// MinBytePtr returns a pointer to the smaller of a and b, or nil.
+func MinBytePtr(a, b *byte) *byte {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a < *b {
+		return a
+	}
+
+	return b
+}
+
 // MaxByteVal returns the largest argument passed.
 func MaxByteVal(val byte, vals ...byte) byte {
 	res := val
@@ -767,6 +864,36 @@ func MaxInt8(a, b int8) int8 {
 // MinInt8 returns the smaller of a and b.
 func MinInt8(a, b int8) int8 {
 	if a < b {
+		return a
+	}
+
+	return b
+}
+
+// MaxInt8Ptr returns a pointer to the larger of a and b, or nil.
+func MaxInt8Ptr(a, b *int8) *int8 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a > *b {
+		return a
+	}
+
+	return b
+}
+
+// MinInt8Ptr returns a pointer to the smaller of a and b, or nil.
+func MinInt8Ptr(a, b *int8) *int8 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a < *b {
 		return a
 	}
 
@@ -818,6 +945,36 @@ func MinUint16(a, b uint16) uint16 {
 	return b
 }
 
+// MaxUint16Ptr returns a pointer to the larger of a and b, or nil.
+func MaxUint16Ptr(a, b *uint16) *uint16 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a > *b {
+		return a
+	}
+
+	return b
+}
+
+// MinUint16Ptr returns a pointer to the smaller of a and b, or nil.
+func MinUint16Ptr(a, b *uint16) *uint16 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a < *b {
+		return a
+	}
+
+	return b
+}
+
 // MaxUint16Val returns the largest argument passed.
 func MaxUint16Val(val uint16, vals ...uint16) uint16 {
 	res := val
@@ -857,6 +1014,36 @@ func MaxInt16(a, b int16) int16 {
 // MinInt16 returns the smaller of a and b.
 func MinInt16(a, b int16) int16 {
 	if a < b {
+		return a
+	}
+
+	return b
+}
+
+// MaxInt16Ptr returns a pointer to the larger of a and b, or nil.
+func MaxInt16Ptr(a, b *int16) *int16 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a > *b {
+		return a
+	}
+
+	return b
+}
+
+// MinInt16Ptr returns a pointer to the smaller of a and b, or nil.
+func MinInt16Ptr(a, b *int16) *int16 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a < *b {
 		return a
 	}
 
@@ -908,6 +1095,36 @@ func MinUint32(a, b uint32) uint32 {
 	return b
 }
 
+// MaxUint32Ptr returns a pointer to the larger of a and b, or nil.
+func MaxUint32Ptr(a, b *uint32) *uint32 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a > *b {
+		return a
+	}
+
+	return b
+}
+
+// MinUint32Ptr returns a pointer to the smaller of a and b, or nil.
+func MinUint32Ptr(a, b *uint32) *uint32 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a < *b {
+		return a
+	}
+
+	return b
+}
+
 // MaxUint32Val returns the largest argument passed.
 func MaxUint32Val(val uint32, vals ...uint32) uint32 {
 	res := val
@@ -947,6 +1164,36 @@ func MaxInt32(a, b int32) int32 {
 // MinInt32 returns the smaller of a and b.
 func MinInt32(a, b int32) int32 {
 	if a < b {
+		return a
+	}
+
+	return b
+}
+
+// MaxInt32Ptr returns a pointer to the larger of a and b, or nil.
+func MaxInt32Ptr(a, b *int32) *int32 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a > *b {
+		return a
+	}
+
+	return b
+}
+
+// MinInt32Ptr returns a pointer to the smaller of a and b, or nil.
+func MinInt32Ptr(a, b *int32) *int32 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a < *b {
 		return a
 	}
 
@@ -998,6 +1245,36 @@ func MinUint64(a, b uint64) uint64 {
 	return b
 }
 
+// MaxUint64Ptr returns a pointer to the larger of a and b, or nil.
+func MaxUint64Ptr(a, b *uint64) *uint64 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a > *b {
+		return a
+	}
+
+	return b
+}
+
+// MinUint64Ptr returns a pointer to the smaller of a and b, or nil.
+func MinUint64Ptr(a, b *uint64) *uint64 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a < *b {
+		return a
+	}
+
+	return b
+}
+
 // MaxUint64Val returns the largest argument passed.
 func MaxUint64Val(val uint64, vals ...uint64) uint64 {
 	res := val
@@ -1037,6 +1314,36 @@ func MaxInt64(a, b int64) int64 {
 // MinInt64 returns the smaller of a and b.
 func MinInt64(a, b int64) int64 {
 	if a < b {
+		return a
+	}
+
+	return b
+}
+
+// MaxInt64Ptr returns a pointer to the larger of a and b, or nil.
+func MaxInt64Ptr(a, b *int64) *int64 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a > *b {
+		return a
+	}
+
+	return b
+}
+
+// MinInt64Ptr returns a pointer to the smaller of a and b, or nil.
+func MinInt64Ptr(a, b *int64) *int64 {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	if *a < *b {
 		return a
 	}
 

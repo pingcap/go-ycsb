@@ -144,12 +144,14 @@ type Transaction interface {
 	GetMemBuffer() MemBuffer
 	// GetSnapshot returns the snapshot of this transaction.
 	GetSnapshot() Snapshot
+	// SetVars sets variables to the transaction.
+	SetVars(vars *Variables)
 }
 
 // Client is used to send request to KV layer.
 type Client interface {
 	// Send sends request to KV layer, returns a Response.
-	Send(ctx context.Context, req *Request) Response
+	Send(ctx context.Context, req *Request, vars *Variables) Response
 
 	// IsRequestTypeSupported checks if reqType and subType is supported.
 	IsRequestTypeSupported(reqType, subType int64) bool
@@ -157,10 +159,11 @@ type Client interface {
 
 // ReqTypes.
 const (
-	ReqTypeSelect  = 101
-	ReqTypeIndex   = 102
-	ReqTypeDAG     = 103
-	ReqTypeAnalyze = 104
+	ReqTypeSelect   = 101
+	ReqTypeIndex    = 102
+	ReqTypeDAG      = 103
+	ReqTypeAnalyze  = 104
+	ReqTypeChecksum = 105
 
 	ReqSubTypeBasic      = 0
 	ReqSubTypeDesc       = 10000
@@ -204,6 +207,8 @@ type Request struct {
 type ResultSubset interface {
 	// GetData gets the data.
 	GetData() []byte
+	// GetStartKey gets the start key.
+	GetStartKey() Key
 }
 
 // Response represents the response returned from KV layer.
@@ -220,6 +225,8 @@ type Snapshot interface {
 	Retriever
 	// BatchGet gets a batch of values from snapshot.
 	BatchGet(keys []Key) (map[string][]byte, error)
+	// SetPriority snapshot set the priority
+	SetPriority(priority int)
 }
 
 // Driver is the interface that must be implemented by a KV storage.

@@ -17,7 +17,6 @@ import (
 	"fmt"
 
 	"github.com/magiconair/properties"
-	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
@@ -42,26 +41,6 @@ func (c tikvCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	default:
 		return nil, fmt.Errorf("unsupported type %s", tp)
 	}
-}
-
-func createFieldIndices(p *properties.Properties) map[string]int64 {
-	fieldCount := p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
-	m := make(map[string]int64, fieldCount)
-	for i := int64(0); i < fieldCount; i++ {
-		field := fmt.Sprintf("field%d", i)
-		m[field] = i
-	}
-	return m
-}
-
-func allFields(p *properties.Properties) []string {
-	fieldCount := p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
-	fields := make([]string, 0, fieldCount)
-	for i := int64(0); i < fieldCount; i++ {
-		field := fmt.Sprintf("field%d", i)
-		fields = append(fields, field)
-	}
-	return fields
 }
 
 func init() {
