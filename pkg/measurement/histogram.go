@@ -31,10 +31,12 @@ type histogram struct {
 	sum         int64
 	min         int64
 	max         int64
+	startTime   time.Time
 }
 
 func newHistogram(_ *properties.Properties) *histogram {
 	h := new(histogram)
+	h.startTime = time.Now()
 	// TODO: support defining buckets from properties
 	// bucket unit is 1ms
 	h.upperBounds = make([]int, 1024)
@@ -108,8 +110,13 @@ func (h *histogram) Summary() string {
 		}
 	}
 
+	elapsed := time.Now().Sub(h.startTime).Seconds()
+	qps := float64(count) / elapsed
+
 	buf := new(bytes.Buffer)
+	buf.WriteString(fmt.Sprintf("Takes(s): %.1f, ", elapsed))
 	buf.WriteString(fmt.Sprintf("Count: %d, ", count))
+	buf.WriteString(fmt.Sprintf("QPS: %.1f, ", qps))
 	buf.WriteString(fmt.Sprintf("Avg(us): %d, ", avg))
 	buf.WriteString(fmt.Sprintf("Min(us): %d, ", min))
 	buf.WriteString(fmt.Sprintf("Max(us): %d, ", max))
