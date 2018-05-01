@@ -69,6 +69,26 @@ Available Commands:
 
 You can pass the database configuraitons through `-p field=value` in the command line directly.
 
+### mysql
+
+|field|default value|description|
+|-|-|-|
+|mysql.host|"127.0.0.1"|MySQL Host|
+|mysql.port|3306|MySQL Port|
+|mysql.user|"root"|MySQL User|
+|mysql.passowrd||MySQL Password|
+|mysql.db|"test"|MySQL Database|
+|mysql.verbose|false|Output the execution query|
+|mysql.droptable|false|Drop Table at first|
+
+### TiKV
+
+|field|default value|description|
+|-|-|-|
+|tikv.pd|"127.0.0.1:2379"|PD endpoints, seperated by comma|
+|tikv.type|"raw"|TiKV mode, "raw", "txn", or "coprocessor"|
+
+
 ### FoundationDB
 
 |field|default value|description|
