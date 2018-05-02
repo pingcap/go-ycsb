@@ -16,7 +16,6 @@
 package foundationdb
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 
@@ -24,10 +23,6 @@ import (
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
-	"github.com/pingcap/tidb/mysql"
-	"github.com/pingcap/tidb/sessionctx/stmtctx"
-	"github.com/pingcap/tidb/tablecodec"
-	"github.com/pingcap/tidb/types"
 )
 
 const (
@@ -37,10 +32,9 @@ const (
 )
 
 type fDB struct {
-	db           fdb.Database
-	fieldIndices map[string]int64
-	fields       []string
-	bufPool      *util.BufPool
+	db      fdb.Database
+	r       *util.RowCodec
+	bufPool *util.BufPool
 }
 
 func createDB(p *properties.Properties) (ycsb.DB, error) {
@@ -55,15 +49,12 @@ func createDB(p *properties.Properties) (ycsb.DB, error) {
 		return nil, err
 	}
 
-	fieldIndices := util.CreateFieldIndices(p)
-	fields := util.AllFields(p)
 	bufPool := util.NewBufPool()
 
 	return &fDB{
-		db:           db,
-		fieldIndices: fieldIndices,
-		fields:       fields,
-		bufPool:      bufPool,
+		db:      db,
+		r:       util.NewRowCodec(p),
+		bufPool: bufPool,
 	}, nil
 }
 
@@ -87,52 +78,6 @@ func (db *fDB) getEndRowKey(table string) []byte {
 	return util.Slice(fmt.Sprintf("%s;", table))
 }
 
-func (db *fDB) decodeRow(ctx context.Context, row []byte, fields []string) (map[string][]byte, error) {
-	if len(fields) == 0 {
-		fields = db.fields
-	}
-
-	cols := make(map[int64]*types.FieldType, len(fields))
-	fieldType := types.NewFieldType(mysql.TypeVarchar)
-
-	for _, field := range fields {
-		i := db.fieldIndices[field]
-		cols[i] = fieldType
-	}
-
-	data, err := tablecodec.DecodeRow(row, cols, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	res := make(map[string][]byte, len(fields))
-	for _, field := range fields {
-		i := db.fieldIndices[field]
-		if v, ok := data[i]; ok {
-			res[field] = v.GetBytes()
-		}
-	}
-
-	return res, nil
-}
-
-func (db *fDB) createRowData(buf *bytes.Buffer, values map[string][]byte) ([]byte, error) {
-	cols := make([]types.Datum, 0, len(values))
-	colIDs := make([]int64, 0, len(values))
-
-	for k, v := range values {
-		i := db.fieldIndices[k]
-		var d types.Datum
-		d.SetBytes(v)
-
-		cols = append(cols, d)
-		colIDs = append(colIDs, i)
-	}
-
-	rowData, err := tablecodec.EncodeRow(&stmtctx.StatementContext{}, cols, colIDs, buf.Bytes(), nil)
-	return rowData, err
-}
-
 func (db *fDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	rowKey := db.getRowKey(table, key)
 	row, err := db.db.Transact(func(tr fdb.Transaction) (interface{}, error) {
@@ -146,7 +91,7 @@ func (db *fDB) Read(ctx context.Context, table string, key string, fields []stri
 		return nil, nil
 	}
 
-	return db.decodeRow(ctx, row.([]byte), fields)
+	return db.r.Decode(row.([]byte), fields)
 }
 
 func (db *fDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
@@ -167,7 +112,7 @@ func (db *fDB) Scan(ctx context.Context, table string, startKey string, count in
 			if kv.Value == nil {
 				res = append(res, nil)
 			} else {
-				v, err := db.decodeRow(ctx, kv.Value, fields)
+				v, err := db.r.Decode(kv.Value, fields)
 				if err != nil {
 					return nil, err
 				}
@@ -195,7 +140,7 @@ func (db *fDB) Update(ctx context.Context, table string, key string, values map[
 			return nil, nil
 		}
 
-		data, err := db.decodeRow(ctx, row, nil)
+		data, err := db.r.Decode(row, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -207,7 +152,7 @@ func (db *fDB) Update(ctx context.Context, table string, key string, values map[
 		buf := db.bufPool.Get()
 		defer db.bufPool.Put(buf)
 
-		rowData, err := db.createRowData(buf, data)
+		rowData, err := db.r.Encode(buf.Bytes(), data)
 		if err != nil {
 			return nil, err
 		}
@@ -224,7 +169,7 @@ func (db *fDB) Insert(ctx context.Context, table string, key string, values map[
 	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
 
-	rowData, err := db.createRowData(buf, values)
+	rowData, err := db.r.Encode(buf.Bytes(), values)
 	if err != nil {
 		return err
 	}

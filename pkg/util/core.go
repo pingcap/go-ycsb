@@ -18,11 +18,15 @@ import (
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/prop"
+	"github.com/pingcap/tidb/mysql"
+	"github.com/pingcap/tidb/sessionctx/stmtctx"
+	"github.com/pingcap/tidb/tablecodec"
+	"github.com/pingcap/tidb/types"
 )
 
-// CreateFieldIndices is a helper function to create a field -> index mapping
+// createFieldIndices is a helper function to create a field -> index mapping
 // for the core workload
-func CreateFieldIndices(p *properties.Properties) map[string]int64 {
+func createFieldIndices(p *properties.Properties) map[string]int64 {
 	fieldCount := p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
 	m := make(map[string]int64, fieldCount)
 	for i := int64(0); i < fieldCount; i++ {
@@ -32,8 +36,8 @@ func CreateFieldIndices(p *properties.Properties) map[string]int64 {
 	return m
 }
 
-// AllFields is a helper function to create all fields
-func AllFields(p *properties.Properties) []string {
+// allFields is a helper function to create all fields
+func allFields(p *properties.Properties) []string {
 	fieldCount := p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
 	fields := make([]string, 0, fieldCount)
 	for i := int64(0); i < fieldCount; i++ {
@@ -41,4 +45,66 @@ func AllFields(p *properties.Properties) []string {
 		fields = append(fields, field)
 	}
 	return fields
+}
+
+// RowCodec is a helper struct to encode and decode TiDB format row
+type RowCodec struct {
+	fieldIndices map[string]int64
+	fields       []string
+}
+
+// NewRowCodec creates the RowCodec
+func NewRowCodec(p *properties.Properties) *RowCodec {
+	return &RowCodec{
+		fieldIndices: createFieldIndices(p),
+		fields:       allFields(p),
+	}
+}
+
+// Decode decodes the row and returns a field-value map
+func (r *RowCodec) Decode(row []byte, fields []string) (map[string][]byte, error) {
+	if len(fields) == 0 {
+		fields = r.fields
+	}
+
+	cols := make(map[int64]*types.FieldType, len(fields))
+	fieldType := types.NewFieldType(mysql.TypeVarchar)
+
+	for _, field := range fields {
+		i := r.fieldIndices[field]
+		cols[i] = fieldType
+	}
+
+	data, err := tablecodec.DecodeRow(row, cols, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make(map[string][]byte, len(fields))
+	for _, field := range fields {
+		i := r.fieldIndices[field]
+		if v, ok := data[i]; ok {
+			res[field] = v.GetBytes()
+		}
+	}
+
+	return res, nil
+}
+
+// Encode encodes the values
+func (r *RowCodec) Encode(buf []byte, values map[string][]byte) ([]byte, error) {
+	cols := make([]types.Datum, 0, len(values))
+	colIDs := make([]int64, 0, len(values))
+
+	for k, v := range values {
+		i := r.fieldIndices[k]
+		var d types.Datum
+		d.SetBytes(v)
+
+		cols = append(cols, d)
+		colIDs = append(colIDs, i)
+	}
+
+	rowData, err := tablecodec.EncodeRow(&stmtctx.StatementContext{}, cols, colIDs, buf, nil)
+	return rowData, err
 }
