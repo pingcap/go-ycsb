@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/magiconair/properties"
 
@@ -112,10 +113,23 @@ func main() {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
+	closeDone := make(chan struct{}, 1)
 	go func() {
 		sig := <-sc
 		fmt.Printf("\nGot signal [%v] to exit.\n", sig)
 		globalCancel()
+
+		select {
+		case <-sc:
+			// send signal again, return directly
+			fmt.Printf("\nGot signal [%v] again to exit.\n", sig)
+			os.Exit(1)
+		case <-time.After(10 * time.Second):
+			fmt.Print("\nWait 10s for closed, force exit\n")
+			os.Exit(1)
+		case <-closeDone:
+			return
+		}
 	}()
 
 	rootCmd := &cobra.Command{
@@ -143,4 +157,6 @@ func main() {
 	if globalWorkload != nil {
 		globalWorkload.Close()
 	}
+
+	closeDone <- struct{}{}
 }

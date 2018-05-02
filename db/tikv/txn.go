@@ -16,6 +16,7 @@ package tikv
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
@@ -32,7 +33,7 @@ type txnDB struct {
 
 func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	tikv.MaxConnectionCount = 128
+	pdAddr = strings.TrimLeft(pdAddr, "http://")
 
 	tikv.MaxConnectionCount = 128
 	driver := tikv.Driver{}
