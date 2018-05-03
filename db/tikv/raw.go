@@ -22,18 +22,13 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/pingcap/tidb/config"
-	"github.com/pingcap/tidb/mysql"
-	"github.com/pingcap/tidb/sessionctx/stmtctx"
 	"github.com/pingcap/tidb/store/tikv"
-	"github.com/pingcap/tidb/tablecodec"
-	"github.com/pingcap/tidb/types"
 )
 
 type rawDB struct {
-	db           *tikv.RawKVClient
-	fieldIndices map[string]int64
-	fields       []string
-	bufPool      *util.BufPool
+	db      *tikv.RawKVClient
+	r       *util.RowCodec
+	bufPool *util.BufPool
 }
 
 func createRawDB(p *properties.Properties) (ycsb.DB, error) {
@@ -44,15 +39,12 @@ func createRawDB(p *properties.Properties) (ycsb.DB, error) {
 		return nil, err
 	}
 
-	fieldIndices := util.CreateFieldIndices(p)
-	fields := util.AllFields(p)
 	bufPool := util.NewBufPool()
 
 	return &rawDB{
-		db:           db,
-		fieldIndices: fieldIndices,
-		fields:       fields,
-		bufPool:      bufPool}, nil
+		db:      db,
+		r:       util.NewRowCodec(p),
+		bufPool: bufPool}, nil
 }
 
 func (db *rawDB) Close() error {
@@ -70,35 +62,6 @@ func (db *rawDB) getRowKey(table string, key string) []byte {
 	return util.Slice(fmt.Sprintf("%s:%s", table, key))
 }
 
-func (db *rawDB) decodeRow(ctx context.Context, row []byte, fields []string) (map[string][]byte, error) {
-	if len(fields) == 0 {
-		fields = db.fields
-	}
-
-	cols := make(map[int64]*types.FieldType, len(fields))
-	fieldType := types.NewFieldType(mysql.TypeVarchar)
-
-	for _, field := range fields {
-		i := db.fieldIndices[field]
-		cols[i] = fieldType
-	}
-
-	data, err := tablecodec.DecodeRow(row, cols, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	res := make(map[string][]byte, len(fields))
-	for _, field := range fields {
-		i := db.fieldIndices[field]
-		if v, ok := data[i]; ok {
-			res[field] = v.GetBytes()
-		}
-	}
-
-	return res, nil
-}
-
 func (db *rawDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	row, err := db.db.Get(db.getRowKey(table, key))
 	if err != nil {
@@ -107,7 +70,7 @@ func (db *rawDB) Read(ctx context.Context, table string, key string, fields []st
 		return nil, nil
 	}
 
-	return db.decodeRow(ctx, row, fields)
+	return db.r.Decode(row, fields)
 }
 
 func (db *rawDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
@@ -123,7 +86,7 @@ func (db *rawDB) Scan(ctx context.Context, table string, startKey string, count 
 			continue
 		}
 
-		v, err := db.decodeRow(ctx, row, fields)
+		v, err := db.r.Decode(row, fields)
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +102,7 @@ func (db *rawDB) Update(ctx context.Context, table string, key string, values ma
 		return nil
 	}
 
-	data, err := db.decodeRow(ctx, row, nil)
+	data, err := db.r.Decode(row, nil)
 	if err != nil {
 		return err
 	}
@@ -157,19 +120,7 @@ func (db *rawDB) Insert(ctx context.Context, table string, key string, values ma
 	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
 
-	cols := make([]types.Datum, 0, len(values))
-	colIDs := make([]int64, 0, len(values))
-
-	for k, v := range values {
-		i := db.fieldIndices[k]
-		var d types.Datum
-		d.SetBytes(v)
-
-		cols = append(cols, d)
-		colIDs = append(colIDs, i)
-	}
-
-	rowData, err := tablecodec.EncodeRow(&stmtctx.StatementContext{}, cols, colIDs, buf.Bytes(), nil)
+	rowData, err := db.r.Encode(buf.Bytes(), values)
 	if err != nil {
 		return err
 	}

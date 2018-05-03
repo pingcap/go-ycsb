@@ -35,7 +35,7 @@ func (c tikvCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	case "raw":
 		return createRawDB(p)
 	case "txn":
-		return nil, fmt.Errorf("txn is not supported now for TiKV")
+		return createTxnDB(p)
 	case "coprocessor":
 		return nil, fmt.Errorf("coprocessor is not supported now for TiKV")
 	default:
