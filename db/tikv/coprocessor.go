@@ -24,6 +24,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+func createCoprocessorDB(p *properties.Properties) (ycsb.DB, error) {
+	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
+	tikv.MaxConnectionCount = 128
+	driver := tikv.Driver{}
+	db, err := driver.Open(fmt.Sprintf("tikv://%s?disableGC=true", pdAddr))
+	if err != nil {
+		return nil, err
+	}
+	return &coprocessor{db: db, table: util.NewTable(p), bufPool: util.NewBufPool()}, nil
+}
+
 type coprocessor struct {
 	db      kv.Storage
 	table   *util.Table
@@ -42,11 +53,32 @@ func (db *coprocessor) CleanupThread(ctx context.Context) {
 }
 
 func (db *coprocessor) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
-	return nil, errors.New("unsupported type of read in coprocessor")
+	// construct the req
+	req := kv.Request{}
+	req.Concurrency = 1
+	req.Tp = kv.ReqTypeDAG
+	req.KeyRanges = []kv.KeyRange{db.table.GetPointRange(key)}
+	dag := db.table.DAGTableScan(fields)
+	req.StartTs = dag.StartTs
+	data, err := dag.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	req.Data = data
+	// send request
+	client := db.db.GetClient()
+	res := client.Send(ctx, &req, nil)
+	defer res.Close()
+	result, err := res.Next(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return db.table.DecodeValue(result.GetData(), fields)
 }
 
 func (db *coprocessor) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
-	panic("implement me")
+
+	return nil, errors.New("unsupported type of scan in coprocessor")
 }
 
 func (db *coprocessor) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -58,12 +90,12 @@ func (db *coprocessor) Insert(ctx context.Context, table string, key string, val
 	defer db.bufPool.Put(buf)
 	// encode key
 	rowKey := db.table.EncodeKey(key)
-	// encode value
+	// encode values
 	rowValue, err := db.table.EncodeValue(buf.Bytes(), values)
 	if err != nil {
 		return err
 	}
-	// do transaction
+	// do insert transaction
 	tx, err := db.db.Begin()
 	if err != nil {
 		return err
@@ -79,15 +111,4 @@ func (db *coprocessor) Insert(ctx context.Context, table string, key string, val
 
 func (db *coprocessor) Delete(ctx context.Context, table string, key string) error {
 	return errors.New("unsupported type of delete in coprocessor")
-}
-
-func createCoprocessorDB(p *properties.Properties) (ycsb.DB, error) {
-	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	tikv.MaxConnectionCount = 128
-	driver := tikv.Driver{}
-	db, err := driver.Open(fmt.Sprintf("tikv://%s?disableGC=true", pdAddr))
-	if err != nil {
-		return nil, err
-	}
-	return &coprocessor{db: db, table: util.NewTable(p), bufPool: util.NewBufPool()}, nil
 }
