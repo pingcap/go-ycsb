@@ -58,7 +58,7 @@ func (db *coprocessor) Read(ctx context.Context, table string, key string, field
 	req.Concurrency = 1
 	req.Tp = kv.ReqTypeDAG
 	req.KeyRanges = []kv.KeyRange{db.table.GetPointRange(key)}
-	dag := db.table.DAGTableScan(fields)
+	dag := db.table.DAGTableScanReq(fields)
 	req.StartTs = dag.StartTs
 	data, err := dag.Marshal()
 	if err != nil {

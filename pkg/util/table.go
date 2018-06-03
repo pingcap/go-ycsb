@@ -46,7 +46,7 @@ func NewTable(p *properties.Properties) *Table {
 	return table
 }
 
-func (t *Table) DAGTableScan(fields []string) *tipb.DAGRequest {
+func (t *Table) DAGTableScanReq(fields []string) *tipb.DAGRequest {
 	dag := &tipb.DAGRequest{}
 	dag.StartTs = math.MaxInt64
 	output := make([]uint32, 0, len(fields))
@@ -54,11 +54,11 @@ func (t *Table) DAGTableScan(fields []string) *tipb.DAGRequest {
 		output = append(output, uint32(t.rowC.fieldIndices[field]))
 	}
 	dag.OutputOffsets = output
-	dag.Executors = []*tipb.Executor{t.getTableScan(output)}
+	dag.Executors = []*tipb.Executor{t.getTableScanExe(output)}
 	return dag
 }
 
-func (t *Table) getTableScan(indexs []uint32) *tipb.Executor {
+func (t *Table) getTableScanExe(indexs []uint32) *tipb.Executor {
 	exe := &tipb.Executor{}
 	exe.Tp = tipb.ExecType_TypeTableScan
 
@@ -72,14 +72,6 @@ func (t *Table) getTableScan(indexs []uint32) *tipb.Executor {
 
 	exe.TblScan = scan
 	return exe
-}
-
-func (t *Table) getColIDs(fields []string) []int64 {
-	colIDs := make([]int64, 0, len(fields))
-	for _, field := range fields {
-		colIDs = append(colIDs, t.rowC.fieldIndices[field])
-	}
-	return colIDs
 }
 
 func (t *Table) GetPointRange(key string) kv.KeyRange {
