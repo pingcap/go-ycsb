@@ -14,12 +14,12 @@
 package util
 
 import (
-	"github.com/pingcap/tipb/go-tipb"
 	"github.com/magiconair/properties"
-	"github.com/pingcap/tidb/tablecodec"
 	"github.com/pingcap/tidb/kv"
 	"github.com/pingcap/tidb/mysql"
+	"github.com/pingcap/tidb/tablecodec"
 	"github.com/pingcap/tidb/types"
+	"github.com/pingcap/tipb/go-tipb"
 	"math"
 )
 
@@ -58,15 +58,15 @@ func (t *Table) DAGTableScanReq(fields []string) *tipb.DAGRequest {
 	return dag
 }
 
-func (t *Table) getTableScanExe(indexs []uint32) *tipb.Executor {
+func (t *Table) getTableScanExe(indexes []uint32) *tipb.Executor {
 	exe := &tipb.Executor{}
 	exe.Tp = tipb.ExecType_TypeTableScan
 
 	scan := &tipb.TableScan{}
 	scan.Desc = false
 	scan.TableId = t.tableId
-	scan.Columns = make([]*tipb.ColumnInfo, 0, len(indexs))
-	for _, index := range indexs {
+	scan.Columns = make([]*tipb.ColumnInfo, 0, len(indexes))
+	for _, index := range indexes {
 		scan.Columns = append(scan.Columns, &t.columns[index])
 	}
 
