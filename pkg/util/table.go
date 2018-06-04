@@ -35,13 +35,13 @@ func NewTable(p *properties.Properties) *Table {
 	colLen := len(table.rowC.fields)
 	table.columns = make([]tipb.ColumnInfo, 0, colLen)
 	for i := 0; i < colLen; i++ {
-		table.columns[i] = tipb.ColumnInfo{
+		table.columns = append(table.columns, tipb.ColumnInfo{
 			PkHandle:  false,
 			ColumnId:  int64(i),
 			Collation: int32(mysql.DefaultCollationID),
 			ColumnLen: types.UnspecifiedLength,
 			Decimal:   types.UnspecifiedLength,
-			Tp:        int32(mysql.TypeVarchar)}
+			Tp:        int32(mysql.TypeVarchar)})
 	}
 	return table
 }
@@ -50,8 +50,8 @@ func (t *Table) DAGTableScanReq(fields []string) *tipb.DAGRequest {
 	dag := &tipb.DAGRequest{}
 	dag.StartTs = math.MaxInt64
 	output := make([]uint32, 0, len(fields))
-	for i:=0;i<len(fields);i++{
-		output = append(output,uint32(i))
+	for i := 0; i < len(fields); i++ {
+		output = append(output, uint32(i))
 	}
 	dag.OutputOffsets = output
 	dag.Executors = []*tipb.Executor{t.getTableScanExe(output)}
