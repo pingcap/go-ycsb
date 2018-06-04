@@ -69,11 +69,12 @@ func (db *coprocessor) Read(ctx context.Context, table string, key string, field
 	client := db.db.GetClient()
 	res := client.Send(ctx, &req, nil)
 	defer res.Close()
-	result, err := res.Next(ctx)
+	_, err = res.Next(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return db.table.DecodeValue(result.GetData(), fields)
+	//return db.table.DecodeValue(result.GetData(), fields)
+	return make(map[string][]byte, len(fields)), nil
 }
 
 func (db *coprocessor) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {

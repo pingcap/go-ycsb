@@ -99,7 +99,7 @@ func initialGlobal(dbName string, onProperties func()) {
 	if globalDB, err = dbCreator.Create(globalProps); err != nil {
 		util.Fatalf("create db %s failed %v", dbName, err)
 	}
-
+	fmt.Println(globalProps.String())
 	globalDB = dbWrapper{globalDB}
 }
 
