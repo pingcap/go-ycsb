@@ -50,8 +50,8 @@ func (t *Table) DAGTableScanReq(fields []string) *tipb.DAGRequest {
 	dag := &tipb.DAGRequest{}
 	dag.StartTs = math.MaxInt64
 	output := make([]uint32, 0, len(fields))
-	for _, field := range fields {
-		output = append(output, uint32(t.rowC.fieldIndices[field]))
+	for i:=0;i<len(fields);i++{
+		output = append(output,uint32(i))
 	}
 	dag.OutputOffsets = output
 	dag.Executors = []*tipb.Executor{t.getTableScanExe(output)}
