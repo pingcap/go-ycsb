@@ -14,13 +14,14 @@
 package util
 
 import (
+	"math"
+
 	"github.com/magiconair/properties"
 	"github.com/pingcap/tidb/kv"
 	"github.com/pingcap/tidb/mysql"
 	"github.com/pingcap/tidb/tablecodec"
 	"github.com/pingcap/tidb/types"
 	"github.com/pingcap/tipb/go-tipb"
-	"math"
 )
 
 type Table struct {
@@ -46,19 +47,24 @@ func NewTable(p *properties.Properties) *Table {
 	return table
 }
 
-func (t *Table) DAGTableScanReq(fields []string) *tipb.DAGRequest {
+func (t *Table) BuildDAGTableScanReq(fields []string) *tipb.DAGRequest {
 	dag := &tipb.DAGRequest{}
 	dag.StartTs = math.MaxInt64
-	output := make([]uint32, 0, len(fields))
-	for i := 0; i < len(fields); i++ {
+	var output []uint32
+	if len(fields) == 0 {
+		output = make([]uint32, 0, len(t.columns))
+	} else {
+		output = make([]uint32, 0, len(fields))
+	}
+	for i := 0; i < cap(output); i++ {
 		output = append(output, uint32(i))
 	}
 	dag.OutputOffsets = output
-	dag.Executors = []*tipb.Executor{t.getTableScanExe(output)}
+	dag.Executors = []*tipb.Executor{t.getTableScanExec(output)}
 	return dag
 }
 
-func (t *Table) getTableScanExe(indexes []uint32) *tipb.Executor {
+func (t *Table) getTableScanExec(indexes []uint32) *tipb.Executor {
 	exe := &tipb.Executor{}
 	exe.Tp = tipb.ExecType_TypeTableScan
 

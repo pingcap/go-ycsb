@@ -16,6 +16,7 @@ package tikv
 import (
 	"context"
 	"fmt"
+
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
@@ -58,7 +59,7 @@ func (db *coprocessor) Read(ctx context.Context, table string, key string, field
 	req.Concurrency = 1
 	req.Tp = kv.ReqTypeDAG
 	req.KeyRanges = []kv.KeyRange{db.table.GetPointRange(key)}
-	dag := db.table.DAGTableScanReq(fields)
+	dag := db.table.BuildDAGTableScanReq(fields)
 	req.StartTs = dag.StartTs
 	data, err := dag.Marshal()
 	if err != nil {
