@@ -458,7 +458,7 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 	c.fieldLengthGenerator = getFieldLengthGenerator(p)
 	c.recordCount = p.GetInt64(prop.RecordCount, prop.RecordCountDefault)
 	if c.recordCount == 0 {
-		c.recordCount = math.MaxInt64
+		c.recordCount = int64(math.MaxInt32)
 	}
 
 	requestDistrib := p.GetString(prop.RequestDistribution, prop.RequestDistributionDefault)
