@@ -22,7 +22,6 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/pingcap/tidb/kv"
 	"github.com/pingcap/tidb/store/tikv"
-	"github.com/pkg/errors"
 )
 
 func createCoprocessorDB(p *properties.Properties) (ycsb.DB, error) {
@@ -79,8 +78,28 @@ func (db *coprocessor) Read(ctx context.Context, table string, key string, field
 }
 
 func (db *coprocessor) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
-
-	return nil, errors.New("unsupported type of scan in coprocessor")
+	// construct the req
+	req := kv.Request{}
+	req.Concurrency = 1
+	req.Tp = kv.ReqTypeDAG
+	req.KeyRanges = []kv.KeyRange{db.table.GetScanRange(startKey)}
+	dag := db.table.BuildDAGTableScanWithLimitReq(fields, count)
+	req.StartTs = dag.StartTs
+	data, err := dag.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	req.Data = data
+	// send req
+	client := db.db.GetClient()
+	res := client.Send(ctx, &req, nil)
+	defer res.Close()
+	_, err = res.Next(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res.Next(ctx)
+	return make([]map[string][]byte, count), nil
 }
 
 func (db *coprocessor) Update(ctx context.Context, table string, key string, values map[string][]byte) error {

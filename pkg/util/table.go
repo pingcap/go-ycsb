@@ -48,6 +48,21 @@ func NewTable(p *properties.Properties) *Table {
 }
 
 func (t *Table) BuildDAGTableScanReq(fields []string) *tipb.DAGRequest {
+	dag := t.buildDAGReq(fields)
+	dag.Executors = []*tipb.Executor{t.getTableScanExec(dag.OutputOffsets)}
+	return dag
+}
+
+func (t *Table) BuildDAGTableScanWithLimitReq(fields []string, count int) *tipb.DAGRequest {
+	dag := t.buildDAGReq(fields)
+	// add scan executor
+	dag.Executors = []*tipb.Executor{t.getTableScanExec(dag.OutputOffsets)}
+	// add limit executor
+	dag.Executors = append(dag.Executors, t.getLimitExec(count))
+	return dag
+}
+
+func (t *Table) buildDAGReq(fields []string) *tipb.DAGRequest {
 	dag := &tipb.DAGRequest{}
 	dag.StartTs = math.MaxInt64
 	var output []uint32
@@ -60,8 +75,19 @@ func (t *Table) BuildDAGTableScanReq(fields []string) *tipb.DAGRequest {
 		output = append(output, uint32(i))
 	}
 	dag.OutputOffsets = output
-	dag.Executors = []*tipb.Executor{t.getTableScanExec(output)}
 	return dag
+}
+
+func (t *Table) getLimitExec(count int) *tipb.Executor {
+	exe := &tipb.Executor{}
+	exe.Tp = tipb.ExecType_TypeLimit
+
+	limit := &tipb.Limit{}
+	limit.Limit = uint64(count)
+
+	exe.Limit = limit
+
+	return exe
 }
 
 func (t *Table) getTableScanExec(indexes []uint32) *tipb.Executor {
@@ -83,6 +109,13 @@ func (t *Table) getTableScanExec(indexes []uint32) *tipb.Executor {
 func (t *Table) GetPointRange(key string) kv.KeyRange {
 	startKey := tablecodec.EncodeRowKey(t.tableId, []byte(key))
 	return kv.KeyRange{StartKey: startKey, EndKey: startKey.PrefixNext()}
+}
+
+func (t *Table) GetScanRange(key string) kv.KeyRange {
+	startKey := tablecodec.EncodeRowKey(t.tableId, []byte(key))
+	nextTableId := t.tableId + 1
+	endKey := tablecodec.EncodeRowKeyWithHandle(nextTableId, math.MinInt64)
+	return kv.KeyRange{StartKey: startKey, EndKey: endKey}
 }
 
 func (t *Table) EncodeKey(key string) kv.Key {
