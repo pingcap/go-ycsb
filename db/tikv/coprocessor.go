@@ -98,7 +98,6 @@ func (db *coprocessor) Scan(ctx context.Context, table string, startKey string, 
 	if err != nil {
 		return nil, err
 	}
-	res.Next(ctx)
 	return make([]map[string][]byte, count), nil
 }
 
