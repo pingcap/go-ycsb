@@ -73,7 +73,8 @@ func (db *coprocessor) Read(ctx context.Context, table string, key string, field
 	if err != nil {
 		return nil, err
 	}
-	//return db.table.DecolsdeValue(result.GetData(), fields)
+
+	//return db.table.DecodeValue(result.GetData(), fields)
 	return make(map[string][]byte, len(fields)), nil
 }
 
@@ -114,7 +115,7 @@ func (db *coprocessor) Update(ctx context.Context, table string, key string, val
 	rowValue, err := tx.Get(rowKey)
 	if kv.ErrNotExist.Equal(err) {
 		return nil
-	} else {
+	} else if rowValue == nil {
 		return err
 	}
 	rowData, err := db.table.DecodeValue(rowValue, nil)
