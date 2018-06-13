@@ -74,7 +74,7 @@ func (db *coprocessor) Read(ctx context.Context, table string, key string, field
 	if err != nil {
 		return nil, err
 	}
-	//return db.table.DecodeValue(result.GetData(), fields)
+	//return db.table.DecolsdeValue(result.GetData(), fields)
 	return make(map[string][]byte, len(fields)), nil
 }
 
@@ -84,7 +84,41 @@ func (db *coprocessor) Scan(ctx context.Context, table string, startKey string, 
 }
 
 func (db *coprocessor) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	return errors.New("unsupported type of update in coprocessor")
+	// encode key
+	rowKey := db.table.EncodeKey(key)
+	// do update transaction
+	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+	rowValue, err := tx.Get(rowKey)
+	if kv.ErrNotExist.Equal(err) {
+		return nil
+	} else {
+		return err
+	}
+	rowData, err := db.table.DecodeValue(rowValue, nil)
+	if err != nil {
+		return err
+	}
+	for field, value := range values {
+		rowData[field] = value
+	}
+
+	buf := db.bufPool.Get()
+	defer db.bufPool.Put(buf)
+
+	rowValue, err = db.table.EncodeValue(buf.Bytes(), rowData)
+	if err != nil {
+		return err
+	}
+	if err = tx.Set(rowKey, rowValue); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (db *coprocessor) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -112,5 +146,18 @@ func (db *coprocessor) Insert(ctx context.Context, table string, key string, val
 }
 
 func (db *coprocessor) Delete(ctx context.Context, table string, key string) error {
-	return errors.New("unsupported type of delete in coprocessor")
+	// encode key
+	rowKey := db.table.EncodeKey(key)
+	// do delete transaction
+	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	err = tx.Delete(rowKey)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
