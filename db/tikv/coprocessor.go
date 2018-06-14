@@ -95,10 +95,15 @@ func (db *coprocessor) Scan(ctx context.Context, table string, startKey string, 
 	client := db.db.GetClient()
 	res := client.Send(ctx, &req, nil)
 	defer res.Close()
-	_, err = res.Next(ctx)
-	if err != nil {
-		return nil, err
+	for {
+		resSubset, err := res.Next(ctx)
+		if err != nil {
+			return nil, err
+		} else if resSubset == nil {
+			break
+		}
 	}
+
 	return make([]map[string][]byte, count), nil
 }
 
