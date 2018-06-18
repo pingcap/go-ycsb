@@ -17,17 +17,15 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/spf13/cobra"
-
-	"os"
-
-	"github.com/magiconair/properties"
 )
 
 type worker struct {
