@@ -45,7 +45,7 @@ import (
 )
 
 var (
-	propertyFile   string
+	propertyFiles  []string
 	propertyValues []string
 	dbName         string
 	tableName      string
@@ -60,8 +60,8 @@ var (
 
 func initialGlobal(dbName string, onProperties func()) {
 	globalProps = properties.NewProperties()
-	if len(propertyFile) > 0 {
-		globalProps = properties.MustLoadFile(propertyFile, properties.UTF8)
+	if len(propertyFiles) > 0 {
+		globalProps = properties.MustLoadFiles(propertyFiles, properties.UTF8, false)
 	}
 
 	for _, prop := range propertyValues {
