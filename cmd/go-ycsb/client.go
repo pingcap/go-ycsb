@@ -25,8 +25,9 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/spf13/cobra"
 
-	"github.com/magiconair/properties"
 	"os"
+
+	"github.com/magiconair/properties"
 )
 
 type worker struct {
@@ -217,7 +218,7 @@ var (
 )
 
 func initClientCommand(m *cobra.Command) {
-	m.Flags().StringVarP(&propertyFile, "property_file", "P", "", "Spefify a property file")
+	m.Flags().StringSliceVarP(&propertyFiles, "property_file", "P", nil, "Spefify a property file")
 	m.Flags().StringSliceVarP(&propertyValues, "prop", "p", nil, "Specify a property value with name=value")
 	m.Flags().StringVar(&tableName, "table", "", "Use the table name instead of the default \""+prop.TableNameDefault+"\"")
 	m.Flags().IntVar(&threadsArg, "threads", 1, "execute using n threads - can also be specified as the \"threadcount\" property")
