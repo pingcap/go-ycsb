@@ -174,17 +174,17 @@ func (db *coprocessor) Delete(ctx context.Context, table string, key string) err
 	rowKey := db.table.EncodeKey(key)
 	// do delete transaction
 	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	rowValue, err := tx.Get(rowKey)
 	if kv.ErrNotExist.Equal(err) {
 		return nil
 	} else if rowValue == nil {
 		return err
 	}
-
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
 
 	err = tx.Delete(rowKey)
 	if err != nil {
