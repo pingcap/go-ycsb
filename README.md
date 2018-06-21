@@ -97,6 +97,19 @@ You can pass the database configuraitons through `-p field=value` in the command
 |fdb.dbname|"DB"|The cluster database name|
 |fdb.apiversion|510|API version, now only 5.1 is supported|
 
+### PostgreSQL
+
+|field|default value|description|
+|-|-|-|
+|pg.host|"127.0.0.1"|PostgreSQL Host|
+|pg.port|5432|PostgreSQL Port|
+|pg.user|"root"|PostgreSQL User|
+|pg.passowrd||PostgreSQL Password|
+|pg.db|"test"|PostgreSQL Database|
+|pg.sslmode|"disable|PostgreSQL ssl mode|
+|pg.verbose|false|Output the execution query|
+|pg.droptable|false|Drop Table at first|
+
 ## TODO
 
 - [ ] Support more measurement, like HdrHistogram
