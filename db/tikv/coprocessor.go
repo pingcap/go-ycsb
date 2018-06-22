@@ -54,9 +54,7 @@ func (db *coprocessor) CleanupThread(ctx context.Context) {
 
 func (db *coprocessor) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	// construct the req
-	req := kv.Request{}
-	req.Concurrency = 1
-	req.Tp = kv.ReqTypeDAG
+	req := kv.Request{Concurrency: 1, Tp: kv.ReqTypeDAG}
 	req.KeyRanges = []kv.KeyRange{db.table.GetPointRange(key)}
 	dag := db.table.BuildDAGTableScanReq(fields)
 	req.StartTs = dag.StartTs
@@ -80,7 +78,7 @@ func (db *coprocessor) Read(ctx context.Context, table string, key string, field
 
 func (db *coprocessor) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	// construct the req
-	req := kv.Request{}
+	req := kv.Request{Concurrency: 1, Tp: kv.ReqTypeDAG}
 	req.Concurrency = 1
 	req.Tp = kv.ReqTypeDAG
 	req.KeyRanges = []kv.KeyRange{db.table.GetScanRange(startKey)}
