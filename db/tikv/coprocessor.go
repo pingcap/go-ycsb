@@ -79,8 +79,6 @@ func (db *coprocessor) Read(ctx context.Context, table string, key string, field
 func (db *coprocessor) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	// construct the req
 	req := kv.Request{Concurrency: 1, Tp: kv.ReqTypeDAG}
-	req.Concurrency = 1
-	req.Tp = kv.ReqTypeDAG
 	req.KeyRanges = []kv.KeyRange{db.table.GetScanRange(startKey)}
 	dag := db.table.BuildDAGTableScanWithLimitReq(fields, count)
 	req.StartTs = dag.StartTs
