@@ -64,6 +64,7 @@ Available Commands:
 - mysql
 - tikv
 - foundationdb or fdb
+- aerospike
 
 ## Database Configuration
 
