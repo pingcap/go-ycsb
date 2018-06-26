@@ -34,7 +34,7 @@ func newShellCommand() *cobra.Command {
 		Args:  cobra.MinimumNArgs(1),
 		Run:   runShellCommandFunc,
 	}
-	m.Flags().StringVarP(&propertyFile, "property_file", "P", "", "Spefify a property file")
+	m.Flags().StringSliceVarP(&propertyFiles, "property_file", "P", nil, "Spefify a property file")
 	m.Flags().StringSliceVarP(&propertyValues, "prop", "p", nil, "Specify a property value with name=value")
 	m.Flags().StringVar(&tableName, "table", "", "Use the table name instead of the default \""+prop.TableNameDefault+"\"")
 	return m

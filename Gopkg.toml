@@ -70,3 +70,7 @@
 [[constraint]]
   name = "github.com/apple/foundationdb"
   version = "5.1.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/lib/pq"
