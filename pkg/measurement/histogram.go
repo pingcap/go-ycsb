@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
 type histogram struct {
@@ -32,6 +33,59 @@ type histogram struct {
 	min         int64
 	max         int64
 	startTime   time.Time
+}
+
+const (
+	COUNT   = "COUNT"
+	QPS     = "QPS"
+	AVG     = "AVG"
+	MIN     = "MIN"
+	MAX     = "MAX"
+	PER95TH = "PER95TH"
+	PER99TH = "PER99TH"
+)
+
+func (h *histogram) Info() ycsb.MeasurementInfo {
+	// copy from Summary()
+	min := atomic.LoadInt64(&h.min)
+	max := atomic.LoadInt64(&h.max)
+	sum := atomic.LoadInt64(&h.sum)
+	count := atomic.LoadInt64(&h.count)
+
+	counts := make([]int64, len(h.counts))
+	for i := 0; i < len(h.upperBounds); i++ {
+		counts[i] = atomic.LoadInt64(&h.counts[i])
+	}
+
+	avg := int64(float64(sum) / float64(count))
+	per95 := int(0)
+	per99 := int(0)
+
+	opCount := int64(0)
+	for i := 0; i < len(counts); i++ {
+		opCount += counts[i]
+		per := float64(opCount) / float64(count)
+		if per95 == 0 && per >= 0.95 {
+			per95 = h.upperBounds[i]
+		}
+
+		if per99 == 0 && per >= 0.99 {
+			per99 = h.upperBounds[i]
+		}
+	}
+
+	elapsed := time.Now().Sub(h.startTime).Seconds()
+	qps := float64(count) / elapsed
+	res := make(map[string]interface{})
+	res[COUNT] = count
+	res[QPS] = qps
+	res[AVG] = avg
+	res[MIN] = min
+	res[MAX] = max
+	res[PER95TH] = per95
+	res[PER99TH] = per99
+
+	return newHistogramInfo(res)
 }
 
 func newHistogram(_ *properties.Properties) *histogram {
@@ -45,11 +99,12 @@ func newHistogram(_ *properties.Properties) *histogram {
 	}
 	h.counts = make([]int64, len(h.upperBounds))
 	h.min = math.MaxInt64
+	h.max = math.MinInt64
 	return h
 }
 
-func (h *histogram) Measure(lantecy time.Duration) {
-	n := int64(lantecy / time.Microsecond)
+func (h *histogram) Measure(latency time.Duration) {
+	n := int64(latency / time.Microsecond)
 
 	atomic.AddInt64(&h.sum, n)
 	atomic.AddInt64(&h.count, 1)
@@ -124,4 +179,20 @@ func (h *histogram) Summary() string {
 	buf.WriteString(fmt.Sprintf("99th(us): %d", per99))
 
 	return buf.String()
+}
+
+type histogramInfo struct {
+	info map[string]interface{}
+}
+
+func newHistogramInfo(info map[string]interface{}) *histogramInfo {
+	return &histogramInfo{info: info}
+}
+
+func (hi *histogramInfo) Get(infoType string) interface{} {
+	if value, ok := hi.info[infoType]; ok {
+		return value
+	} else {
+		return nil
+	}
 }

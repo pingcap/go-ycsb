@@ -17,10 +17,16 @@ import (
 	"time"
 )
 
+type MeasurementInfo interface {
+	Get(infoType string) interface{}
+}
+
 // Measurement measures the operations metrics.
 type Measurement interface {
-	// Measure measures the opeartion latency.
+	// Measure measures the operation latency.
 	Measure(latency time.Duration)
 	// Summary returns the summary of the measurement.
 	Summary() string
+	// Info returns the MeasurementInfo of the measurement.
+	Info() MeasurementInfo
 }
