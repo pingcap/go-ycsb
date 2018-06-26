@@ -468,10 +468,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-<<<<<<< HEAD
-  inputs-digest = "3e3c9e7623520b36afb8c850677708392d4c4e0cfe7f3b83287e91a52826f6cb"
-=======
-  inputs-digest = "ff2511a8268b5981059d486d45f7373e195fbf47b3c1bc7271d0385944f5ee3d"
->>>>>>> efb34b7... Add aerospike db
+  inputs-digest = "571df539e2f7d2e2ca4fb485b7b0a2c4405f9c139609f49682acb24eaf0cfa41"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -47,6 +47,9 @@ func (adb *aerospikedb) Read(ctx context.Context, table string, key string, fiel
 	if err != nil {
 		return nil, err
 	}
+	if record == nil {
+		return map[string][]byte{}, nil
+	}
 	res := make(map[string][]byte, len(record.Bins))
 	var ok bool
 	for k, v := range record.Bins {
@@ -116,12 +119,17 @@ func (adb *aerospikedb) Update(ctx context.Context, table string, key string, va
 	if err != nil {
 		return err
 	}
-	for k, v := range values {
-		record.Bins[k] = v
+	bins := as.BinMap{}
+	var policy *as.WritePolicy
+	if record != nil {
+		bins = record.Bins
+		policy := as.NewWritePolicy(record.Generation, 0)
+		policy.GenerationPolicy = as.EXPECT_GEN_EQUAL
 	}
-	policy := as.NewWritePolicy(record.Generation, 0)
-	policy.GenerationPolicy = as.EXPECT_GEN_EQUAL
-	return adb.client.Put(policy, asKey, record.Bins)
+	for k, v := range values {
+		bins[k] = v
+	}
+	return adb.client.Put(policy, asKey, bins)
 }
 
 // Insert inserts a record in the database. Any field/value pairs will be written into the
@@ -159,7 +167,7 @@ type aerospikeCreator struct{}
 
 func (a aerospikeCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	adb := &aerospikedb{}
-	adb.ns = p.GetString(asNs, "bench_namespace")
+	adb.ns = p.GetString(asNs, "test")
 	var err error
 	adb.client, err = as.NewClient(p.GetString(asHost, "localhost"), p.GetInt(asPort, 3000))
 	return adb, err
