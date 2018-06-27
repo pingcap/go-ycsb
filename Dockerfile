@@ -1,12 +1,25 @@
-FROM golang:1.10-alpine 
+FROM ubuntu:18.04
 
-RUN apk add --no-cache bash
+ENV GOPATH /go
 
-ADD . /go/src/github.com/pingcap/go-ycsb 
+RUN apt-get update \
+ && apt-get install -y \
+                wget \
+                dpkg \
+                python \
+                golang \
+                git \
+                net-tools \
+ && wget https://www.foundationdb.org/downloads/5.1.7/ubuntu/installers/foundationdb-clients_5.1.7-1_amd64.deb \
+ && dpkg -i foundationdb-clients_5.1.7-1_amd64.deb \
+ && go get -u github.com/golang/dep/cmd/dep
 
-RUN cd /go/src/github.com/pingcap/go-ycsb && go build -o /go-ycsb ./cmd/* 
-RUN cp -rf /go/src/github.com/pingcap/go-ycsb/workloads /workloads
+ADD . /go/src/github.com/pingcap/go-ycsb
 
-# Use `docker exec -it go-ycsb bash` in another terminal to proceed.
-# hack for keep this container running
-CMD tail -f /dev/null
+WORKDIR /go/src/github.com/pingcap/go-ycsb
+
+RUN /go/bin/dep ensure \
+ && go build -tags "foundationdb" -o /go-ycsb ./cmd/* \
+ && cp -rf /go/src/github.com/pingcap/go-ycsb/workloads /workloads
+
+ENTRYPOINT [ "/go-ycsb" ]
