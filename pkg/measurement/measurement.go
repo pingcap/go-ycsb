@@ -93,6 +93,8 @@ func Measure(op string, lan time.Duration) {
 	globalMeasure.measure(op, lan)
 }
 
+// Info returns all the operations MeasurementInfo.
+// The key of returned map is the operation name.
 func Info() map[string]ycsb.MeasurementInfo {
 	return globalMeasure.info()
 }

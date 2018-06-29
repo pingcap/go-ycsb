@@ -189,8 +189,8 @@ func newHistogramInfo(info map[string]interface{}) *histogramInfo {
 	return &histogramInfo{info: info}
 }
 
-func (hi *histogramInfo) Get(infoType string) interface{} {
-	if value, ok := hi.info[infoType]; ok {
+func (hi *histogramInfo) Get(metricName string) interface{} {
+	if value, ok := hi.info[metricName]; ok {
 		return value
 	} else {
 		return nil
