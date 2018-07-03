@@ -24,14 +24,17 @@ import (
 	"github.com/pingcap/tipb/go-tipb"
 )
 
+// Table is a helper struct to build DAG request,
+// as well as encode and decode key and value.
 type Table struct {
 	columns []tipb.ColumnInfo
 	rowC    *RowCodec
-	tableId int64
+	tableID int64
 }
 
+// NewTable creates a Table.
 func NewTable(p *properties.Properties) *Table {
-	table := &Table{tableId: 1001}
+	table := &Table{tableID: 1001}
 	table.rowC = NewRowCodec(p)
 	colLen := len(table.rowC.fields)
 	table.columns = make([]tipb.ColumnInfo, 0, colLen)
@@ -47,6 +50,7 @@ func NewTable(p *properties.Properties) *Table {
 	return table
 }
 
+// BuildDAGTableScanReq returns a DAGTableScan request.
 func (t *Table) BuildDAGTableScanReq(fields []string) *tipb.DAGRequest {
 	dag := &tipb.DAGRequest{}
 	dag.StartTs = math.MaxInt64
@@ -70,7 +74,7 @@ func (t *Table) getTableScanExec(indexes []uint32) *tipb.Executor {
 
 	scan := &tipb.TableScan{}
 	scan.Desc = false
-	scan.TableId = t.tableId
+	scan.TableId = t.tableID
 	scan.Columns = make([]*tipb.ColumnInfo, 0, len(indexes))
 	for _, index := range indexes {
 		scan.Columns = append(scan.Columns, &t.columns[index])
@@ -80,18 +84,23 @@ func (t *Table) getTableScanExec(indexes []uint32) *tipb.Executor {
 	return exe
 }
 
+// GetPointRange returns kv.KeyRange, which is [key,PrefixNextKey).
 func (t *Table) GetPointRange(key string) kv.KeyRange {
-	startKey := tablecodec.EncodeRowKey(t.tableId, []byte(key))
+	startKey := tablecodec.EncodeRowKey(t.tableID, []byte(key))
 	return kv.KeyRange{StartKey: startKey, EndKey: startKey.PrefixNext()}
 }
 
+// EncodeKey encodes the key and tableId into a kv.Key.
 func (t *Table) EncodeKey(key string) kv.Key {
-	return tablecodec.EncodeRowKey(t.tableId, []byte(key))
+	return tablecodec.EncodeRowKey(t.tableID, []byte(key))
 }
 
+// DecodeValue decodes the row with the specified fields, and returns the field-value map.
 func (t *Table) DecodeValue(row []byte, field []string) (map[string][]byte, error) {
 	return t.rowC.Decode(row, field)
 }
+
+// EncodeValue encodes the values.
 func (t *Table) EncodeValue(buf []byte, values map[string][]byte) ([]byte, error) {
 	return t.rowC.Encode(buf, values)
 }
