@@ -126,7 +126,7 @@ type Client struct {
 }
 
 // NewClient returns a client with the given workload and db.
-// The workload and db can's be nil.
+// The workload and db can't be nil.
 func NewClient(p *properties.Properties, workload ycsb.Workload, db ycsb.DB) *Client {
 	return &Client{p: p, workload: workload, db: db}
 }
