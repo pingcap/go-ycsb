@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package client
 
 import (
 	"context"
@@ -21,11 +21,11 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
-type dbWrapper struct {
+type DbWrapper struct {
 	ycsb.DB
 }
 
-func (db dbWrapper) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
+func (db DbWrapper) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	start := time.Now()
 	defer func() {
 		measurement.Measure("READ", time.Now().Sub(start))
@@ -34,7 +34,7 @@ func (db dbWrapper) Read(ctx context.Context, table string, key string, fields [
 	return db.DB.Read(ctx, table, key, fields)
 }
 
-func (db dbWrapper) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
+func (db DbWrapper) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	start := time.Now()
 	defer func() {
 		measurement.Measure("SCAN", time.Now().Sub(start))
@@ -43,7 +43,7 @@ func (db dbWrapper) Scan(ctx context.Context, table string, startKey string, cou
 	return db.DB.Scan(ctx, table, startKey, count, fields)
 }
 
-func (db dbWrapper) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
+func (db DbWrapper) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
 	start := time.Now()
 	defer func() {
 		measurement.Measure("UPDATE", time.Now().Sub(start))
@@ -52,7 +52,7 @@ func (db dbWrapper) Update(ctx context.Context, table string, key string, values
 	return db.DB.Update(ctx, table, key, values)
 }
 
-func (db dbWrapper) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
+func (db DbWrapper) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	start := time.Now()
 	defer func() {
 		measurement.Measure("INSERT", time.Now().Sub(start))
@@ -61,7 +61,7 @@ func (db dbWrapper) Insert(ctx context.Context, table string, key string, values
 	return db.DB.Insert(ctx, table, key, values)
 }
 
-func (db dbWrapper) Delete(ctx context.Context, table string, key string) error {
+func (db DbWrapper) Delete(ctx context.Context, table string, key string) error {
 	start := time.Now()
 	defer func() {
 		measurement.Measure("DELETE", time.Now().Sub(start))

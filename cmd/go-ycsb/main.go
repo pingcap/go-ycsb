@@ -44,6 +44,7 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/tikv"
 	// Register PostgreSQL database
 	_ "github.com/pingcap/go-ycsb/db/pg"
+	"github.com/pingcap/go-ycsb/pkg/client"
 )
 
 var (
@@ -101,7 +102,7 @@ func initialGlobal(dbName string, onProperties func()) {
 	if globalDB, err = dbCreator.Create(globalProps); err != nil {
 		util.Fatalf("create db %s failed %v", dbName, err)
 	}
-	globalDB = dbWrapper{globalDB}
+	globalDB = client.DbWrapper{globalDB}
 }
 
 func main() {
