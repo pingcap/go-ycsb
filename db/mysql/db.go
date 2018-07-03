@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/pingcap/go-ycsb/pkg/prop"
@@ -220,6 +221,7 @@ func (db *mysqlDB) Read(ctx context.Context, table string, key string, fields []
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = ?`, table)
 	} else {
+		sort.Strings(fields)
 		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = ?`, strings.Join(fields, ","), table)
 	}
 
@@ -240,6 +242,7 @@ func (db *mysqlDB) Scan(ctx context.Context, table string, startKey string, coun
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, table)
 	} else {
+		sort.Strings(fields)
 		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, strings.Join(fields, ","), table)
 	}
 
@@ -272,15 +275,16 @@ func (db *mysqlDB) Update(ctx context.Context, table string, key string, values 
 	buf.WriteString(table)
 	buf.WriteString(" SET ")
 	firstField := true
+	pairs := util.NewFieldPairs(values)
 	args := make([]interface{}, 0, len(values)+1)
-	for field, value := range values {
+	for _, p := range pairs {
 		if !firstField {
 			buf.WriteString(", ")
 		}
 
-		buf.WriteString(field)
+		buf.WriteString(p.Field)
 		buf.WriteString(`= ?`)
-		args = append(args, value)
+		args = append(args, p.Value)
 	}
 	buf.WriteString(" WHERE YCSB_KEY = ?")
 
@@ -299,14 +303,16 @@ func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values 
 	buf.WriteString("INSERT IGNORE INTO ")
 	buf.WriteString(table)
 	buf.WriteString(" (YCSB_KEY")
-	for field, value := range values {
-		args = append(args, value)
+
+	pairs := util.NewFieldPairs(values)
+	for _, p := range pairs {
+		args = append(args, p.Value)
 		buf.WriteString(" ,")
-		buf.WriteString(field)
+		buf.WriteString(p.Field)
 	}
 	buf.WriteString(") VALUES (?")
 
-	for i := 0; i < len(values); i++ {
+	for i := 0; i < len(pairs); i++ {
 		buf.WriteString(" ,?")
 	}
 

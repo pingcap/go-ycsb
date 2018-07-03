@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/pingcap/go-ycsb/pkg/prop"
@@ -229,6 +230,7 @@ func (db *pgDB) Read(ctx context.Context, table string, key string, fields []str
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s.%s WHERE YCSB_KEY = $1`, db.dbName, table)
 	} else {
+		sort.Strings(fields)
 		query = fmt.Sprintf(`SELECT %s FROM %s.%s WHERE YCSB_KEY = $1`, strings.Join(fields, ","), db.dbName, table)
 	}
 
@@ -249,6 +251,7 @@ func (db *pgDB) Scan(ctx context.Context, table string, startKey string, count i
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s.%s WHERE YCSB_KEY >= $1 LIMIT $2`, db.dbName, table)
 	} else {
+		sort.Strings(fields)
 		query = fmt.Sprintf(`SELECT %s FROM %s.%s WHERE YCSB_KEY >= $1 LIMIT $2`, strings.Join(fields, ","), db.dbName, table)
 	}
 
@@ -283,13 +286,14 @@ func (db *pgDB) Update(ctx context.Context, table string, key string, values map
 	firstField := true
 	args := make([]interface{}, 0, len(values)+1)
 	placeHolderIndex := 1
-	for field, value := range values {
+	pairs := util.NewFieldPairs(values)
+	for _, p := range pairs {
 		if !firstField {
 			buf.WriteString(", ")
 		}
 
-		buf.WriteString(fmt.Sprintf("%s = $%d", field, placeHolderIndex))
-		args = append(args, value)
+		buf.WriteString(fmt.Sprintf("%s = $%d", p.Field, placeHolderIndex))
+		args = append(args, p.Value)
 		placeHolderIndex++
 	}
 	buf.WriteString(fmt.Sprintf(" WHERE YCSB_KEY = $%d", placeHolderIndex))
@@ -309,14 +313,15 @@ func (db *pgDB) Insert(ctx context.Context, table string, key string, values map
 	buf.WriteString("INSERT INTO ")
 	buf.WriteString(fmt.Sprintf("%s.%s", db.dbName, table))
 	buf.WriteString(" (YCSB_KEY")
-	for field, value := range values {
-		args = append(args, value)
+	pairs := util.NewFieldPairs(values)
+	for _, p := range pairs {
+		args = append(args, p.Value)
 		buf.WriteString(" ,")
-		buf.WriteString(field)
+		buf.WriteString(p.Field)
 	}
 	buf.WriteString(") VALUES ($1")
 
-	for i := 0; i < len(values); i++ {
+	for i := 0; i < len(pairs); i++ {
 		buf.WriteString(fmt.Sprintf(" ,$%d", i+2))
 	}
 
