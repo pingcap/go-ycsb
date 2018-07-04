@@ -98,7 +98,7 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 func (db *mysqlDB) createTable() error {
 	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
 
-	if db.p.GetBool(mysqlDropTable, false) {
+	if db.p.GetBool(mysqlDropTable, false) && !db.p.GetBool(prop.DoTransactions, true)  {
 		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
 			return err
 		}
