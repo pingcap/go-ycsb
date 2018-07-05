@@ -46,10 +46,6 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 		}
 	})
 
-	start := time.Now()
-	c := client.NewClient(globalProps, globalWorkload, globalDB)
-	c.Run(globalContext)
-
 	measureCtx, measureCancel := context.WithCancel(globalContext)
 	go func() {
 		dur := globalProps.GetInt64("measurement.interval", 10)
@@ -66,7 +62,10 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 		}
 	}()
 
-	c.Wait()
+	start := time.Now()
+	c := client.NewClient(globalProps, globalWorkload, globalDB)
+	c.Run(globalContext)
+
 	measureCancel()
 
 	fmt.Printf("Run finished, takes %s\n", time.Now().Sub(start))

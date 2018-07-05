@@ -1,3 +1,16 @@
+// Copyright 2018 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package client
 
 import (
@@ -87,7 +100,7 @@ func (w *worker) throttle(ctx context.Context, startTime time.Time) {
 	}
 }
 
-func (w *worker) Run(ctx context.Context) {
+func (w *worker) run(ctx context.Context) {
 	// spread the thread operation out so they don't all hit the DB at the same time
 	if w.targetOpsPerMs > 0.0 && w.targetOpsPerMs <= 1.0 {
 		time.Sleep(time.Duration(rand.Int63n(w.targetOpsTickNs)))
@@ -118,6 +131,7 @@ func (w *worker) Run(ctx context.Context) {
 	}
 }
 
+// Client is a struct which is used the run workload to a specific DB.
 type Client struct {
 	p        *properties.Properties
 	wg       sync.WaitGroup
@@ -125,12 +139,13 @@ type Client struct {
 	db       ycsb.DB
 }
 
-// NewClient returns a client with the given workload and db.
+// NewClient returns a client with the given workload and DB.
 // The workload and db can't be nil.
 func NewClient(p *properties.Properties, workload ycsb.Workload, db ycsb.DB) *Client {
 	return &Client{p: p, workload: workload, db: db}
 }
 
+// Run runs the workload to the target DB, and blocks until all workers end.
 func (c *Client) Run(ctx context.Context) {
 	threadCount := c.p.GetInt(prop.ThreadCount, 100)
 
@@ -142,13 +157,11 @@ func (c *Client) Run(ctx context.Context) {
 			w := newWorker(c.p, threadId, threadCount, c.workload, c.db)
 			ctx := c.workload.InitThread(ctx, threadId, threadCount)
 			ctx = c.db.InitThread(ctx, threadId, threadCount)
-			w.Run(ctx)
+			w.run(ctx)
 			c.db.CleanupThread(ctx)
 			c.workload.CleanupThread(ctx)
 		}(i)
 	}
-}
 
-func (c *Client) Wait() {
 	c.wg.Wait()
 }

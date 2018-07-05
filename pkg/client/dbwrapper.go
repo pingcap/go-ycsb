@@ -21,10 +21,12 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
+// DbWrapper stores the pointer to a implementation of ycsb.DB.
 type DbWrapper struct {
 	ycsb.DB
 }
 
+// Read wraps the Read method in the interface of ycsb.DB
 func (db DbWrapper) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	start := time.Now()
 	defer func() {
@@ -34,6 +36,7 @@ func (db DbWrapper) Read(ctx context.Context, table string, key string, fields [
 	return db.DB.Read(ctx, table, key, fields)
 }
 
+// Scan wrap the Scan method in the interface of ycsb.DB
 func (db DbWrapper) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	start := time.Now()
 	defer func() {
@@ -43,6 +46,7 @@ func (db DbWrapper) Scan(ctx context.Context, table string, startKey string, cou
 	return db.DB.Scan(ctx, table, startKey, count, fields)
 }
 
+// Update wrap the Update method in the interface of ycsb.DB
 func (db DbWrapper) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
 	start := time.Now()
 	defer func() {
@@ -52,6 +56,7 @@ func (db DbWrapper) Update(ctx context.Context, table string, key string, values
 	return db.DB.Update(ctx, table, key, values)
 }
 
+// Insert wrap the Insert method in the interface of ycsb.DB
 func (db DbWrapper) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	start := time.Now()
 	defer func() {
@@ -61,6 +66,7 @@ func (db DbWrapper) Insert(ctx context.Context, table string, key string, values
 	return db.DB.Insert(ctx, table, key, values)
 }
 
+// Delete wrap the Delete method in the interface of ycsb.DB
 func (db DbWrapper) Delete(ctx context.Context, table string, key string) error {
 	start := time.Now()
 	defer func() {
