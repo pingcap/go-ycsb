@@ -18,18 +18,15 @@ ADD . /go/src/github.com/pingcap/go-ycsb
 
 WORKDIR /go/src/github.com/pingcap/go-ycsb
 
-RUN /go/bin/dep ensure \
- && go build -tags "foundationdb" -o /go-ycsb ./cmd/* \
- && cp -rf /go/src/github.com/pingcap/go-ycsb/workloads /workloads
+RUN go build -tags "foundationdb" -o /go-ycsb ./cmd/*
 
 FROM ubuntu:18.04
 
 RUN apt-get update \
- && apt-get install -y \
-                wget \
-                dpkg \
- && wget https://www.foundationdb.org/downloads/5.1.7/ubuntu/installers/foundationdb-clients_5.1.7-1_amd64.deb \
- && dpkg -i foundationdb-clients_5.1.7-1_amd64.deb
+ && apt-get install -y dpkg
+
+COPY --from=0 /foundationdb-clients_5.1.7-1_amd64.deb /foundationdb-clients_5.1.7-1_amd64.deb
+RUN dpkg -i foundationdb-clients_5.1.7-1_amd64.deb
 
 COPY --from=0 /go-ycsb /go-ycsb
 
