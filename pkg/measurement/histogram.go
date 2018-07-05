@@ -35,6 +35,7 @@ type histogram struct {
 	startTime   time.Time
 }
 
+// Metric name.
 const (
 	COUNT   = "COUNT"
 	QPS     = "QPS"
@@ -192,7 +193,6 @@ func newHistogramInfo(info map[string]interface{}) *histogramInfo {
 func (hi *histogramInfo) Get(metricName string) interface{} {
 	if value, ok := hi.info[metricName]; ok {
 		return value
-	} else {
-		return nil
 	}
+	return nil
 }

@@ -69,7 +69,7 @@ func (m *measurement) getOpName() []string {
 	m.RLock()
 	defer m.RUnlock()
 
-	res := make([]string, len(m.opMeasurement))
+	res := make([]string, 0, len(m.opMeasurement))
 	for op := range m.opMeasurement {
 		res = append(res, op)
 	}
@@ -99,7 +99,8 @@ func Info() map[string]ycsb.MeasurementInfo {
 	return globalMeasure.info()
 }
 
-func GetOpName() []string {
+// GetOpNames returns a string slice which contains all the operation name measured.
+func GetOpNames() []string {
 	return globalMeasure.getOpName()
 }
 
