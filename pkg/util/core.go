@@ -15,6 +15,7 @@ package util
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/prop"
@@ -107,4 +108,42 @@ func (r *RowCodec) Encode(buf []byte, values map[string][]byte) ([]byte, error) 
 
 	rowData, err := tablecodec.EncodeRow(&stmtctx.StatementContext{}, cols, colIDs, buf, nil)
 	return rowData, err
+}
+
+// FieldPair is a pair to hold field + value.
+type FieldPair struct {
+	Field string
+	Value []byte
+}
+
+// FieldPairs implements sort interface for []FieldPair
+type FieldPairs []FieldPair
+
+// Len implements sort interface Len
+func (s FieldPairs) Len() int {
+	return len(s)
+}
+
+// Len implements sort interface Swap
+func (s FieldPairs) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+// Len implements sort interface Less
+func (s FieldPairs) Less(i, j int) bool {
+	return s[i].Field < s[j].Field
+}
+
+// NewFieldPairs sorts the map by fields and return a sorted slice of FieldPair.
+func NewFieldPairs(values map[string][]byte) FieldPairs {
+	pairs := make(FieldPairs, 0, len(values))
+	for field, value := range values {
+		pairs = append(pairs, FieldPair{
+			Field: field,
+			Value: value,
+		})
+	}
+
+	sort.Sort(pairs)
+	return pairs
 }

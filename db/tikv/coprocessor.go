@@ -22,7 +22,6 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/pingcap/tidb/kv"
 	"github.com/pingcap/tidb/store/tikv"
-	"github.com/pkg/errors"
 )
 
 func createCoprocessorDB(p *properties.Properties) (ycsb.DB, error) {
@@ -55,9 +54,7 @@ func (db *coprocessor) CleanupThread(ctx context.Context) {
 
 func (db *coprocessor) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	// construct the req
-	req := kv.Request{}
-	req.Concurrency = 1
-	req.Tp = kv.ReqTypeDAG
+	req := kv.Request{Concurrency: 1, Tp: kv.ReqTypeDAG}
 	req.KeyRanges = []kv.KeyRange{db.table.GetPointRange(key)}
 	dag := db.table.BuildDAGTableScanReq(fields)
 	req.StartTs = dag.StartTs
@@ -74,17 +71,74 @@ func (db *coprocessor) Read(ctx context.Context, table string, key string, field
 	if err != nil {
 		return nil, err
 	}
+
 	//return db.table.DecodeValue(result.GetData(), fields)
 	return make(map[string][]byte, len(fields)), nil
 }
 
 func (db *coprocessor) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
+	// construct the req
+	req := kv.Request{Concurrency: 1, Tp: kv.ReqTypeDAG}
+	req.KeyRanges = []kv.KeyRange{db.table.GetScanRange(startKey)}
+	dag := db.table.BuildDAGTableScanWithLimitReq(fields, count)
+	req.StartTs = dag.StartTs
+	data, err := dag.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	req.Data = data
+	// send req
+	client := db.db.GetClient()
+	res := client.Send(ctx, &req, nil)
+	defer res.Close()
+	for {
+		resSubset, err := res.Next(ctx)
+		if err != nil {
+			return nil, err
+		} else if resSubset == nil {
+			break
+		}
+	}
 
-	return nil, errors.New("unsupported type of scan in coprocessor")
+	return make([]map[string][]byte, count), nil
 }
 
 func (db *coprocessor) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	return errors.New("unsupported type of update in coprocessor")
+	// encode key
+	rowKey := db.table.EncodeKey(key)
+	// do update transaction
+	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+	rowValue, err := tx.Get(rowKey)
+	if kv.ErrNotExist.Equal(err) {
+		return nil
+	} else if rowValue == nil {
+		return err
+	}
+	rowData, err := db.table.DecodeValue(rowValue, nil)
+	if err != nil {
+		return err
+	}
+	for field, value := range values {
+		rowData[field] = value
+	}
+
+	buf := db.bufPool.Get()
+	defer db.bufPool.Put(buf)
+
+	rowValue, err = db.table.EncodeValue(buf.Bytes(), rowData)
+	if err != nil {
+		return err
+	}
+	if err = tx.Set(rowKey, rowValue); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (db *coprocessor) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -112,5 +166,25 @@ func (db *coprocessor) Insert(ctx context.Context, table string, key string, val
 }
 
 func (db *coprocessor) Delete(ctx context.Context, table string, key string) error {
-	return errors.New("unsupported type of delete in coprocessor")
+	// encode key
+	rowKey := db.table.EncodeKey(key)
+	// do delete transaction
+	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	rowValue, err := tx.Get(rowKey)
+	if kv.ErrNotExist.Equal(err) {
+		return nil
+	} else if rowValue == nil {
+		return err
+	}
+
+	err = tx.Delete(rowKey)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
