@@ -8,6 +8,24 @@
   revision = "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
 
 [[projects]]
+  name = "github.com/aerospike/aerospike-client-go"
+  packages = [
+    ".",
+    "internal/lua",
+    "internal/lua/resources",
+    "logger",
+    "pkg/bcrypt",
+    "pkg/ripemd160",
+    "types",
+    "types/atomic",
+    "types/particle_type",
+    "types/rand",
+    "utils/buffer"
+  ]
+  revision = "c10b5393e43bd60125aca6289c7b24879edb1787"
+  version = "v1.33.0"
+
+[[projects]]
   name = "github.com/apple/foundationdb"
   packages = ["bindings/go/src/fdb"]
   revision = "9ad8d02386d4a6a5efecf898df80f2747695c627"
@@ -335,6 +353,17 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/yuin/gopher-lua"
+  packages = [
+    ".",
+    "ast",
+    "parse",
+    "pm"
+  ]
+  revision = "ca850f594eaafa5468da2bd53b865e4ee55be18b"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
   revision = "ae8bce0030810cf999bb2b9868ae5c7c58e6343b"
@@ -439,6 +468,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3e3c9e7623520b36afb8c850677708392d4c4e0cfe7f3b83287e91a52826f6cb"
+  inputs-digest = "187f79973982e3f742ed0825bea1f2046993a5308d0f11dc2bf98672a80df92a"
   solver-name = "gps-cdcl"
   solver-version = 1
