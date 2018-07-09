@@ -30,7 +30,7 @@ type measurement struct {
 	opMeasurement map[string]ycsb.Measurement
 }
 
-func (m *measurement) Measure(op string, lan time.Duration) {
+func (m *measurement) measure(op string, lan time.Duration) {
 	m.RLock()
 	opM, ok := m.opMeasurement[op]
 	m.RUnlock()
@@ -45,13 +45,35 @@ func (m *measurement) Measure(op string, lan time.Duration) {
 	opM.Measure(lan)
 }
 
-func (m *measurement) Output() {
+func (m *measurement) output() {
 	m.RLock()
 	defer m.RUnlock()
 
 	for op, opM := range m.opMeasurement {
 		fmt.Printf("%s - %s\n", op, opM.Summary())
 	}
+}
+
+func (m *measurement) info() map[string]ycsb.MeasurementInfo {
+	m.RLock()
+	defer m.RUnlock()
+
+	opMeasurementInfo := make(map[string]ycsb.MeasurementInfo, len(m.opMeasurement))
+	for op, opM := range m.opMeasurement {
+		opMeasurementInfo[op] = opM.Info()
+	}
+	return opMeasurementInfo
+}
+
+func (m *measurement) getOpName() []string {
+	m.RLock()
+	defer m.RUnlock()
+
+	res := make([]string, 0, len(m.opMeasurement))
+	for op := range m.opMeasurement {
+		res = append(res, op)
+	}
+	return res
 }
 
 // InitMeasure initializes the global measurement.
@@ -63,12 +85,23 @@ func InitMeasure(p *properties.Properties) {
 
 // Output prints the measurement summary.
 func Output() {
-	globalMeasure.Output()
+	globalMeasure.output()
 }
 
 // Measure measures the operation.
 func Measure(op string, lan time.Duration) {
-	globalMeasure.Measure(op, lan)
+	globalMeasure.measure(op, lan)
+}
+
+// Info returns all the operations MeasurementInfo.
+// The key of returned map is the operation name.
+func Info() map[string]ycsb.MeasurementInfo {
+	return globalMeasure.info()
+}
+
+// GetOpNames returns a string slice which contains all the operation name measured.
+func GetOpNames() []string {
+	return globalMeasure.getOpName()
 }
 
 var globalMeasure *measurement
