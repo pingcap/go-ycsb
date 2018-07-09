@@ -36,7 +36,7 @@ func (db DbWrapper) Read(ctx context.Context, table string, key string, fields [
 	return db.DB.Read(ctx, table, key, fields)
 }
 
-// Scan wrap the Scan method in the interface of ycsb.DB
+// Scan wraps the Scan method in the interface of ycsb.DB
 func (db DbWrapper) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	start := time.Now()
 	defer func() {
@@ -46,7 +46,7 @@ func (db DbWrapper) Scan(ctx context.Context, table string, startKey string, cou
 	return db.DB.Scan(ctx, table, startKey, count, fields)
 }
 
-// Update wrap the Update method in the interface of ycsb.DB
+// Update wraps the Update method in the interface of ycsb.DB
 func (db DbWrapper) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
 	start := time.Now()
 	defer func() {
@@ -56,7 +56,7 @@ func (db DbWrapper) Update(ctx context.Context, table string, key string, values
 	return db.DB.Update(ctx, table, key, values)
 }
 
-// Insert wrap the Insert method in the interface of ycsb.DB
+// Insert wraps the Insert method in the interface of ycsb.DB
 func (db DbWrapper) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	start := time.Now()
 	defer func() {
@@ -66,7 +66,7 @@ func (db DbWrapper) Insert(ctx context.Context, table string, key string, values
 	return db.DB.Insert(ctx, table, key, values)
 }
 
-// Delete wrap the Delete method in the interface of ycsb.DB
+// Delete wraps the Delete method in the interface of ycsb.DB
 func (db DbWrapper) Delete(ctx context.Context, table string, key string) error {
 	start := time.Now()
 	defer func() {
