@@ -25,7 +25,7 @@ type DBCreator interface {
 	Create(p *properties.Properties) (DB, error)
 }
 
-// DB is the layber to access the database to be benchmarked.
+// DB is the layer to access the database to be benchmarked.
 type DB interface {
 	// Close closes the database layer.
 	Close() error
@@ -40,7 +40,7 @@ type DB interface {
 	// Read reads a record from the database and returns a map of each field/value pair.
 	// table: The name of the table.
 	// key: The record key of the record to read.
-	// fileds: The list of fields to read, nil|empty for reading all.
+	// fields: The list of fields to read, nil|empty for reading all.
 	Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error)
 
 	// Scan scans records from the database.

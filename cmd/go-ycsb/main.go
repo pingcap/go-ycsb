@@ -29,6 +29,7 @@ import (
 
 	"fmt"
 
+	"github.com/pingcap/go-ycsb/pkg/client"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
@@ -103,7 +104,7 @@ func initialGlobal(dbName string, onProperties func()) {
 	if globalDB, err = dbCreator.Create(globalProps); err != nil {
 		util.Fatalf("create db %s failed %v", dbName, err)
 	}
-	globalDB = dbWrapper{globalDB}
+	globalDB = client.DbWrapper{globalDB}
 }
 
 func main() {
