@@ -29,6 +29,7 @@ import (
 
 	"fmt"
 
+	"github.com/pingcap/go-ycsb/pkg/client"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
@@ -44,7 +45,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/tikv"
 	// Register PostgreSQL database
 	_ "github.com/pingcap/go-ycsb/db/pg"
-	"github.com/pingcap/go-ycsb/pkg/client"
+	// Register Aerospike database
+	_ "github.com/pingcap/go-ycsb/db/aerospike"
 )
 
 var (

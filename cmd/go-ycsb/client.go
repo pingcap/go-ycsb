@@ -19,11 +19,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pingcap/go-ycsb/pkg/client"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/spf13/cobra"
-
-	"github.com/pingcap/go-ycsb/pkg/client"
 )
 
 func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool) {

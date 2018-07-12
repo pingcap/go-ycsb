@@ -64,6 +64,7 @@ Available Commands:
 - mysql
 - tikv
 - foundationdb or fdb
+- aerospike
 
 ## Database Configuration
 
@@ -109,6 +110,14 @@ You can pass the database configuraitons through `-p field=value` in the command
 |pg.sslmode|"disable|PostgreSQL ssl mode|
 |pg.verbose|false|Output the execution query|
 |pg.droptable|false|Drop Table at first|
+
+### Aerospike
+
+|field|default value|description|
+|-|-|-|
+|aerospike.host|"localhost"|"The port of the Aerospike service"|
+|aerospike.port|3000|The port of the Aerospike service|
+|aerospike.ns|"test"|The namespace to use|
 
 ## TODO
 
