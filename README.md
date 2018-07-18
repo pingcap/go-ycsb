@@ -115,9 +115,18 @@ You can pass the database configuraitons through `-p field=value` in the command
 
 |field|default value|description|
 |-|-|-|
-|aerospike.host|"localhost"|"The port of the Aerospike service"|
+|aerospike.host|"localhost"|The port of the Aerospike service|
 |aerospike.port|3000|The port of the Aerospike service|
 |aerospike.ns|"test"|The namespace to use|
+
+### Badger
+
+|field|default value|description|
+|-|-|-|
+|badger.dir|"/tmp/badger"|The directory to save data|
+|badger.valuedir|"/tmp/badger"|The directory to save value, if not set, use badger.dir|
+|badger.dropdata|false|Whether to remove all data before test|
+
 
 ## TODO
 

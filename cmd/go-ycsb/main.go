@@ -47,6 +47,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/pg"
 	// Register Aerospike database
 	_ "github.com/pingcap/go-ycsb/db/aerospike"
+	// Register Badger database
+	_ "github.com/pingcap/go-ycsb/db/badger"
 )
 
 var (

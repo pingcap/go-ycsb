@@ -66,28 +66,28 @@ func runShellCommand(args []string) {
 
 	cmd.AddCommand(
 		&cobra.Command{
-			Use:   "read key [field1 field2 ...]",
+			Use:   "read key [field0 field1 field2 ...]",
 			Short: "Read a record",
 			Args:  cobra.MinimumNArgs(1),
 			Run:   runShellReadCommand,
 			DisableFlagsInUseLine: true,
 		},
 		&cobra.Command{
-			Use:   "scan key recordcount [field1 field2 ...]",
+			Use:   "scan key recordcount [field0 field1 field2 ...]",
 			Short: "Scan starting at key",
 			Args:  cobra.MinimumNArgs(2),
 			Run:   runShellScanCommand,
 			DisableFlagsInUseLine: true,
 		},
 		&cobra.Command{
-			Use:   "insert key name1=value1 [name2=value2 ...]",
+			Use:   "insert key field0=value0 [field1=value1 ...]",
 			Short: "Insert a record",
 			Args:  cobra.MinimumNArgs(2),
 			Run:   runShellInsertCommand,
 			DisableFlagsInUseLine: true,
 		},
 		&cobra.Command{
-			Use:   "update key name1=value1 [name2=value2 ...]",
+			Use:   "update key field0=value0 [field1=value1 ...]",
 			Short: "Update a record",
 			Args:  cobra.MinimumNArgs(2),
 			Run:   runShellUpdateCommand,
