@@ -3,6 +3,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/AndreasBriese/bbloom"
+  packages = ["."]
+  revision = "28f7e881ca57bc00e028f9ede9f0d9104cfeef5e"
+
+[[projects]]
+  branch = "master"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
   revision = "a368813c5e648fee92e5f6c30e3944ff9d5e8895"
@@ -67,6 +73,25 @@
   name = "github.com/cznic/mathutil"
   packages = ["."]
   revision = "4bcf60dc891f30c8d3c839cdc8f7e5a2cd91ea0e"
+
+[[projects]]
+  name = "github.com/dgraph-io/badger"
+  packages = [
+    ".",
+    "options",
+    "protos",
+    "skl",
+    "table",
+    "y"
+  ]
+  revision = "391b6d3b93e6014fe8c2971fcc0c1266e47dbbd9"
+  version = "v1.5.3"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/dgryski/go-farm"
+  packages = ["."]
+  revision = "2de33835d10275975374b37b2dcfd22c9020a1f5"
 
 [[projects]]
   name = "github.com/go-sql-driver/mysql"
@@ -468,6 +493,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "699f9396f37bd60cfbd6de4b39946e1244fdb5688928da9af43f8eff494bb831"
+  inputs-digest = "76ad7a7183d52b803e2ebc121b81122eba5659e0c188ebcbff10dd2e15a7a0af"
   solver-name = "gps-cdcl"
   solver-version = 1
