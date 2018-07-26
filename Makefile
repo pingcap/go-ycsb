@@ -1,12 +1,23 @@
-FDBCLI_VERSION := $(shell fdbcli -v 2>/dev/null)
+FDB_CHECK := $(shell fdbcli -v 2>/dev/null; echo $$?)
+ROCKSDB_CHECK := $(shell echo "int main() { return 0; }" | gcc -lrocksdb -x c++ -o /dev/null - 2>/dev/null; echo $$?)
+
+TAGS = 
+
+ifeq ($(FDB_CHECK), 0)
+	TAGS += foundationdb
+endif 
+
+ifeq ($(ROCKSDB_CHECK), 0)
+	TAGS += rocksdb
+endif 
 
 default: build
 
 build:
-ifdef FDBCLI_VERSION
-	go build -tags "foundationdb" -o bin/go-ycsb cmd/go-ycsb/*
-else 
-	go build -o bin/go-ycsb cmd/go-ycsb/*
+ifeq ($(TAGS),)
+	go build -o bin/go-ycsb cmd/go-ycsb/*	
+else
+	go build -tags "$(TAGS)" -o bin/go-ycsb cmd/go-ycsb/*
 endif
 
 check:

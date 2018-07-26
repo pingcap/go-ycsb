@@ -127,6 +127,12 @@ You can pass the database configuraitons through `-p field=value` in the command
 |badger.valuedir|"/tmp/badger"|The directory to save value, if not set, use badger.dir|
 |badger.dropdata|false|Whether to remove all data before test|
 
+### RocksDB
+
+|field|default value|description|
+|-|-|-|
+|rocksdb.dir|"/tmp/rocksdb"|The directory to save data|
+|rocksdb.dropdata|false|Whether to remove all data before test|
 
 ## TODO
 
