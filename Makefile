@@ -1,5 +1,5 @@
 FDB_CHECK := $(shell fdbcli -v 2>/dev/null; echo $$?)
-ROCKSDB_CHECK := $(shell echo "int main() { return 0; }" | gcc -lrocksdb -x c++ - 2>/dev/null; echo $$?)
+ROCKSDB_CHECK := $(shell echo "int main() { return 0; }" | gcc -lrocksdb -x c++ -o /dev/null - 2>/dev/null; echo $$?)
 
 TAGS = 
 
