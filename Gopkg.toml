@@ -75,6 +75,9 @@
   branch = "master"
   name = "github.com/lib/pq"
 
+[[constraint]]
+  branch = "master"
+  name = "github.com/tecbot/gorocksdb"
 
 [prune]
   go-tests = true

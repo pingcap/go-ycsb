@@ -342,6 +342,12 @@
   version = "v1.0.1"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/tecbot/gorocksdb"
+  packages = ["."]
+  revision = "3e476152774442234f9a9f747386a48a1d82a515"
+
+[[projects]]
   name = "github.com/twinj/uuid"
   packages = ["."]
   revision = "835a10bbd6bce40820349a68b1368a62c3c5617c"
@@ -501,6 +507,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "878eba55116b9c98c27dc80a6502b248cad773e23f25a57b1414b5c9ee68df71"
+  inputs-digest = "ddb1159ec2811a55ba34aa0829fc6c05e4793058761a02a371a29b6ecd84814a"
   solver-name = "gps-cdcl"
   solver-version = 1
