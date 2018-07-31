@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/options"
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
@@ -26,23 +27,25 @@ import (
 
 //  properties
 const (
-	badgerDir      = "badger.dir"
-	badgerValueDir = "badger.valuedir"
-	badgerDropData = "badger.dropdata"
-	badgerSyncWrites = "badger.sync_writes"
-	badgerNumVersionsToKeep = "badger.num_versions_to_keep"
-	badgerMaxTableSize = "badger.max_table_size"
-	badgerLevelSizeMultiplier = "badger.level_size_multiplier"
-	badgerMaxLevels = "badger.max_levels"
-	badgerValueThreshold = "badger.value_threshold"
-	badgerNumMemtables = "badger.num_memtables"
-	badgerNumLevelZeroTables = "badger.num_level0_tables"
+	badgerDir                     = "badger.dir"
+	badgerValueDir                = "badger.valuedir"
+	badgerDropData                = "badger.dropdata"
+	badgerSyncWrites              = "badger.sync_writes"
+	badgerNumVersionsToKeep       = "badger.num_versions_to_keep"
+	badgerMaxTableSize            = "badger.max_table_size"
+	badgerLevelSizeMultiplier     = "badger.level_size_multiplier"
+	badgerMaxLevels               = "badger.max_levels"
+	badgerValueThreshold          = "badger.value_threshold"
+	badgerNumMemtables            = "badger.num_memtables"
+	badgerNumLevelZeroTables      = "badger.num_level0_tables"
 	badgerNumLevelZeroTablesStall = "badger.num_level0_tables_stall"
-	badgerLevelOneSize = "badger.level_one_size"
-	badgerValueLogFileSize = "badger.value_log_file_size"
-	badgerValueLogMaxEntries = "badger.value_log_max_entries"
-	badgerNumCompactors = "badger.num_compactors"
-	badgerDoNotCompact = "badger.do_not_compact"
+	badgerLevelOneSize            = "badger.level_one_size"
+	badgerValueLogFileSize        = "badger.value_log_file_size"
+	badgerValueLogMaxEntries      = "badger.value_log_max_entries"
+	badgerNumCompactors           = "badger.num_compactors"
+	badgerDoNotCompact            = "badger.do_not_compact"
+	badgerTableLoadingMode        = "badger.table_loading_mode"
+	badgerValueLogLoadingMode     = "badger.value_log_loading_mode"
 	// TODO: add more configurations
 )
 
@@ -132,6 +135,24 @@ func getOptions(p *properties.Properties) badger.Options {
 	}
 	if b := p.GetBool(badgerDoNotCompact, false); b {
 		opts.DoNotCompact = b
+	}
+	if b := p.GetString(badgerTableLoadingMode, ""); len(b) > 0 {
+		if b == "FileIO" {
+			opts.TableLoadingMode = options.FileIO
+		} else if b == "LoadToRAM" {
+			opts.TableLoadingMode = options.LoadToRAM
+		} else if b == "MemoryMap" {
+			opts.TableLoadingMode = options.MemoryMap
+		}
+	}
+	if b := p.GetString(badgerValueLogLoadingMode, ""); len(b) > 0 {
+		if b == "FileIO" {
+			opts.ValueLogLoadingMode = options.FileIO
+		} else if b == "LoadToRAM" {
+			opts.ValueLogLoadingMode = options.LoadToRAM
+		} else if b == "MemoryMap" {
+			opts.ValueLogLoadingMode = options.MemoryMap
+		}
 	}
 
 	return opts

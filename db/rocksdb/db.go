@@ -28,26 +28,35 @@ import (
 const (
 	rocksdbDir      = "rocksdb.dir"
 	rocksdbDropData = "rocksdb.dropdata"
-	rocksdbAllowConcurrentMemtableWrites = "rocksdb.allow_concurrent_memtable_writes"
-	rocsdbAllowMmapReads = "rocksdb.allow_mmap_reads"
-	rocksdbAllowMmapWrites = "rocksdb.allow_mmap_writes"
-	rocksdbSetArenaBlockSize = "rocksdb.set_arena_block_size"
-	rocksdbSetDBWriteBufferSize = "rocksdb.set_db_write_buffer_size"
-	rocksdbSetHardPendingCompactionBytesLimit = "rocksdb.set_hard_pending_compaction_bytes_limit"
-	rocksdbSetHardRateLimit = "rocksdb.set_hard_rate_limit"
-	rocksdbSetLevel0FileNumCompactionTrigger = "rocksdb.set_level0_file_num_compaction_trigger"
-	rocksdbSetLevel0SlowdownWritesTrigger = "rocksdb.set_level0_slow_down_writes_trigger"
-	rocksdbSetLevel0StopWritesTrigger = "rocksdb.set_level0_stop_writes_trigger"
-	rocksdbSetMaxBackgroundCompactions = "rocksdb.set_max_background_compactions"
-	rocksdbSetMaxBackgroundFlushes = "rocksdb.set_max_background_flushes"
-	rocksdbSetMaxBytesForLevelBase = "rocksdb.set_max_bytes_for_level_base"
-	rocksdbSetMaxBytesForLevelMultiplier = "rocksdb.set_max_bytes_for_level_multiplier"
-	rocksdbSetMaxTotalWalSize = "rocksdb.set_max_total_wal_size"
-	rocksdbSetMemtableHugePageSize = "rocksdb.set_memtable_huge_page_size"
-	rocksdbSetNumLevels = "rocksdb.set_num_levels"
-	rocksdbSetUseDirectReads = "rocksdb.set_use_direct_reads"
-	rocksdbSetUseFsync = "rocksdb.set_use_fsync"
-	rocksdbSetWriteBufferSize = "rocksdb.set_write_buffer_size"
+	// DBOptions
+	rocksdbAllowConcurrentMemtableWrites   = "rocksdb.allow_concurrent_memtable_writes"
+	rocsdbAllowMmapReads                   = "rocksdb.allow_mmap_reads"
+	rocksdbAllowMmapWrites                 = "rocksdb.allow_mmap_writes"
+	rocksdbArenaBlockSize                  = "rocksdb.arena_block_size"
+	rocksdbDBWriteBufferSize               = "rocksdb.db_write_buffer_size"
+	rocksdbHardPendingCompactionBytesLimit = "rocksdb.hard_pending_compaction_bytes_limit"
+	rocksdbLevel0FileNumCompactionTrigger  = "rocksdb.level0_file_num_compaction_trigger"
+	rocksdbLevel0SlowdownWritesTrigger     = "rocksdb.level0_slowdown_writes_trigger"
+	rocksdbLevel0StopWritesTrigger         = "rocksdb.level0_stop_writes_trigger"
+	rocksdbMaxBackgroundFlushes            = "rocksdb.max_background_flushes"
+	rocksdbMaxBytesForLevelBase            = "rocksdb.max_bytes_for_level_base"
+	rocksdbMaxBytesForLevelMultiplier      = "rocksdb.max_bytes_for_level_multiplier"
+	rocksdbMaxTotalWalSize                 = "rocksdb.max_total_wal_size"
+	rocksdbMemtableHugePageSize            = "rocksdb.memtable_huge_page_size"
+	rocksdbNumLevels                       = "rocksdb.num_levels"
+	rocksdbUseDirectReads                  = "rocksdb.use_direct_reads"
+	rocksdbUseFsync                        = "rocksdb.use_fsync"
+	rocksdbWriteBufferSize                 = "rocksdb.write_buffer_size"
+	// TableOptions/BlockBasedTable
+	rocksdbBlockSize                        = "rocksdb.block_size"
+	rocksdbBlockSizeDeviation               = "rocksdb.block_size_deviation"
+	rocksdbCacheIndexAndFilterBlocks        = "rocksdb.cache_index_and_filter_blocks"
+	rocksdbNoBlockCache                     = "rocksdb.no_block_cache"
+	rocksdbPinL0FilterAndIndexBlocksInCache = "rocksdb.pin_l0_filter_and_index_blocks_in_cache"
+	rocksdbWholeKeyFiltering                = "rocksdb.whole_key_filtering"
+	rocksdbBlockRestartInterval             = "rocksdb.block_restart_interval"
+	rocksdbFilterPolicy                     = "rocksdb.filter_policy"
+	rocksdbIndexType                        = "rocksdb.index_type"
 	// TODO: add more configurations
 )
 
@@ -92,9 +101,65 @@ func (c rocksDBCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	}, nil
 }
 
+func getTableOptions(p *properties.Properties) (*gorocksdb.BlockBasedTableOptions, bool) {
+	hasTableOption := false
+	tblOpts := gorocksdb.NewDefaultBlockBasedTableOptions()
+
+	if b := p.GetInt(rocksdbBlockSize, 0); b > 0 {
+		tblOpts.SetBlockSize(b)
+		hasTableOption = true
+	}
+	if b := p.GetInt(rocksdbBlockSizeDeviation, 0); b > 0 {
+		tblOpts.SetBlockSizeDeviation(b)
+		hasTableOption = true
+	}
+	if b := p.GetBool(rocksdbCacheIndexAndFilterBlocks, false); b {
+		tblOpts.SetCacheIndexAndFilterBlocks(b)
+		hasTableOption = true
+	}
+	if b := p.GetBool(rocksdbNoBlockCache, false); b {
+		tblOpts.SetNoBlockCache(b)
+		hasTableOption = true
+	}
+	if b := p.GetBool(rocksdbPinL0FilterAndIndexBlocksInCache, false); b {
+		tblOpts.SetPinL0FilterAndIndexBlocksInCache(b)
+		hasTableOption = true
+	}
+	if b := p.GetBool(rocksdbWholeKeyFiltering, false); b {
+		tblOpts.SetWholeKeyFiltering(b)
+		hasTableOption = true
+	}
+	if b := p.GetInt(rocksdbBlockRestartInterval, 0); b > 0 {
+		tblOpts.SetBlockRestartInterval(b)
+		hasTableOption = true
+	}
+	if b := p.GetString(rocksdbFilterPolicy, ""); len(b) > 0 {
+		if b == "rocksdb.BuiltinBloomFilter" {
+			const defaultBitsPerKey = 10
+			tblOpts.SetFilterPolicy(gorocksdb.NewBloomFilter(defaultBitsPerKey))
+			hasTableOption = true
+		}
+	}
+	if b := p.GetString(rocksdbIndexType, ""); len(b) > 0 {
+		if b == "KBinarySearch" {
+			tblOpts.SetIndexType(gorocksdb.KBinarySearchIndexType)
+			hasTableOption = true
+		} else if b == "KHashSearch" {
+			tblOpts.SetIndexType(gorocksdb.KHashSearchIndexType)
+			hasTableOption = true
+		} else if b == "KTwoLevelIndexSearch" {
+			tblOpts.SetIndexType(gorocksdb.KTwoLevelIndexSearchIndexType)
+			hasTableOption = true
+		}
+	}
+
+	return tblOpts, hasTableOption
+}
+
 func getOptions(p *properties.Properties) *gorocksdb.Options {
 	opts := gorocksdb.NewDefaultOptions()
 	opts.SetCreateIfMissing(true)
+
 	if b := p.GetBool(rocksdbAllowConcurrentMemtableWrites, false); b {
 		opts.SetAllowConcurrentMemtableWrites(b)
 	}
@@ -104,56 +169,54 @@ func getOptions(p *properties.Properties) *gorocksdb.Options {
 	if b := p.GetBool(rocksdbAllowMmapWrites, false); b {
 		opts.SetAllowMmapWrites(b)
 	}
-	if b := p.GetInt(rocksdbSetArenaBlockSize, 0); b > 0 {
+	if b := p.GetInt(rocksdbArenaBlockSize, 0); b > 0 {
 		opts.SetArenaBlockSize(b)
 	}
-	if b := p.GetInt(rocksdbSetDBWriteBufferSize, 0); b > 0 {
+	if b := p.GetInt(rocksdbDBWriteBufferSize, 0); b > 0 {
 		opts.SetDbWriteBufferSize(b)
 	}
-	if b := p.GetUint64(rocksdbSetHardPendingCompactionBytesLimit, 0); b > 0 {
+	if b := p.GetUint64(rocksdbHardPendingCompactionBytesLimit, 0); b > 0 {
 		opts.SetHardPendingCompactionBytesLimit(b)
 	}
-	if b := p.GetFloat64(rocksdbSetHardRateLimit, 0); b > 0 {
-		opts.SetHardRateLimit(b)
-	}
-	if b := p.GetInt(rocksdbSetLevel0FileNumCompactionTrigger, 0); b > 0 {
+	if b := p.GetInt(rocksdbLevel0FileNumCompactionTrigger, 0); b > 0 {
 		opts.SetLevel0FileNumCompactionTrigger(b)
 	}
-	if b := p.GetInt(rocksdbSetLevel0SlowdownWritesTrigger, 0); b > 0 {
+	if b := p.GetInt(rocksdbLevel0SlowdownWritesTrigger, 0); b > 0 {
 		opts.SetLevel0SlowdownWritesTrigger(b)
 	}
-	if b := p.GetInt(rocksdbSetLevel0StopWritesTrigger, 0); b > 0 {
+	if b := p.GetInt(rocksdbLevel0StopWritesTrigger, 0); b > 0 {
 		opts.SetLevel0StopWritesTrigger(b)
 	}
-	if b := p.GetInt(rocksdbSetMaxBackgroundCompactions, 0); b > 0 {
-		opts.SetMaxBackgroundCompactions(b)
-	}
-	if b := p.GetInt(rocksdbSetMaxBackgroundFlushes, 0); b > 0 {
+	if b := p.GetInt(rocksdbMaxBackgroundFlushes, 0); b > 0 {
 		opts.SetMaxBackgroundFlushes(b)
 	}
-	if b := p.GetUint64(rocksdbSetMaxBytesForLevelBase, 0); b > 0 {
+	if b := p.GetUint64(rocksdbMaxBytesForLevelBase, 0); b > 0 {
 		opts.SetMaxBytesForLevelBase(b)
 	}
-	if b := p.GetFloat64(rocksdbSetMaxBytesForLevelMultiplier, 0); b > 0 {
+	if b := p.GetFloat64(rocksdbMaxBytesForLevelMultiplier, 0); b > 0 {
 		opts.SetMaxBytesForLevelMultiplier(b)
 	}
-	if b := p.GetUint64(rocksdbSetMaxTotalWalSize, 0); b > 0 {
+	if b := p.GetUint64(rocksdbMaxTotalWalSize, 0); b > 0 {
 		opts.SetMaxTotalWalSize(b)
 	}
-	if b := p.GetInt(rocksdbSetMemtableHugePageSize, 0); b > 0 {
+	if b := p.GetInt(rocksdbMemtableHugePageSize, 0); b > 0 {
 		opts.SetMemtableHugePageSize(b)
 	}
-	if b := p.GetInt(rocksdbSetNumLevels, 0); b > 0 {
+	if b := p.GetInt(rocksdbNumLevels, 0); b > 0 {
 		opts.SetNumLevels(b)
 	}
-	if b := p.GetBool(rocksdbSetUseDirectReads, false); b {
+	if b := p.GetBool(rocksdbUseDirectReads, false); b {
 		opts.SetUseDirectReads(b)
 	}
-	if b := p.GetBool(rocksdbSetUseFsync, false); b {
+	if b := p.GetBool(rocksdbUseFsync, false); b {
 		opts.SetUseFsync(b)
 	}
-	if b := p.GetInt(rocksdbSetWriteBufferSize, 0); b > 0 {
+	if b := p.GetInt(rocksdbWriteBufferSize, 0); b > 0 {
 		opts.SetWriteBufferSize(b)
+	}
+
+	if tblOpts, ok := getTableOptions(p); ok {
+		opts.SetBlockBasedTableFactory(tblOpts)
 	}
 
 	return opts
