@@ -11,8 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build rocksdb
-
 package rocksdb
 
 import (
@@ -30,6 +28,35 @@ import (
 const (
 	rocksdbDir      = "rocksdb.dir"
 	rocksdbDropData = "rocksdb.dropdata"
+	// DBOptions
+	rocksdbAllowConcurrentMemtableWrites   = "rocksdb.allow_concurrent_memtable_writes"
+	rocsdbAllowMmapReads                   = "rocksdb.allow_mmap_reads"
+	rocksdbAllowMmapWrites                 = "rocksdb.allow_mmap_writes"
+	rocksdbArenaBlockSize                  = "rocksdb.arena_block_size"
+	rocksdbDBWriteBufferSize               = "rocksdb.db_write_buffer_size"
+	rocksdbHardPendingCompactionBytesLimit = "rocksdb.hard_pending_compaction_bytes_limit"
+	rocksdbLevel0FileNumCompactionTrigger  = "rocksdb.level0_file_num_compaction_trigger"
+	rocksdbLevel0SlowdownWritesTrigger     = "rocksdb.level0_slowdown_writes_trigger"
+	rocksdbLevel0StopWritesTrigger         = "rocksdb.level0_stop_writes_trigger"
+	rocksdbMaxBackgroundFlushes            = "rocksdb.max_background_flushes"
+	rocksdbMaxBytesForLevelBase            = "rocksdb.max_bytes_for_level_base"
+	rocksdbMaxBytesForLevelMultiplier      = "rocksdb.max_bytes_for_level_multiplier"
+	rocksdbMaxTotalWalSize                 = "rocksdb.max_total_wal_size"
+	rocksdbMemtableHugePageSize            = "rocksdb.memtable_huge_page_size"
+	rocksdbNumLevels                       = "rocksdb.num_levels"
+	rocksdbUseDirectReads                  = "rocksdb.use_direct_reads"
+	rocksdbUseFsync                        = "rocksdb.use_fsync"
+	rocksdbWriteBufferSize                 = "rocksdb.write_buffer_size"
+	// TableOptions/BlockBasedTable
+	rocksdbBlockSize                        = "rocksdb.block_size"
+	rocksdbBlockSizeDeviation               = "rocksdb.block_size_deviation"
+	rocksdbCacheIndexAndFilterBlocks        = "rocksdb.cache_index_and_filter_blocks"
+	rocksdbNoBlockCache                     = "rocksdb.no_block_cache"
+	rocksdbPinL0FilterAndIndexBlocksInCache = "rocksdb.pin_l0_filter_and_index_blocks_in_cache"
+	rocksdbWholeKeyFiltering                = "rocksdb.whole_key_filtering"
+	rocksdbBlockRestartInterval             = "rocksdb.block_restart_interval"
+	rocksdbFilterPolicy                     = "rocksdb.filter_policy"
+	rocksdbIndexType                        = "rocksdb.index_type"
 	// TODO: add more configurations
 )
 
@@ -57,8 +84,7 @@ func (c rocksDBCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		os.RemoveAll(dir)
 	}
 
-	opts := gorocksdb.NewDefaultOptions()
-	opts.SetCreateIfMissing(true)
+	opts := getOptions(p)
 
 	db, err := gorocksdb.OpenDb(opts, dir)
 	if err != nil {
@@ -73,6 +99,63 @@ func (c rocksDBCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		readOpts:  gorocksdb.NewDefaultReadOptions(),
 		writeOpts: gorocksdb.NewDefaultWriteOptions(),
 	}, nil
+}
+
+func getTableOptions(p *properties.Properties) *gorocksdb.BlockBasedTableOptions {
+	tblOpts := gorocksdb.NewDefaultBlockBasedTableOptions()
+
+	tblOpts.SetBlockSize(p.GetInt(rocksdbBlockSize, 4<<10))
+	tblOpts.SetBlockSizeDeviation(p.GetInt(rocksdbBlockSizeDeviation, 10))
+	tblOpts.SetCacheIndexAndFilterBlocks(p.GetBool(rocksdbCacheIndexAndFilterBlocks, false))
+	tblOpts.SetNoBlockCache(p.GetBool(rocksdbNoBlockCache, false))
+	tblOpts.SetPinL0FilterAndIndexBlocksInCache(p.GetBool(rocksdbPinL0FilterAndIndexBlocksInCache, false))
+	tblOpts.SetWholeKeyFiltering(p.GetBool(rocksdbWholeKeyFiltering, true))
+	tblOpts.SetBlockRestartInterval(p.GetInt(rocksdbBlockRestartInterval, 16))
+
+	if b := p.GetString(rocksdbFilterPolicy, ""); len(b) > 0 {
+		if b == "rocksdb.BuiltinBloomFilter" {
+			const defaultBitsPerKey = 10
+			tblOpts.SetFilterPolicy(gorocksdb.NewBloomFilter(defaultBitsPerKey))
+		}
+	}
+
+	indexType := p.GetString(rocksdbIndexType, "kBinarySearch")
+	if indexType == "kBinarySearch" {
+		tblOpts.SetIndexType(gorocksdb.KBinarySearchIndexType)
+	} else if indexType == "kHashSearch" {
+		tblOpts.SetIndexType(gorocksdb.KHashSearchIndexType)
+	} else if indexType == "kTwoLevelIndexSearch" {
+		tblOpts.SetIndexType(gorocksdb.KTwoLevelIndexSearchIndexType)
+	}
+
+	return tblOpts
+}
+
+func getOptions(p *properties.Properties) *gorocksdb.Options {
+	opts := gorocksdb.NewDefaultOptions()
+	opts.SetCreateIfMissing(true)
+
+	opts.SetAllowConcurrentMemtableWrites(p.GetBool(rocksdbAllowConcurrentMemtableWrites, true))
+	opts.SetAllowMmapReads(p.GetBool(rocsdbAllowMmapReads, false))
+	opts.SetAllowMmapWrites(p.GetBool(rocksdbAllowMmapWrites, false))
+	opts.SetArenaBlockSize(p.GetInt(rocksdbArenaBlockSize, 0))
+	opts.SetDbWriteBufferSize(p.GetInt(rocksdbDBWriteBufferSize, 0))
+	opts.SetHardPendingCompactionBytesLimit(p.GetUint64(rocksdbHardPendingCompactionBytesLimit, 256<<30))
+	opts.SetLevel0FileNumCompactionTrigger(p.GetInt(rocksdbLevel0FileNumCompactionTrigger, 4))
+	opts.SetLevel0SlowdownWritesTrigger(p.GetInt(rocksdbLevel0SlowdownWritesTrigger, 20))
+	opts.SetLevel0StopWritesTrigger(p.GetInt(rocksdbLevel0StopWritesTrigger, 36))
+	opts.SetMaxBytesForLevelBase(p.GetUint64(rocksdbMaxBytesForLevelBase, 256<<20))
+	opts.SetMaxBytesForLevelMultiplier(p.GetFloat64(rocksdbMaxBytesForLevelMultiplier, 10))
+	opts.SetMaxTotalWalSize(p.GetUint64(rocksdbMaxTotalWalSize, 0))
+	opts.SetMemtableHugePageSize(p.GetInt(rocksdbMemtableHugePageSize, 0))
+	opts.SetNumLevels(p.GetInt(rocksdbNumLevels, 7))
+	opts.SetUseDirectReads(p.GetBool(rocksdbUseDirectReads, false))
+	opts.SetUseFsync(p.GetBool(rocksdbUseFsync, false))
+	opts.SetWriteBufferSize(p.GetInt(rocksdbWriteBufferSize, 64<<20))
+
+	opts.SetBlockBasedTableFactory(getTableOptions(p))
+
+	return opts
 }
 
 func (db *rocksDB) Close() error {

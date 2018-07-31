@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/options"
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
@@ -26,9 +27,25 @@ import (
 
 //  properties
 const (
-	badgerDir      = "badger.dir"
-	badgerValueDir = "badger.valuedir"
-	badgerDropData = "badger.dropdata"
+	badgerDir                     = "badger.dir"
+	badgerValueDir                = "badger.valuedir"
+	badgerDropData                = "badger.dropdata"
+	badgerSyncWrites              = "badger.sync_writes"
+	badgerNumVersionsToKeep       = "badger.num_versions_to_keep"
+	badgerMaxTableSize            = "badger.max_table_size"
+	badgerLevelSizeMultiplier     = "badger.level_size_multiplier"
+	badgerMaxLevels               = "badger.max_levels"
+	badgerValueThreshold          = "badger.value_threshold"
+	badgerNumMemtables            = "badger.num_memtables"
+	badgerNumLevelZeroTables      = "badger.num_level0_tables"
+	badgerNumLevelZeroTablesStall = "badger.num_level0_tables_stall"
+	badgerLevelOneSize            = "badger.level_one_size"
+	badgerValueLogFileSize        = "badger.value_log_file_size"
+	badgerValueLogMaxEntries      = "badger.value_log_max_entries"
+	badgerNumCompactors           = "badger.num_compactors"
+	badgerDoNotCompact            = "badger.do_not_compact"
+	badgerTableLoadingMode        = "badger.table_loading_mode"
+	badgerValueLogLoadingMode     = "badger.value_log_loading_mode"
 	// TODO: add more configurations
 )
 
@@ -52,9 +69,7 @@ type badgerState struct {
 }
 
 func (c badgerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
-	opts := badger.DefaultOptions
-	opts.Dir = p.GetString(badgerDir, "/tmp/badger")
-	opts.ValueDir = p.GetString(badgerValueDir, opts.Dir)
+	opts := getOptions(p)
 
 	if p.GetBool(badgerDropData, false) {
 		os.RemoveAll(opts.Dir)
@@ -72,6 +87,47 @@ func (c badgerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		r:       util.NewRowCodec(p),
 		bufPool: util.NewBufPool(),
 	}, nil
+}
+
+func getOptions(p *properties.Properties) badger.Options {
+	opts := badger.DefaultOptions
+	opts.Dir = p.GetString(badgerDir, "/tmp/badger")
+	opts.ValueDir = p.GetString(badgerValueDir, opts.Dir)
+
+	opts.SyncWrites = p.GetBool(badgerSyncWrites, false)
+	opts.NumVersionsToKeep = p.GetInt(badgerNumVersionsToKeep, 1)
+	opts.MaxTableSize = p.GetInt64(badgerMaxTableSize, 64<<20)
+	opts.LevelSizeMultiplier = p.GetInt(badgerLevelSizeMultiplier, 10)
+	opts.MaxLevels = p.GetInt(badgerMaxLevels, 7)
+	opts.ValueThreshold = p.GetInt(badgerValueThreshold, 32)
+	opts.NumMemtables = p.GetInt(badgerNumMemtables, 5)
+	opts.NumLevelZeroTables = p.GetInt(badgerNumLevelZeroTables, 5)
+	opts.NumLevelZeroTablesStall = p.GetInt(badgerNumLevelZeroTablesStall, 10)
+	opts.LevelOneSize = p.GetInt64(badgerLevelOneSize, 256<<20)
+	opts.ValueLogFileSize = p.GetInt64(badgerValueLogFileSize, 1<<30)
+	opts.ValueLogMaxEntries = uint32(p.GetUint64(badgerValueLogMaxEntries, 1000000))
+	opts.NumCompactors = p.GetInt(badgerNumCompactors, 3)
+	opts.DoNotCompact = p.GetBool(badgerDoNotCompact, false)
+	if b := p.GetString(badgerTableLoadingMode, "LoadToRAM"); len(b) > 0 {
+		if b == "FileIO" {
+			opts.TableLoadingMode = options.FileIO
+		} else if b == "LoadToRAM" {
+			opts.TableLoadingMode = options.LoadToRAM
+		} else if b == "MemoryMap" {
+			opts.TableLoadingMode = options.MemoryMap
+		}
+	}
+	if b := p.GetString(badgerValueLogLoadingMode, "MemoryMap"); len(b) > 0 {
+		if b == "FileIO" {
+			opts.ValueLogLoadingMode = options.FileIO
+		} else if b == "LoadToRAM" {
+			opts.ValueLogLoadingMode = options.LoadToRAM
+		} else if b == "MemoryMap" {
+			opts.ValueLogLoadingMode = options.MemoryMap
+		}
+	}
+
+	return opts
 }
 
 func (db *badgerDB) Close() error {
