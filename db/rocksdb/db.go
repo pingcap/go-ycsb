@@ -101,123 +101,59 @@ func (c rocksDBCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	}, nil
 }
 
-func getTableOptions(p *properties.Properties) (*gorocksdb.BlockBasedTableOptions, bool) {
-	hasTableOption := false
+func getTableOptions(p *properties.Properties) *gorocksdb.BlockBasedTableOptions {
 	tblOpts := gorocksdb.NewDefaultBlockBasedTableOptions()
 
-	if b := p.GetInt(rocksdbBlockSize, 0); b > 0 {
-		tblOpts.SetBlockSize(b)
-		hasTableOption = true
-	}
-	if b := p.GetInt(rocksdbBlockSizeDeviation, 0); b > 0 {
-		tblOpts.SetBlockSizeDeviation(b)
-		hasTableOption = true
-	}
-	if b := p.GetBool(rocksdbCacheIndexAndFilterBlocks, false); b {
-		tblOpts.SetCacheIndexAndFilterBlocks(b)
-		hasTableOption = true
-	}
-	if b := p.GetBool(rocksdbNoBlockCache, false); b {
-		tblOpts.SetNoBlockCache(b)
-		hasTableOption = true
-	}
-	if b := p.GetBool(rocksdbPinL0FilterAndIndexBlocksInCache, false); b {
-		tblOpts.SetPinL0FilterAndIndexBlocksInCache(b)
-		hasTableOption = true
-	}
-	if b := p.GetBool(rocksdbWholeKeyFiltering, false); b {
-		tblOpts.SetWholeKeyFiltering(b)
-		hasTableOption = true
-	}
-	if b := p.GetInt(rocksdbBlockRestartInterval, 0); b > 0 {
-		tblOpts.SetBlockRestartInterval(b)
-		hasTableOption = true
-	}
+	tblOpts.SetBlockSize(p.GetInt(rocksdbBlockSize, 4<<10))
+	tblOpts.SetBlockSizeDeviation(p.GetInt(rocksdbBlockSizeDeviation, 10))
+	tblOpts.SetCacheIndexAndFilterBlocks(p.GetBool(rocksdbCacheIndexAndFilterBlocks, false))
+	tblOpts.SetNoBlockCache(p.GetBool(rocksdbNoBlockCache, false))
+	tblOpts.SetPinL0FilterAndIndexBlocksInCache(p.GetBool(rocksdbPinL0FilterAndIndexBlocksInCache, false))
+	tblOpts.SetWholeKeyFiltering(p.GetBool(rocksdbWholeKeyFiltering, true))
+	tblOpts.SetBlockRestartInterval(p.GetInt(rocksdbBlockRestartInterval, 16))
+
 	if b := p.GetString(rocksdbFilterPolicy, ""); len(b) > 0 {
 		if b == "rocksdb.BuiltinBloomFilter" {
 			const defaultBitsPerKey = 10
 			tblOpts.SetFilterPolicy(gorocksdb.NewBloomFilter(defaultBitsPerKey))
-			hasTableOption = true
-		}
-	}
-	if b := p.GetString(rocksdbIndexType, ""); len(b) > 0 {
-		if b == "KBinarySearch" {
-			tblOpts.SetIndexType(gorocksdb.KBinarySearchIndexType)
-			hasTableOption = true
-		} else if b == "KHashSearch" {
-			tblOpts.SetIndexType(gorocksdb.KHashSearchIndexType)
-			hasTableOption = true
-		} else if b == "KTwoLevelIndexSearch" {
-			tblOpts.SetIndexType(gorocksdb.KTwoLevelIndexSearchIndexType)
-			hasTableOption = true
 		}
 	}
 
-	return tblOpts, hasTableOption
+	indexType := p.GetString(rocksdbIndexType, "kBinarySearch")
+	if indexType == "kBinarySearch" {
+		tblOpts.SetIndexType(gorocksdb.KBinarySearchIndexType)
+	} else if indexType == "kHashSearch" {
+		tblOpts.SetIndexType(gorocksdb.KHashSearchIndexType)
+	} else if indexType == "kTwoLevelIndexSearch" {
+		tblOpts.SetIndexType(gorocksdb.KTwoLevelIndexSearchIndexType)
+	}
+
+	return tblOpts
 }
 
 func getOptions(p *properties.Properties) *gorocksdb.Options {
 	opts := gorocksdb.NewDefaultOptions()
 	opts.SetCreateIfMissing(true)
 
-	if b := p.GetBool(rocksdbAllowConcurrentMemtableWrites, false); b {
-		opts.SetAllowConcurrentMemtableWrites(b)
-	}
-	if b := p.GetBool(rocsdbAllowMmapReads, false); b {
-		opts.SetAllowMmapReads(b)
-	}
-	if b := p.GetBool(rocksdbAllowMmapWrites, false); b {
-		opts.SetAllowMmapWrites(b)
-	}
-	if b := p.GetInt(rocksdbArenaBlockSize, 0); b > 0 {
-		opts.SetArenaBlockSize(b)
-	}
-	if b := p.GetInt(rocksdbDBWriteBufferSize, 0); b > 0 {
-		opts.SetDbWriteBufferSize(b)
-	}
-	if b := p.GetUint64(rocksdbHardPendingCompactionBytesLimit, 0); b > 0 {
-		opts.SetHardPendingCompactionBytesLimit(b)
-	}
-	if b := p.GetInt(rocksdbLevel0FileNumCompactionTrigger, 0); b > 0 {
-		opts.SetLevel0FileNumCompactionTrigger(b)
-	}
-	if b := p.GetInt(rocksdbLevel0SlowdownWritesTrigger, 0); b > 0 {
-		opts.SetLevel0SlowdownWritesTrigger(b)
-	}
-	if b := p.GetInt(rocksdbLevel0StopWritesTrigger, 0); b > 0 {
-		opts.SetLevel0StopWritesTrigger(b)
-	}
-	if b := p.GetInt(rocksdbMaxBackgroundFlushes, 0); b > 0 {
-		opts.SetMaxBackgroundFlushes(b)
-	}
-	if b := p.GetUint64(rocksdbMaxBytesForLevelBase, 0); b > 0 {
-		opts.SetMaxBytesForLevelBase(b)
-	}
-	if b := p.GetFloat64(rocksdbMaxBytesForLevelMultiplier, 0); b > 0 {
-		opts.SetMaxBytesForLevelMultiplier(b)
-	}
-	if b := p.GetUint64(rocksdbMaxTotalWalSize, 0); b > 0 {
-		opts.SetMaxTotalWalSize(b)
-	}
-	if b := p.GetInt(rocksdbMemtableHugePageSize, 0); b > 0 {
-		opts.SetMemtableHugePageSize(b)
-	}
-	if b := p.GetInt(rocksdbNumLevels, 0); b > 0 {
-		opts.SetNumLevels(b)
-	}
-	if b := p.GetBool(rocksdbUseDirectReads, false); b {
-		opts.SetUseDirectReads(b)
-	}
-	if b := p.GetBool(rocksdbUseFsync, false); b {
-		opts.SetUseFsync(b)
-	}
-	if b := p.GetInt(rocksdbWriteBufferSize, 0); b > 0 {
-		opts.SetWriteBufferSize(b)
-	}
+	opts.SetAllowConcurrentMemtableWrites(p.GetBool(rocksdbAllowConcurrentMemtableWrites, true))
+	opts.SetAllowMmapReads(p.GetBool(rocsdbAllowMmapReads, false))
+	opts.SetAllowMmapWrites(p.GetBool(rocksdbAllowMmapWrites, false))
+	opts.SetArenaBlockSize(p.GetInt(rocksdbArenaBlockSize, 0))
+	opts.SetDbWriteBufferSize(p.GetInt(rocksdbDBWriteBufferSize, 0))
+	opts.SetHardPendingCompactionBytesLimit(p.GetUint64(rocksdbHardPendingCompactionBytesLimit, 256<<30))
+	opts.SetLevel0FileNumCompactionTrigger(p.GetInt(rocksdbLevel0FileNumCompactionTrigger, 4))
+	opts.SetLevel0SlowdownWritesTrigger(p.GetInt(rocksdbLevel0SlowdownWritesTrigger, 20))
+	opts.SetLevel0StopWritesTrigger(p.GetInt(rocksdbLevel0StopWritesTrigger, 36))
+	opts.SetMaxBytesForLevelBase(p.GetUint64(rocksdbMaxBytesForLevelBase, 256<<20))
+	opts.SetMaxBytesForLevelMultiplier(p.GetFloat64(rocksdbMaxBytesForLevelMultiplier, 10))
+	opts.SetMaxTotalWalSize(p.GetUint64(rocksdbMaxTotalWalSize, 0))
+	opts.SetMemtableHugePageSize(p.GetInt(rocksdbMemtableHugePageSize, 0))
+	opts.SetNumLevels(p.GetInt(rocksdbNumLevels, 7))
+	opts.SetUseDirectReads(p.GetBool(rocksdbUseDirectReads, false))
+	opts.SetUseFsync(p.GetBool(rocksdbUseFsync, false))
+	opts.SetWriteBufferSize(p.GetInt(rocksdbWriteBufferSize, 64<<20))
 
-	if tblOpts, ok := getTableOptions(p); ok {
-		opts.SetBlockBasedTableFactory(tblOpts)
-	}
+	opts.SetBlockBasedTableFactory(getTableOptions(p))
 
 	return opts
 }
