@@ -45,6 +45,12 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 		}
 	})
 
+	fmt.Println("***************** properties *****************")
+	for key, value := range globalProps.Map() {
+		fmt.Printf("\"%s\"=\"%s\"\n", key, value)
+	}
+	fmt.Println("**********************************************")
+
 	measureCtx, measureCancel := context.WithCancel(globalContext)
 	go func() {
 		dur := globalProps.GetInt64("measurement.interval", 10)
