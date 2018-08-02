@@ -131,7 +131,7 @@ You can pass the database configuraitons through `-p field=value` in the command
 |badger.max_table_size|64MB|Each table (or file) is at most this size|
 |badger.level_size_multiplier|10|Equals SizeOf(Li+1)/SizeOf(Li)|
 |badger.max_levels|7|Maximum number of levels of compaction|
-|badger.value_threshold|32|Maximum number of tables to keep in memory, before stalling|
+|badger.value_threshold|32|If value size >= this threshold, only store value offsets in tree|
 |badger.num_memtables|5|Maximum number of tables to keep in memory, before stalling|
 |badger.num_level0_tables|5|Maximum number of Level 0 tables before we start compacting|
 |badger.num_level0_tables_stall|10|If we hit this number of Level 0 tables, we will stall until L0 is compacted away|
@@ -158,7 +158,7 @@ You can pass the database configuraitons through `-p field=value` in the command
 |rocksdb.level0_file_num_compaction_trigger|4|Sets the number of files to trigger level-0 compaction|
 |rocksdb.level0_slowdown_writes_trigger|20|Sets the soft limit on number of level-0 files|
 |rocksdb.level0_stop_writes_trigger|36|Sets the maximum number of level-0 files. We stop writes at this point|
-|rocksdb.max_bytes_for_level_base|256MB|Sets the maximum total data size for a level|
+|rocksdb.max_bytes_for_level_base|256MB|Sets the maximum total data size for base level|
 |rocksdb.max_bytes_for_level_multiplier|10|Sets the max Bytes for level multiplier|
 |rocksdb.max_total_wal_size|0(\[sum of all write_buffer_size * max_write_buffer_number\] * 4)|Sets the maximum total wal size in bytes. Once write-ahead logs exceed this size, we will start forcing the flush of column families whose memtables are backed by the oldest live WAL file (i.e. the ones that are causing all the space amplification)|
 |rocksdb.memtable_huge_page_size|0|Sets the page size for huge page for arena used by the memtable|
