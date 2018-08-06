@@ -84,19 +84,18 @@ func (adb *aerospikedb) Scan(ctx context.Context, table string, startKey string,
 		if res.Err != nil {
 			recordset.Close()
 			return nil, res.Err
-		} else {
-			vals := make(map[string][]byte, len(res.Record.Bins))
-			for k, v := range res.Record.Bins {
-				if !filter[k] {
-					continue
-				}
-				vals[k], ok = v.([]byte)
-				if !ok {
-					return nil, errors.New("couldn't convert to byte array")
-				}
-			}
-			scanRes = append(scanRes, vals)
 		}
+		vals := make(map[string][]byte, len(res.Record.Bins))
+		for k, v := range res.Record.Bins {
+			if !filter[k] {
+				continue
+			}
+			vals[k], ok = v.([]byte)
+			if !ok {
+				return nil, errors.New("couldn't convert to byte array")
+			}
+		}
+		scanRes = append(scanRes, vals)
 		nRead++
 		if nRead == count {
 			break
