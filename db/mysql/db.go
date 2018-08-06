@@ -98,7 +98,7 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 func (db *mysqlDB) createTable() error {
 	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
 
-	if db.p.GetBool(mysqlDropTable, false) && !db.p.GetBool(prop.DoTransactions, true)  {
+	if db.p.GetBool(mysqlDropTable, false) && !db.p.GetBool(prop.DoTransactions, true) {
 		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
 			return err
 		}
@@ -319,6 +319,10 @@ func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values 
 	buf.WriteByte(')')
 
 	return db.execQuery(ctx, buf.String(), args...)
+}
+
+func (db *mysqlDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The mysql has not implemented the batch operation")
 }
 
 func (db *mysqlDB) Delete(ctx context.Context, table string, key string) error {

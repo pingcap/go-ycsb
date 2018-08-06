@@ -151,6 +151,10 @@ func (adb *aerospikedb) Insert(ctx context.Context, table string, key string, va
 	return adb.client.PutBins(nil, asKey, bins...)
 }
 
+func (adb *aerospikedb) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The aerospikedb has not implemented the batch operation")
+}
+
 // Delete deletes a record from the database.
 // table: The name of the table.
 // key: The record key of the record to delete.

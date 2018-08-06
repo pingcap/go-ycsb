@@ -66,6 +66,16 @@ func (db DbWrapper) Insert(ctx context.Context, table string, key string, values
 	return db.DB.Insert(ctx, table, key, values)
 }
 
+// BatchInsert wraps the BatchInsert method in the interface of ycsb.DB
+func (db DbWrapper) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	start := time.Now()
+	defer func() {
+		measurement.Measure("BATCH_INSERT", time.Now().Sub(start))
+	}()
+
+	return db.DB.BatchInsert(ctx, table, keys, values)
+}
+
 // Delete wraps the Delete method in the interface of ycsb.DB
 func (db DbWrapper) Delete(ctx context.Context, table string, key string) error {
 	start := time.Now()

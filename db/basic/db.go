@@ -209,6 +209,10 @@ func (db *basicDB) Insert(ctx context.Context, table string, key string, values 
 	return nil
 }
 
+func (db *basicDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The basicDB has not implemented the batch operation")
+}
+
 func (db *basicDB) Delete(ctx context.Context, table string, key string) error {
 	state := ctx.Value(stateKey).(*basicState)
 

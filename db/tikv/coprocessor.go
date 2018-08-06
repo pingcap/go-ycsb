@@ -165,6 +165,10 @@ func (db *coprocessor) Insert(ctx context.Context, table string, key string, val
 	return tx.Commit(ctx)
 }
 
+func (db *coprocessor) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The coprocessor has not implemented the batch operation")
+}
+
 func (db *coprocessor) Delete(ctx context.Context, table string, key string) error {
 	// encode key
 	rowKey := db.table.EncodeKey(key)

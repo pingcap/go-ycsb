@@ -182,6 +182,10 @@ func (db *fDB) Insert(ctx context.Context, table string, key string, values map[
 	return err
 }
 
+func (db *fDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The foundation has not implemented the batch operation")
+}
+
 func (db *fDB) Delete(ctx context.Context, table string, key string) error {
 	rowKey := db.getRowKey(table, key)
 	_, err := db.db.Transact(func(tr fdb.Transaction) (ret interface{}, e error) {

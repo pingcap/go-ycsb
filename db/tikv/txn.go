@@ -194,6 +194,10 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 	return tx.Commit(ctx)
 }
 
+func (db *txnDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The txnDB has not implemented the batch operation")
+}
+
 func (db *txnDB) Delete(ctx context.Context, table string, key string) error {
 	tx, err := db.db.Begin()
 	if err != nil {

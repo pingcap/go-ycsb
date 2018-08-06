@@ -128,6 +128,10 @@ func (db *rawDB) Insert(ctx context.Context, table string, key string, values ma
 	return db.db.Put(db.getRowKey(table, key), rowData)
 }
 
+func (db *rawDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The rawDB has not implemented the batch operation")
+}
+
 func (db *rawDB) Delete(ctx context.Context, table string, key string) error {
 	return db.db.Delete(db.getRowKey(table, key))
 }

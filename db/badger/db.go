@@ -246,6 +246,10 @@ func (db *badgerDB) Insert(ctx context.Context, table string, key string, values
 	return err
 }
 
+func (db *badgerDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The badgerDB has not implemented the batch operation")
+}
+
 func (db *badgerDB) Delete(ctx context.Context, table string, key string) error {
 	err := db.db.Update(func(txn *badger.Txn) error {
 		return txn.Delete(db.getRowKey(table, key))
