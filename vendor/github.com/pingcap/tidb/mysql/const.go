@@ -55,6 +55,11 @@ const (
 	ServerPSOutParams              uint16 = 0x1000
 )
 
+// HasCursorExistsFlag return true if cursor exists indicated by server status.
+func HasCursorExistsFlag(serverStatus uint16) bool {
+	return serverStatus&ServerStatusCursorExists > 0
+}
+
 // Identifier length limitations.
 // See https://dev.mysql.com/doc/refman/5.7/en/identifiers.html
 const (
@@ -217,6 +222,7 @@ const (
 )
 
 // AllPrivMask is the mask for PrivilegeType with all bits set to 1.
+// If it's passed to RequestVerification, it means any privilege would be OK.
 const AllPrivMask = AllPriv - 1
 
 // MySQL type maximum length.

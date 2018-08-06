@@ -16,7 +16,6 @@ package tablecodec
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"time"
 
@@ -43,9 +42,11 @@ var (
 )
 
 const (
-	idLen           = 8
-	prefixLen       = 1 + idLen /*tableID*/ + 2
-	recordRowKeyLen = prefixLen + idLen /*handle*/
+	idLen                 = 8
+	prefixLen             = 1 + idLen /*tableID*/ + 2
+	recordRowKeyLen       = prefixLen + idLen /*handle*/
+	tablePrefixLength     = 1
+	recordPrefixSepLength = 2
 )
 
 // TableSplitKeyLen is the length of key 't{table_id}' which is used for table split.
@@ -85,25 +86,36 @@ func EncodeRecordKey(recordPrefix kv.Key, h int64) kv.Key {
 	return buf
 }
 
+func hasTablePrefix(key kv.Key) bool {
+	return key[0] == tablePrefix[0]
+}
+
+func hasRecordPrefixSep(key kv.Key) bool {
+	return key[0] == recordPrefixSep[0] && key[1] == recordPrefixSep[1]
+}
+
 // DecodeRecordKey decodes the key and gets the tableID, handle.
 func DecodeRecordKey(key kv.Key) (tableID int64, handle int64, err error) {
+	if len(key) <= prefixLen {
+		return 0, 0, errInvalidRecordKey.Gen("invalid record key - %q", key)
+	}
+
 	k := key
-	if !key.HasPrefix(tablePrefix) {
+	if !hasTablePrefix(key) {
 		return 0, 0, errInvalidRecordKey.Gen("invalid record key - %q", k)
 	}
 
-	key = key[len(tablePrefix):]
+	key = key[tablePrefixLength:]
 	key, tableID, err = codec.DecodeInt(key)
 	if err != nil {
 		return 0, 0, errors.Trace(err)
 	}
 
-	if !key.HasPrefix(recordPrefixSep) {
+	if !hasRecordPrefixSep(key) {
 		return 0, 0, errInvalidRecordKey.Gen("invalid record key - %q", k)
 	}
 
-	key = key[len(recordPrefixSep):]
-
+	key = key[recordPrefixSepLength:]
 	key, handle, err = codec.DecodeInt(key)
 	if err != nil {
 		return 0, 0, errors.Trace(err)
@@ -131,7 +143,11 @@ func DecodeIndexKey(key kv.Key) (tableID int64, indexID int64, indexValues []str
 		if e != nil {
 			return 0, 0, nil, errInvalidIndexKey.Gen("invalid index key - %q %v", k, e)
 		}
-		indexValues = append(indexValues, fmt.Sprintf("%d-%v", d.Kind(), d.GetValue()))
+		str, e1 := d.ToString()
+		if e1 != nil {
+			return 0, 0, nil, errInvalidIndexKey.Gen("invalid index key - %q %v", k, e1)
+		}
+		indexValues = append(indexValues, str)
 		key = remain
 	}
 	return
@@ -186,8 +202,11 @@ func DecodeTableID(key kv.Key) int64 {
 
 // DecodeRowKey decodes the key and gets the handle.
 func DecodeRowKey(key kv.Key) (int64, error) {
-	_, handle, err := DecodeRecordKey(key)
-	return handle, errors.Trace(err)
+	if len(key) != recordRowKeyLen || !hasTablePrefix(key) || !hasRecordPrefixSep(key[prefixLen-2:]) {
+		return 0, errInvalidKey.Gen("invalid key - %q", key)
+	}
+	u := binary.BigEndian.Uint64(key[prefixLen:])
+	return codec.DecodeCmpUintToInt(u), nil
 }
 
 // EncodeValue encodes a go value to bytes.
@@ -203,7 +222,7 @@ func EncodeValue(sc *stmtctx.StatementContext, raw types.Datum) ([]byte, error) 
 
 // EncodeRow encode row data and column ids into a slice of byte.
 // Row layout: colID1, value1, colID2, value2, .....
-// valBuf and values pass by caller, for reducing EncodeRow allocates tempory bufs. If you pass valBuf and values as nil,
+// valBuf and values pass by caller, for reducing EncodeRow allocates temporary bufs. If you pass valBuf and values as nil,
 // EncodeRow will allocate it.
 func EncodeRow(sc *stmtctx.StatementContext, row []types.Datum, colIDs []int64, valBuf []byte, values []types.Datum) ([]byte, error) {
 	if len(row) != len(colIDs) {
@@ -378,6 +397,19 @@ func CutRowNew(data []byte, colIDs map[int64]int) ([][]byte, error) {
 		}
 	}
 	return row, nil
+}
+
+// UnflattenDatums converts raw datums to column datums.
+func UnflattenDatums(datums []types.Datum, fts []*types.FieldType, loc *time.Location) ([]types.Datum, error) {
+	for i, datum := range datums {
+		ft := fts[i]
+		uDatum, err := unflatten(datum, ft, loc)
+		if err != nil {
+			return datums, errors.Trace(err)
+		}
+		datums[i] = uDatum
+	}
+	return datums, nil
 }
 
 // unflatten converts a raw datum to a column datum.
