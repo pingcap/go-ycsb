@@ -210,7 +210,29 @@ func (db *basicDB) Insert(ctx context.Context, table string, key string, values 
 }
 
 func (db *basicDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	panic("The basicDB has not implemented the batch operation")
+	state := ctx.Value(stateKey).(*basicState)
+
+	db.delay(ctx, state)
+
+	if !db.verbose {
+		return nil
+	}
+	buf := state.buf
+	for i, key := range keys {
+		s := fmt.Sprintf("INSERT %s %s [ ", table, key)
+		buf.WriteString(s)
+		rowValue := values[i]
+		for valueKey, value := range rowValue {
+			buf.WriteString(valueKey)
+			buf.WriteByte('=')
+			buf.Write(value)
+			buf.WriteByte(' ')
+		}
+		buf.WriteByte(']')
+		fmt.Println(buf.String())
+		buf.Reset()
+	}
+	return nil
 }
 
 func (db *basicDB) Delete(ctx context.Context, table string, key string) error {

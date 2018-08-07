@@ -34,7 +34,7 @@ const (
 	Status             = "status"
 	Label              = "label"
 	// batch mode
-	DoBatch          = "bacth.mode"
+	DoBatch          = "batch.mode"
 	DefaultDoBatch   = false
 	BatchSize        = "batch.size"
 	DefaultBatchSize = int(16)
