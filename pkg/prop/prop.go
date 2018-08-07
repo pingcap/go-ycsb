@@ -33,6 +33,11 @@ const (
 	DoTransactions     = "dotransactions"
 	Status             = "status"
 	Label              = "label"
+	// batch mode
+	DoBatch          = "bacth.mode"
+	DefaultDoBatch   = false
+	BatchSize        = "batch.size"
+	DefaultBatchSize = int(16)
 
 	TableName         = "table"
 	TableNameDefault  = "usertable"

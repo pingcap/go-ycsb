@@ -31,6 +31,8 @@ type worker struct {
 	workDB          ycsb.DB
 	workload        ycsb.Workload
 	doTransactions  bool
+	doBatch         bool
+	batchSize       int
 	opCount         int64
 	targetOpsPerMs  float64
 	threadID        int
@@ -42,6 +44,8 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 	w := new(worker)
 	w.p = p
 	w.doTransactions = p.GetBool(prop.DoTransactions, true)
+	w.doBatch = p.GetBool(prop.DoBatch, prop.DefaultDoBatch)
+	w.batchSize = p.GetInt(prop.BatchSize, prop.DefaultBatchSize)
 	w.threadID = threadID
 	w.workload = workload
 	w.workDB = db
@@ -110,17 +114,25 @@ func (w *worker) run(ctx context.Context) {
 
 	for w.opCount == 0 || w.opsDone < w.opCount {
 		var err error
+		var insertCount int
 		if w.doTransactions {
+			// TODO: support the batch mode
 			err = w.workload.DoTransaction(ctx, w.workDB)
 		} else {
-			err = w.workload.DoInsert(ctx, w.workDB)
+			if w.doBatch {
+				insertCount, err = w.workload.DoBatchInsert(ctx, w.batchSize, w.workDB)
+			} else {
+				err = w.workload.DoInsert(ctx, w.workDB)
+				insertCount = 1
+			}
 		}
 
 		if err != nil {
+			// TODO: add error log
 			break
 		}
 
-		w.opsDone++
+		w.opsDone = w.opsDone + int64(insertCount)
 		w.throttle(ctx, startTime)
 
 		select {

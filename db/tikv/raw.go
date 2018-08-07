@@ -129,7 +129,17 @@ func (db *rawDB) Insert(ctx context.Context, table string, key string, values ma
 }
 
 func (db *rawDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	panic("The rawDB has not implemented the batch operation")
+	var rawKeys [][]byte
+	var rawValues [][]byte
+	for i, key := range keys {
+		rawKeys = append(rawKeys, db.getRowKey(table, key))
+		rawData, err := db.r.Encode(nil, values[i])
+		if err != nil {
+			return err
+		}
+		rawValues = append(rawValues, rawData)
+	}
+	return db.db.BatchPut(rawKeys, rawValues)
 }
 
 func (db *rawDB) Delete(ctx context.Context, table string, key string) error {
