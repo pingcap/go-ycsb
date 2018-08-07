@@ -24,6 +24,9 @@ import (
 	"golang.org/x/net/context"
 )
 
+// ContextKey is the type of context's key
+type ContextKey string
+
 // RunInNewTxn will run the f in a new transaction environment.
 func RunInNewTxn(store Storage, retryable bool, f func(txn Transaction) error) error {
 	var (
@@ -71,7 +74,7 @@ func RunInNewTxn(store Storage, retryable bool, f func(txn Transaction) error) e
 }
 
 var (
-	// Max retry count in RunInNewTxn
+	// maxRetryCnt represents maximum retry times in RunInNewTxn.
 	maxRetryCnt uint = 100
 	// retryBackOffBase is the initial duration, in microsecond, a failed transaction stays dormancy before it retries
 	retryBackOffBase = 1

@@ -567,6 +567,10 @@ func (d *Datum) compareBytes(sc *stmtctx.StatementContext, b []byte) (int, error
 
 func (d *Datum) compareMysqlDecimal(sc *stmtctx.StatementContext, dec *MyDecimal) (int, error) {
 	switch d.k {
+	case KindNull, KindMinNotNull:
+		return -1, nil
+	case KindMaxValue:
+		return 1, nil
 	case KindMysqlDecimal:
 		return d.GetMysqlDecimal().Compare(dec), nil
 	case KindString, KindBytes:
@@ -574,11 +578,11 @@ func (d *Datum) compareMysqlDecimal(sc *stmtctx.StatementContext, dec *MyDecimal
 		err := sc.HandleTruncate(dDec.FromString(d.GetBytes()))
 		return dDec.Compare(dec), errors.Trace(err)
 	default:
-		fVal, err := dec.ToFloat64()
+		dVal, err := d.ConvertTo(sc, NewFieldType(mysql.TypeNewDecimal))
 		if err != nil {
 			return 0, errors.Trace(err)
 		}
-		return d.compareFloat64(sc, fVal)
+		return dVal.GetMysqlDecimal().Compare(dec), nil
 	}
 }
 
@@ -748,9 +752,14 @@ func ProduceFloatWithSpecifiedTp(f float64, target *FieldType, sc *stmtctx.State
 	// If no D is set, we will handle it like origin float whether M is set or not.
 	if target.Flen != UnspecifiedLength && target.Decimal != UnspecifiedLength {
 		f, err = TruncateFloat(f, target.Flen, target.Decimal)
-		err = sc.HandleOverflow(err, err)
+		if err = sc.HandleOverflow(err, err); err != nil {
+			return f, errors.Trace(err)
+		}
 	}
-	return f, errors.Trace(err)
+	if mysql.HasUnsignedFlag(target.Flag) && f < 0 {
+		return 0, overflow(f, target.Tp)
+	}
+	return f, nil
 }
 
 func (d *Datum) convertToString(sc *stmtctx.StatementContext, target *FieldType) (Datum, error) {
@@ -1009,6 +1018,30 @@ func (d *Datum) convertToMysqlDuration(sc *stmtctx.StatementContext, target *Fie
 		if err != nil {
 			return ret, errors.Trace(err)
 		}
+	case KindInt64, KindFloat32, KindFloat64, KindMysqlDecimal:
+		// TODO: We need a ParseDurationFromNum to avoid the cost of converting a num to string.
+		timeStr, err := d.ToString()
+		if err != nil {
+			return ret, errors.Trace(err)
+		}
+		timeNum, err := d.ToInt64(sc)
+		if err != nil {
+			return ret, errors.Trace(err)
+		}
+		// For huge numbers(>'0001-00-00 00-00-00') try full DATETIME in ParseDuration.
+		if timeNum > MaxDuration && timeNum < 10000000000 {
+			// mysql return max in no strict sql mode.
+			ret.SetValue(Duration{Duration: MaxTime, Fsp: 0})
+			return ret, ErrInvalidTimeFormat.Gen("Incorrect time value: '%s'", timeStr)
+		}
+		if timeNum < -MaxDuration {
+			return ret, ErrInvalidTimeFormat.Gen("Incorrect time value: '%s'", timeStr)
+		}
+		t, err := ParseDuration(timeStr, fsp)
+		ret.SetValue(t)
+		if err != nil {
+			return ret, errors.Trace(err)
+		}
 	case KindString, KindBytes:
 		t, err := ParseDuration(d.GetString(), fsp)
 		ret.SetValue(t)
@@ -1063,6 +1096,12 @@ func (d *Datum) convertToMysqlDecimal(sc *stmtctx.StatementContext, target *Fiel
 	dec, err1 = ProduceDecWithSpecifiedTp(dec, target, sc)
 	if err == nil && err1 != nil {
 		err = err1
+	}
+	if dec.negative && mysql.HasUnsignedFlag(target.Flag) {
+		*dec = zeroMyDecimal
+		if err == nil {
+			err = ErrOverflow.GenByArgs("DECIMAL", fmt.Sprintf("(%d, %d)", target.Flen, target.Decimal))
+		}
 	}
 	ret.SetValue(dec)
 	return ret, errors.Trace(err)
@@ -1538,7 +1577,7 @@ func (d *Datum) ToMysqlJSON() (j json.BinaryJSON, err error) {
 }
 
 func invalidConv(d *Datum, tp byte) (Datum, error) {
-	return Datum{}, errors.Errorf("cannot convert datum from %s to type %s.", TypeStr(d.Kind()), TypeStr(tp))
+	return Datum{}, errors.Errorf("cannot convert datum from %s to type %s.", KindStr(d.Kind()), TypeStr(tp))
 }
 
 func (d *Datum) convergeType(hasUint, hasDecimal, hasFloat *bool) (x Datum) {
@@ -1788,9 +1827,13 @@ func handleTruncateError(sc *stmtctx.StatementContext) error {
 }
 
 // DatumsToString converts several datums to formatted string.
-func DatumsToString(datums []Datum) (string, error) {
+func DatumsToString(datums []Datum, handleNULL bool) (string, error) {
 	var strs []string
 	for _, datum := range datums {
+		if datum.Kind() == KindNull && handleNULL {
+			strs = append(strs, "NULL")
+			continue
+		}
 		str, err := datum.ToString()
 		if err != nil {
 			return "", errors.Trace(err)
@@ -1809,4 +1852,13 @@ func DatumsToString(datums []Datum) (string, error) {
 // TODO: Abandon this function.
 func CopyDatum(datum Datum) Datum {
 	return *datum.Copy()
+}
+
+// CopyRow deep copies a Datum slice.
+func CopyRow(dr []Datum) []Datum {
+	c := make([]Datum, len(dr))
+	for i, d := range dr {
+		c[i] = *d.Copy()
+	}
+	return c
 }

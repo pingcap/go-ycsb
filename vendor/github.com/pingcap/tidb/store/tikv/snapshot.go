@@ -14,6 +14,8 @@
 package tikv
 
 import (
+	"bytes"
+	"fmt"
 	"sync"
 	"time"
 	"unsafe"
@@ -23,6 +25,7 @@ import (
 	"github.com/pingcap/tidb/kv"
 	"github.com/pingcap/tidb/metrics"
 	"github.com/pingcap/tidb/store/tikv/tikvrpc"
+	"github.com/pingcap/tidb/tablecodec"
 	"github.com/pingcap/tidb/util/goroutine_pool"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -39,13 +42,12 @@ const (
 
 // tikvSnapshot implements the kv.Snapshot interface.
 type tikvSnapshot struct {
-	store          *tikvStore
-	version        kv.Version
-	isolationLevel kv.IsoLevel
-	priority       pb.CommandPri
-	notFillCache   bool
-	syncLog        bool
-	vars           *kv.Variables
+	store        *tikvStore
+	version      kv.Version
+	priority     pb.CommandPri
+	notFillCache bool
+	syncLog      bool
+	vars         *kv.Variables
 }
 
 var snapshotGP = gp.New(time.Minute)
@@ -53,11 +55,10 @@ var snapshotGP = gp.New(time.Minute)
 // newTiKVSnapshot creates a snapshot of an TiKV store.
 func newTiKVSnapshot(store *tikvStore, ver kv.Version) *tikvSnapshot {
 	return &tikvSnapshot{
-		store:          store,
-		version:        ver,
-		isolationLevel: kv.SI,
-		priority:       pb.CommandPri_Normal,
-		vars:           kv.DefaultVars,
+		store:    store,
+		version:  ver,
+		priority: pb.CommandPri_Normal,
+		vars:     kv.DefaultVars,
 	}
 }
 
@@ -148,9 +149,8 @@ func (s *tikvSnapshot) batchGetSingleRegion(bo *Backoffer, batch batchKeys, coll
 				Version: s.version.Ver,
 			},
 			Context: pb.Context{
-				Priority:       s.priority,
-				IsolationLevel: pbIsolationLevel(s.isolationLevel),
-				NotFillCache:   s.notFillCache,
+				Priority:     s.priority,
+				NotFillCache: s.notFillCache,
 			},
 		}
 		resp, err := sender.SendReq(bo, req, batch.region, ReadTimeoutMedium)
@@ -230,9 +230,8 @@ func (s *tikvSnapshot) get(bo *Backoffer, k kv.Key) ([]byte, error) {
 			Version: s.version.Ver,
 		},
 		Context: pb.Context{
-			Priority:       s.priority,
-			IsolationLevel: pbIsolationLevel(s.isolationLevel),
-			NotFillCache:   s.notFillCache,
+			Priority:     s.priority,
+			NotFillCache: s.notFillCache,
 		},
 	}
 	for {
@@ -296,6 +295,10 @@ func extractLockFromKeyErr(keyErr *pb.KeyError) (*Lock, error) {
 	if locked := keyErr.GetLocked(); locked != nil {
 		return NewLock(locked), nil
 	}
+	if keyErr.Conflict != nil {
+		err := errors.New(conflictToString(keyErr.Conflict))
+		return nil, errors.Annotate(err, txnRetryableMark)
+	}
 	if keyErr.Retryable != "" {
 		err := errors.Errorf("tikv restarts txn: %s", keyErr.GetRetryable())
 		log.Debug(err)
@@ -307,4 +310,33 @@ func extractLockFromKeyErr(keyErr *pb.KeyError) (*Lock, error) {
 		return nil, errors.Trace(err)
 	}
 	return nil, errors.Errorf("unexpected KeyError: %s", keyErr.String())
+}
+
+func conflictToString(conflict *pb.WriteConflict) string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "WriteConflict: startTS=%d, conflictTS=%d, key=", conflict.StartTs, conflict.ConflictTs)
+	prettyWriteKey(&buf, conflict.Key)
+	buf.WriteString(" primary=")
+	prettyWriteKey(&buf, conflict.Primary)
+	return buf.String()
+}
+
+func prettyWriteKey(buf *bytes.Buffer, key []byte) {
+	tableID, indexID, indexValues, err := tablecodec.DecodeIndexKey(key)
+	if err == nil {
+		fmt.Fprintf(buf, "{tableID=%d, indexID=%d, indexValues={", tableID, indexID)
+		for _, v := range indexValues {
+			fmt.Fprintf(buf, "%s, ", v)
+		}
+		buf.WriteString("}}")
+		return
+	}
+
+	tableID, handle, err := tablecodec.DecodeRecordKey(key)
+	if err == nil {
+		fmt.Fprintf(buf, "{tableID=%d, handle=%d}", tableID, handle)
+		return
+	}
+
+	fmt.Fprintf(buf, "%#v", key)
 }

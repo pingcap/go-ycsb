@@ -22,7 +22,6 @@ import (
 	"github.com/pingcap/tidb/kv"
 	"github.com/pingcap/tidb/metrics"
 	"github.com/pingcap/tidb/sessionctx"
-	binlog "github.com/pingcap/tipb/go-binlog"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -145,8 +144,6 @@ func (txn *tikvTxn) Delete(k kv.Key) error {
 func (txn *tikvTxn) SetOption(opt kv.Option, val interface{}) {
 	txn.us.SetOption(opt, val)
 	switch opt {
-	case kv.IsolationLevel:
-		txn.snapshot.isolationLevel = val.(kv.IsoLevel)
 	case kv.Priority:
 		txn.snapshot.priority = kvPriorityToCommandPri(val.(int))
 	case kv.NotFillCache:
@@ -158,9 +155,6 @@ func (txn *tikvTxn) SetOption(opt kv.Option, val interface{}) {
 
 func (txn *tikvTxn) DelOption(opt kv.Option) {
 	txn.us.DelOption(opt)
-	if opt == kv.IsolationLevel {
-		txn.snapshot.isolationLevel = kv.SI
-	}
 }
 
 func (txn *tikvTxn) Commit(ctx context.Context) error {
@@ -185,20 +179,44 @@ func (txn *tikvTxn) Commit(ctx context.Context) error {
 		connID = val.(uint64)
 	}
 	committer, err := newTwoPhaseCommitter(txn, connID)
-	if err != nil {
+	if err != nil || committer == nil {
 		return errors.Trace(err)
 	}
-	if committer == nil {
-		return nil
-	}
-	err = committer.execute(ctx)
-	if err != nil {
-		committer.writeFinishBinlog(binlog.BinlogType_Rollback, 0)
+	// latches disabled
+	if txn.store.txnLatches == nil {
+		err = committer.executeAndWriteFinishBinlog(ctx)
+		log.Debug("[kv]", connID, " txnLatches disabled, 2pc directly:", err)
 		return errors.Trace(err)
 	}
-	committer.writeFinishBinlog(binlog.BinlogType_Commit, int64(committer.commitTS))
-	txn.commitTS = committer.commitTS
-	return nil
+
+	// latches enabled
+	var bypassLatch bool
+	if option := txn.us.GetOption(kv.BypassLatch); option != nil {
+		bypassLatch = option.(bool)
+	}
+	// When bypassLatch flag is true, commit directly.
+	if bypassLatch {
+		err = committer.executeAndWriteFinishBinlog(ctx)
+		if err == nil {
+			txn.store.txnLatches.RefreshCommitTS(committer.keys, committer.commitTS)
+		}
+		log.Debug("[kv]", connID, " txnLatches enabled while txn not retryable, 2pc directly:", err)
+		return errors.Trace(err)
+	}
+
+	// for transactions which need to acquire latches
+	lock := txn.store.txnLatches.Lock(committer.startTS, committer.keys)
+	defer txn.store.txnLatches.UnLock(lock)
+	if lock.IsStale() {
+		err = errors.Errorf("startTS %d is stale", txn.startTS)
+		return errors.Annotate(err, txnRetryableMark)
+	}
+	err = committer.executeAndWriteFinishBinlog(ctx)
+	if err == nil {
+		lock.SetCommitTS(committer.commitTS)
+	}
+	log.Debug("[kv]", connID, " txnLatches enabled while txn retryable:", err)
+	return errors.Trace(err)
 }
 
 func (txn *tikvTxn) close() {
@@ -210,12 +228,7 @@ func (txn *tikvTxn) Rollback() error {
 		return kv.ErrInvalidTxn
 	}
 	txn.close()
-	logMsg := fmt.Sprintf("[kv] Rollback txn %d", txn.StartTS())
-	if txn.store.mock {
-		log.Debug(logMsg)
-	} else {
-		log.Info(logMsg)
-	}
+	log.Debugf("[kv] Rollback txn %d", txn.StartTS())
 	metrics.TiKVTxnCmdCounter.WithLabelValues("rollback").Inc()
 
 	return nil
@@ -227,6 +240,7 @@ func (txn *tikvTxn) LockKeys(keys ...kv.Key) error {
 	for _, key := range keys {
 		txn.lockKeys = append(txn.lockKeys, key)
 	}
+	txn.dirty = true
 	txn.mu.Unlock()
 	return nil
 }
