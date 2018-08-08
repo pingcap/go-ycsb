@@ -43,15 +43,6 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 		if cmd.Flags().Changed("target") {
 			globalProps.Set(prop.Target, strconv.Itoa(targetArg))
 		}
-
-		if cmd.Flags().Changed("batchMode") {
-			globalProps.Set(prop.DoBatch, strconv.FormatBool(batchMode))
-		}
-
-		if cmd.Flags().Changed("batchSize") {
-			globalProps.Set(prop.BatchSize, strconv.Itoa(int(batchSize)))
-		}
-
 	})
 
 	fmt.Println("***************** properties *****************")
@@ -97,8 +88,6 @@ func runTransCommandFunc(cmd *cobra.Command, args []string) {
 var (
 	threadsArg int
 	targetArg  int
-	batchMode  bool
-	batchSize  uint32
 )
 
 func initClientCommand(m *cobra.Command) {
@@ -107,11 +96,6 @@ func initClientCommand(m *cobra.Command) {
 	m.Flags().StringVar(&tableName, "table", "", "Use the table name instead of the default \""+prop.TableNameDefault+"\"")
 	m.Flags().IntVar(&threadsArg, "threads", 1, "Execute using n threads - can also be specified as the \"threadcount\" property")
 	m.Flags().IntVar(&targetArg, "target", 0, "Attempt to do n operations per second (default: unlimited) - can also be specified as the \"target\" property")
-}
-
-func loadModeCommand(m *cobra.Command) {
-	m.Flags().BoolVar(&batchMode, "batchMode", false, "Use the batch mode in workload, just the tikv support the batch mode")
-	m.Flags().Uint32Var(&batchSize, "batchSize", 16, "The size of batch in batch mode (default: 16)")
 }
 
 func newLoadCommand() *cobra.Command {
@@ -123,7 +107,6 @@ func newLoadCommand() *cobra.Command {
 	}
 
 	initClientCommand(m)
-	loadModeCommand(m)
 	return m
 }
 

@@ -44,8 +44,10 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 	w := new(worker)
 	w.p = p
 	w.doTransactions = p.GetBool(prop.DoTransactions, true)
-	w.doBatch = p.GetBool(prop.DoBatch, prop.DefaultDoBatch)
 	w.batchSize = p.GetInt(prop.BatchSize, prop.DefaultBatchSize)
+	if w.batchSize > 1 {
+		w.doBatch = true
+	}
 	w.threadID = threadID
 	w.workload = workload
 	w.workDB = db
@@ -132,7 +134,7 @@ func (w *worker) run(ctx context.Context) {
 			break
 		}
 
-		w.opsDone = w.opsDone + int64(insertCount)
+		w.opsDone += int64(insertCount)
 		w.throttle(ctx, startTime)
 
 		select {

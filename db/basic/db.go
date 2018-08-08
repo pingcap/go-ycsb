@@ -193,19 +193,7 @@ func (db *basicDB) Insert(ctx context.Context, table string, key string, values 
 	}
 
 	buf := state.buf
-	s := fmt.Sprintf("INSERT %s %s [ ", table, key)
-	buf.WriteString(s)
-
-	for key, value := range values {
-		buf.WriteString(key)
-		buf.WriteByte('=')
-		buf.Write(value)
-		buf.WriteByte(' ')
-	}
-
-	buf.WriteByte(']')
-	fmt.Println(buf.String())
-	buf.Reset()
+	insertRecord(buf, table, key, values)
 	return nil
 }
 
@@ -219,20 +207,23 @@ func (db *basicDB) BatchInsert(ctx context.Context, table string, keys []string,
 	}
 	buf := state.buf
 	for i, key := range keys {
-		s := fmt.Sprintf("INSERT %s %s [ ", table, key)
-		buf.WriteString(s)
-		rowValue := values[i]
-		for valueKey, value := range rowValue {
-			buf.WriteString(valueKey)
-			buf.WriteByte('=')
-			buf.Write(value)
-			buf.WriteByte(' ')
-		}
-		buf.WriteByte(']')
-		fmt.Println(buf.String())
-		buf.Reset()
+		insertRecord(buf, table, key, values[i])
 	}
 	return nil
+}
+
+func insertRecord(buf *bytes.Buffer, table string, key string, values map[string][]byte) {
+	s := fmt.Sprintf("INSERT %s %s [ ", table, key)
+	buf.WriteString(s)
+	for valueKey, value := range values {
+		buf.WriteString(valueKey)
+		buf.WriteByte('=')
+		buf.Write(value)
+		buf.WriteByte(' ')
+	}
+	buf.WriteByte(']')
+	fmt.Println(buf.String())
+	buf.Reset()
 }
 
 func (db *basicDB) Delete(ctx context.Context, table string, key string) error {
