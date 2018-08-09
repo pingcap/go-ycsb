@@ -330,6 +330,10 @@ func (db *pgDB) Insert(ctx context.Context, table string, key string, values map
 	return db.execQuery(ctx, buf.String(), args...)
 }
 
+func (db *pgDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The postgre has not implemented the batch operation")
+}
+
 func (db *pgDB) Delete(ctx context.Context, table string, key string) error {
 	query := fmt.Sprintf(`DELETE FROM %s.%s WHERE YCSB_KEY = $1`, db.dbName, table)
 

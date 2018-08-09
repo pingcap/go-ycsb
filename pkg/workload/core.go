@@ -290,6 +290,56 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 	return err
 }
 
+// DoBatchInsert implements the Workload DoBatchInsert interface.
+func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) (int, error) {
+	state := ctx.Value(stateKey).(*coreState)
+	r := state.r
+	var keys []string
+	var values []map[string][]byte
+	for i := 0; i < batchSize; i++ {
+		keyNum := c.keySequence.Next(r)
+		dbKey := c.buildKeyName(keyNum)
+		keys = append(keys, dbKey)
+		values = append(values, c.buildValues(state, dbKey))
+	}
+	defer func() {
+		for _, value := range values {
+			c.putValues(value)
+		}
+	}()
+
+	numOfRetries := int64(0)
+	var err error
+	for {
+		err = db.BatchInsert(ctx, c.table, keys, values)
+		if err == nil {
+			return batchSize, err
+		}
+
+		select {
+		case <-ctx.Done():
+			if ctx.Err() == context.Canceled {
+				return 0, nil
+			}
+		default:
+		}
+
+		// Retry if configured. Without retrying, the load process will fail
+		// even if one single insertion fails. User can optionally configure
+		// an insertion retry limit (default is 0) to enable retry.
+		numOfRetries++
+		if numOfRetries <= c.insertionRetryLimit {
+			fmt.Printf("retrying insertion, retry count %d\n", numOfRetries)
+		}
+
+		// Sleep for a random time betweensz [0.8, 1.2)*insertionRetryInterval
+		sleepTimeMs := float64((c.insertionRetryInterval * 1000)) * (0.8 + 0.4*r.Float64())
+
+		time.Sleep(time.Duration(sleepTimeMs) * time.Millisecond)
+	}
+	return 0, err
+}
+
 // DoTransaction implements the Workload DoTransaction interface.
 func (c *core) DoTransaction(ctx context.Context, db ycsb.DB) error {
 	state := ctx.Value(stateKey).(*coreState)

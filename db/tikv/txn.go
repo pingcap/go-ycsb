@@ -194,6 +194,25 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 	return tx.Commit(ctx)
 }
 
+func (db *txnDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for i, key := range keys {
+		rowData, err := db.r.Encode(nil, values[i])
+		if err != nil {
+			return err
+		}
+		if err = tx.Set(db.getRowKey(table, key), rowData); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
 func (db *txnDB) Delete(ctx context.Context, table string, key string) error {
 	tx, err := db.db.Begin()
 	if err != nil {

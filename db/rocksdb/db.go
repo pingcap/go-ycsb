@@ -252,6 +252,10 @@ func (db *rocksDB) Insert(ctx context.Context, table string, key string, values 
 	return db.db.Put(db.writeOpts, rowKey, rowData)
 }
 
+func (db *rocksDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The rocksdb has not implemented the batch operation")
+}
+
 func (db *rocksDB) Delete(ctx context.Context, table string, key string) error {
 	rowKey := db.getRowKey(table, key)
 

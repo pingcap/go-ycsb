@@ -193,20 +193,37 @@ func (db *basicDB) Insert(ctx context.Context, table string, key string, values 
 	}
 
 	buf := state.buf
+	insertRecord(buf, table, key, values)
+	return nil
+}
+
+func (db *basicDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	state := ctx.Value(stateKey).(*basicState)
+
+	db.delay(ctx, state)
+
+	if !db.verbose {
+		return nil
+	}
+	buf := state.buf
+	for i, key := range keys {
+		insertRecord(buf, table, key, values[i])
+	}
+	return nil
+}
+
+func insertRecord(buf *bytes.Buffer, table string, key string, values map[string][]byte) {
 	s := fmt.Sprintf("INSERT %s %s [ ", table, key)
 	buf.WriteString(s)
-
-	for key, value := range values {
-		buf.WriteString(key)
+	for valueKey, value := range values {
+		buf.WriteString(valueKey)
 		buf.WriteByte('=')
 		buf.Write(value)
 		buf.WriteByte(' ')
 	}
-
 	buf.WriteByte(']')
 	fmt.Println(buf.String())
 	buf.Reset()
-	return nil
 }
 
 func (db *basicDB) Delete(ctx context.Context, table string, key string) error {

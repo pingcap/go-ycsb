@@ -64,6 +64,12 @@ type DB interface {
 	// values: A map of field/value pairs to insert in the record.
 	Insert(ctx context.Context, table string, key string, values map[string][]byte) error
 
+	// BatchInsert inserts batch records in the database.
+	// table: The name of the table.
+	// keys: The keys of batch records.
+	// values: The values of batch records.
+	BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error
+
 	// Delete deletes a record from the database.
 	// table: The name of the table.
 	// key: The record key of the record to delete.

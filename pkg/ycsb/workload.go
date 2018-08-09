@@ -40,6 +40,9 @@ type Workload interface {
 	// DoInsert does one insert operation.
 	DoInsert(ctx context.Context, db DB) error
 
+	// DoBatchInsert does batch insert and returns the number of records successfully inserted.
+	DoBatchInsert(ctx context.Context, batchSize int, db DB) (int, error)
+
 	// DoTransaction does one transaction operation.
 	DoTransaction(ctx context.Context, db DB) error
 }
