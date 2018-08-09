@@ -45,6 +45,9 @@ type Workload interface {
 
 	// DoTransaction does one transaction operation.
 	DoTransaction(ctx context.Context, db DB) error
+
+	// DoBatchTransaction does the batch transaction operation
+	DoBatchTransaction(ctx context.Context, batchSize int, db DB) error
 }
 
 var workloadCreators = map[string]WorkloadCreator{}

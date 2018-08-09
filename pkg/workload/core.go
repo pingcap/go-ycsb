@@ -345,8 +345,8 @@ func (c *core) DoTransaction(ctx context.Context, db ycsb.DB) error {
 	state := ctx.Value(stateKey).(*coreState)
 	r := state.r
 
-	opertion := operationType(c.operationChooser.Next(r))
-	switch opertion {
+	operation := operationType(c.operationChooser.Next(r))
+	switch operation {
 	case read:
 		return c.doTransactionRead(ctx, db, state)
 	case update:
@@ -357,6 +357,24 @@ func (c *core) DoTransaction(ctx context.Context, db ycsb.DB) error {
 		return c.doTransactionScan(ctx, db, state)
 	default:
 		return c.doTransactionReadModifyWrite(ctx, db, state)
+	}
+}
+
+// DoBatchTransaction implements the Workload DoBatchTransaction interface
+func (c *core) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.DB) error {
+	state := ctx.Value(stateKey).(*coreState)
+	r := state.r
+
+	operation := operationType(c.operationChooser.Next(r))
+	switch operation {
+	case read:
+		return c.doBatchTransactionRead(ctx, batchSize, db, state)
+	case insert:
+		return c.doBatchTransactionInsert(ctx, batchSize, db, state)
+	case update:
+		return c.doBatchTransactionUpdate(ctx, batchSize, db, state)
+	default:
+		return nil
 	}
 }
 
@@ -489,6 +507,19 @@ func (c *core) doTransactionUpdate(ctx context.Context, db ycsb.DB, state *coreS
 	defer c.putValues(values)
 
 	return db.Update(ctx, c.table, keyName, values)
+}
+
+func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycsb.DB, state *coreState) error {
+
+	return nil
+}
+
+func (c *core) doBatchTransactionInsert(ctx context.Context, batchSize int, db ycsb.DB, state *coreState) error {
+	return nil
+}
+
+func (c *core) doBatchTransactionUpdate(ctx context.Context, batchSize int, db ycsb.DB, state *coreState) error {
+	return nil
 }
 
 // CoreCreator creates the Core workload.
