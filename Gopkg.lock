@@ -286,7 +286,7 @@
 
 [[projects]]
   branch = "raw_batch_read_delete"
-  digest = "1:b91decdd63869f3b7fd94d7f36434d7b0787bbaa34fa3a8417e9524a37a3b4fe"
+  digest = "1:60af9ff604269e6703c60957f6e1607e07e05ef18603026db4eba4ea33a580cd"
   name = "github.com/pingcap/tidb"
   packages = [
     "config",
@@ -325,7 +325,7 @@
     "util/memory",
   ]
   pruneopts = "NUT"
-  revision = "f7bc7f99add440dade84de5eb2aea4bc6fe84eb9"
+  revision = "705a9cbd8479b149ca4efd6c279efdb9a875a317"
   source = "https://github.com/liukun4515/tidb.git"
 
 [[projects]]
