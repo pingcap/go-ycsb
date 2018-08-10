@@ -39,7 +39,8 @@
 
 [[constraint]]
   name = "github.com/pingcap/tidb"
-  branch = "master"
+  source= "https://github.com/liukun4515/tidb.git"
+  branch = "raw_batch_read_delete"
 
 [[constraint]]
   branch = "master"
