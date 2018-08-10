@@ -172,7 +172,7 @@ func (h *histogram) Summary() string {
 	buf := new(bytes.Buffer)
 	buf.WriteString(fmt.Sprintf("Takes(s): %.1f, ", elapsed))
 	buf.WriteString(fmt.Sprintf("Count: %d, ", count))
-	buf.WriteString(fmt.Sprintf("QPS: %.1f, ", qps))
+	buf.WriteString(fmt.Sprintf("OPS: %.1f, ", qps))
 	buf.WriteString(fmt.Sprintf("Avg(us): %d, ", avg))
 	buf.WriteString(fmt.Sprintf("Min(us): %d, ", min))
 	buf.WriteString(fmt.Sprintf("Max(us): %d, ", max))
