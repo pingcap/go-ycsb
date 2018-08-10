@@ -43,7 +43,7 @@ type coreState struct {
 type operationType int64
 
 const (
-	read operationType = iota + 1
+	read            operationType = iota + 1
 	update
 	insert
 	scan
@@ -373,6 +373,8 @@ func (c *core) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.DB
 		return c.doBatchTransactionInsert(ctx, batchSize, db, state)
 	case update:
 		return c.doBatchTransactionUpdate(ctx, batchSize, db, state)
+	case scan:
+		panic("The batch mode don't the scan operation")
 	default:
 		return nil
 	}
@@ -510,16 +512,56 @@ func (c *core) doTransactionUpdate(ctx context.Context, db ycsb.DB, state *coreS
 }
 
 func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycsb.DB, state *coreState) error {
+	r := state.r
+	var fields []string
 
+	if !c.readAllFields {
+		fieldName := c.fieldNames[c.fieldChooser.Next(r)]
+		fields = append(fields, fieldName)
+	} else {
+		fields = c.fieldNames
+	}
+
+	keys := make([]string, batchSize)
+	for i := 0; i < batchSize; i++ {
+		keys[i] = c.buildKeyName(c.nextKeyNum(state))
+	}
+
+	_, err := db.BatchRead(ctx, c.table, keys, fields)
+	if err != nil {
+		return err
+	}
+
+	// TODO should we verify the result?
 	return nil
 }
 
 func (c *core) doBatchTransactionInsert(ctx context.Context, batchSize int, db ycsb.DB, state *coreState) error {
+
 	return nil
 }
 
 func (c *core) doBatchTransactionUpdate(ctx context.Context, batchSize int, db ycsb.DB, state *coreState) error {
-	return nil
+	keys := make([]string, batchSize)
+	values := make([]map[string][]byte, batchSize)
+	for i := 0; i < batchSize; i++ {
+		keyNum := c.nextKeyNum(state)
+		keyName := c.buildKeyName(keyNum)
+		keys[i] = keyName
+		if c.writeAllFields {
+			values[i] = c.buildValues(state, keyName)
+		} else {
+			values[i] = c.buildSingleValue(state, keyName)
+		}
+	}
+
+	defer func() {
+		for _, value := range values {
+			c.putValues(value)
+		}
+	}()
+
+	return db.BatchUpdate(ctx, c.table, keys, values)
 }
 
 // CoreCreator creates the Core workload.

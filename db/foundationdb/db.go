@@ -94,6 +94,10 @@ func (db *fDB) Read(ctx context.Context, table string, key string, fields []stri
 	return db.r.Decode(row.([]byte), fields)
 }
 
+func (db *fDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
+	panic("The foundation has not implemented the batch operation")
+}
+
 func (db *fDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	rowKey := db.getRowKey(table, startKey)
 	res, err := db.db.Transact(func(tr fdb.Transaction) (interface{}, error) {
@@ -164,6 +168,10 @@ func (db *fDB) Update(ctx context.Context, table string, key string, values map[
 	return err
 }
 
+func (db *fDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The foundation has not implemented the batch operation")
+}
+
 func (db *fDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	// Simulate TiDB data
 	buf := db.bufPool.Get()
@@ -193,6 +201,10 @@ func (db *fDB) Delete(ctx context.Context, table string, key string) error {
 		return
 	})
 	return err
+}
+
+func (db *fDB) BatchDelete(ctx context.Context, table string, keys []string) error {
+	panic("The foundation has not implemented the batch operation")
 }
 
 type fdbCreator struct {

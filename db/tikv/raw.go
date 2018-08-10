@@ -73,6 +73,27 @@ func (db *rawDB) Read(ctx context.Context, table string, key string, fields []st
 	return db.r.Decode(row, fields)
 }
 
+func (db *rawDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
+	rowKeys := make([][]byte, len(keys))
+	for i, key := range keys {
+		rowKeys[i] = db.getRowKey(table, key)
+	}
+	values, err := db.db.BatchGet(rowKeys)
+	if err != nil {
+		return nil, err
+	}
+	rowValues := make([]map[string][]byte, len(keys))
+
+	for i, value := range values {
+		if len(value) > 0 {
+			rowValues[i], err = db.r.Decode(value, fields)
+		} else {
+			rowValues[i] = nil
+		}
+	}
+	return rowValues, nil
+}
+
 func (db *rawDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	_, rows, err := db.db.Scan(db.getRowKey(table, startKey), count)
 	if err != nil {
@@ -115,6 +136,21 @@ func (db *rawDB) Update(ctx context.Context, table string, key string, values ma
 	return db.Insert(ctx, table, key, data)
 }
 
+func (db *rawDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	var rawKeys [][]byte
+	var rawValues [][]byte
+	for i, key := range keys {
+		// TODO should we check the key exist?
+		rawKeys = append(rawKeys, db.getRowKey(table, key))
+		rawData, err := db.r.Encode(nil, values[i])
+		if err != nil {
+			return err
+		}
+		rawValues = append(rawValues, rawData)
+	}
+	return db.db.BatchPut(rawKeys, rawValues)
+}
+
 func (db *rawDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	// Simulate TiDB data
 	buf := db.bufPool.Get()
@@ -144,4 +180,12 @@ func (db *rawDB) BatchInsert(ctx context.Context, table string, keys []string, v
 
 func (db *rawDB) Delete(ctx context.Context, table string, key string) error {
 	return db.db.Delete(db.getRowKey(table, key))
+}
+
+func (db *rawDB) BatchDelete(ctx context.Context, table string, keys []string) error {
+	rowKeys := make([][]byte, len(keys))
+	for i, key := range keys {
+		rowKeys[i] = db.getRowKey(table, key)
+	}
+	return db.db.BatchDelete(rowKeys)
 }

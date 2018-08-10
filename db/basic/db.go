@@ -130,6 +130,10 @@ func (db *basicDB) Read(ctx context.Context, table string, key string, fields []
 	return nil, nil
 }
 
+func (db *basicDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
+	panic("The basicDB has not implemented the batch operation")
+}
+
 func (db *basicDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	state := ctx.Value(stateKey).(*basicState)
 
@@ -181,6 +185,10 @@ func (db *basicDB) Update(ctx context.Context, table string, key string, values 
 	fmt.Println(buf.String())
 	buf.Reset()
 	return nil
+}
+
+func (db *basicDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The basicDB has not implemented the batch operation")
 }
 
 func (db *basicDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -241,6 +249,10 @@ func (db *basicDB) Delete(ctx context.Context, table string, key string) error {
 	fmt.Println(buf.String())
 	buf.Reset()
 	return nil
+}
+
+func (db *basicDB) BatchDelete(ctx context.Context, table string, keys []string) error {
+	panic("The basicDB has not implemented the batch operation")
 }
 
 type basicDBCreator struct{}

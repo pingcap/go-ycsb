@@ -36,6 +36,11 @@ func (db DbWrapper) Read(ctx context.Context, table string, key string, fields [
 	return db.DB.Read(ctx, table, key, fields)
 }
 
+// BatchRead wraps the BatchRead method in the interface of ycsb.DB
+func (db DbWrapper) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
+	panic("implement me")
+}
+
 // Scan wraps the Scan method in the interface of ycsb.DB
 func (db DbWrapper) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	start := time.Now()
@@ -54,6 +59,11 @@ func (db DbWrapper) Update(ctx context.Context, table string, key string, values
 	}()
 
 	return db.DB.Update(ctx, table, key, values)
+}
+
+// BatchUpdate wraps the BatchUpdate method in the interface of ycsb.DB
+func (db DbWrapper) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("implement me")
 }
 
 // Insert wraps the Insert method in the interface of ycsb.DB
@@ -84,4 +94,9 @@ func (db DbWrapper) Delete(ctx context.Context, table string, key string) error 
 	}()
 
 	return db.DB.Delete(ctx, table, key)
+}
+
+// BatchDelete wraps the BatchDelete method in the interface of ycsb.DB
+func (db DbWrapper) BatchDelete(ctx context.Context, table string, keys []string) error {
+	panic("implement me")
 }

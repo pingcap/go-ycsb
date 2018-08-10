@@ -237,6 +237,10 @@ func (db *mysqlDB) Read(ctx context.Context, table string, key string, fields []
 	return rows[0], nil
 }
 
+func (db *mysqlDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
+	panic("The mysql has not implemented the batch operation")
+}
+
 func (db *mysqlDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
@@ -293,6 +297,10 @@ func (db *mysqlDB) Update(ctx context.Context, table string, key string, values 
 	return db.execQuery(ctx, buf.String(), args...)
 }
 
+func (db *mysqlDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The mysql has not implemented the batch operation")
+}
+
 func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	args := make([]interface{}, 0, 1+len(values))
 	args = append(args, key)
@@ -329,6 +337,10 @@ func (db *mysqlDB) Delete(ctx context.Context, table string, key string) error {
 	query := fmt.Sprintf(`DELETE FROM %s WHERE YCSB_KEY = ?`, table)
 
 	return db.execQuery(ctx, query, key)
+}
+
+func (db *mysqlDB) BatchDelete(ctx context.Context, table string, keys []string) error {
+	panic("The mysql has not implemented the batch operation")
 }
 
 func init() {
