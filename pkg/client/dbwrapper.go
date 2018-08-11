@@ -15,6 +15,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/pingcap/go-ycsb/pkg/measurement"
@@ -26,61 +27,71 @@ type DbWrapper struct {
 	ycsb.DB
 }
 
+func measure(start time.Time, op string, err error) {
+	lan := time.Now().Sub(start)
+	if err != nil {
+		measurement.Measure(fmt.Sprintf("%s_ERROR", op), lan)
+		return
+	}
+
+	measurement.Measure(op, lan)
+}
+
 // Read wraps the Read method in the interface of ycsb.DB
-func (db DbWrapper) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
+func (db DbWrapper) Read(ctx context.Context, table string, key string, fields []string) (_ map[string][]byte, err error) {
 	start := time.Now()
 	defer func() {
-		measurement.Measure("READ", time.Now().Sub(start))
+		measure(start, "READ", err)
 	}()
 
 	return db.DB.Read(ctx, table, key, fields)
 }
 
 // Scan wraps the Scan method in the interface of ycsb.DB
-func (db DbWrapper) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
+func (db DbWrapper) Scan(ctx context.Context, table string, startKey string, count int, fields []string) (_ []map[string][]byte, err error) {
 	start := time.Now()
 	defer func() {
-		measurement.Measure("SCAN", time.Now().Sub(start))
+		measure(start, "SCAN", err)
 	}()
 
 	return db.DB.Scan(ctx, table, startKey, count, fields)
 }
 
 // Update wraps the Update method in the interface of ycsb.DB
-func (db DbWrapper) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
+func (db DbWrapper) Update(ctx context.Context, table string, key string, values map[string][]byte) (err error) {
 	start := time.Now()
 	defer func() {
-		measurement.Measure("UPDATE", time.Now().Sub(start))
+		measure(start, "UPDATE", err)
 	}()
 
 	return db.DB.Update(ctx, table, key, values)
 }
 
 // Insert wraps the Insert method in the interface of ycsb.DB
-func (db DbWrapper) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
+func (db DbWrapper) Insert(ctx context.Context, table string, key string, values map[string][]byte) (err error) {
 	start := time.Now()
 	defer func() {
-		measurement.Measure("INSERT", time.Now().Sub(start))
+		measure(start, "INSERT", err)
 	}()
 
 	return db.DB.Insert(ctx, table, key, values)
 }
 
 // BatchInsert wraps the BatchInsert method in the interface of ycsb.DB
-func (db DbWrapper) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+func (db DbWrapper) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) (err error) {
 	start := time.Now()
 	defer func() {
-		measurement.Measure("BATCH_INSERT", time.Now().Sub(start))
+		measure(start, "BATCH_INSERT", err)
 	}()
 
 	return db.DB.BatchInsert(ctx, table, keys, values)
 }
 
 // Delete wraps the Delete method in the interface of ycsb.DB
-func (db DbWrapper) Delete(ctx context.Context, table string, key string) error {
+func (db DbWrapper) Delete(ctx context.Context, table string, key string) (err error) {
 	start := time.Now()
 	defer func() {
-		measurement.Measure("DELETE", time.Now().Sub(start))
+		measure(start, "DELETE", err)
 	}()
 
 	return db.DB.Delete(ctx, table, key)
