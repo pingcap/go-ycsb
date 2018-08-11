@@ -9,15 +9,18 @@ endif
 
 ifeq ($(ROCKSDB_CHECK), 0)
 	TAGS += rocksdb
-endif 
+    CGO_CPPFLAGS += "-std=c++11"
+    CGO_LDFLAGS += "-g -O2 -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
+    CGO_FLAGS += CGO_CXXFLAGS=$(CGO_CPPFLAGS) CGO_LDFLAGS=$(CGO_LDFLAGS)
+endif
 
 default: build
 
 build:
 ifeq ($(TAGS),)
-	go build -o bin/go-ycsb cmd/go-ycsb/*	
+	$(CGO_FLAGS) go build -o bin/go-ycsb cmd/go-ycsb/*
 else
-	go build -tags "$(TAGS)" -o bin/go-ycsb cmd/go-ycsb/*
+	$(CGO_FLAGS) go build -tags "$(TAGS)" -o bin/go-ycsb cmd/go-ycsb/*
 endif
 
 check:
