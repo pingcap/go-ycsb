@@ -166,6 +166,8 @@ You can pass the database configuraitons through `-p field=value` in the command
 |rocksdb.use_direct_reads|false|Enable/Disable direct I/O mode (O_DIRECT) for reads|
 |rocksdb.use_fsync|false|Enable/Disable fsync|
 |rocksdb.write_buffer_size|64MB|Sets the amount of data to build up in memory (backed by an unsorted log on disk) before converting to a sorted on-disk file|
+|rocksdb.max_write_buffer_number|2|Sets the maximum number of write buffers that are built up in memory|
+|rocksdb.max_background_jobs|2|Sets maximum number of concurrent background jobs (compactions and flushes)|
 |rocksdb.block_size|4KB|Sets the approximate size of user data packed per block. Note that the block size specified here corresponds opts uncompressed data. The actual size of the unit read from disk may be smaller if compression is enabled|
 |rocksdb.block_size_deviation|10|Sets the block size deviation. This is used opts close a block before it reaches the configured 'block_size'. If the percentage of free space in the current block is less than this specified number and adding a new record opts the block will exceed the configured block size, then this block will be closed and the new record will be written opts the next block|
 |rocksdb.cache_index_and_filter_blocks|false|Indicating if we'd put index/filter blocks to the block cache. If not specified, each "table reader" object will pre-load index/filter block during table initialization|
@@ -175,6 +177,7 @@ You can pass the database configuraitons through `-p field=value` in the command
 |rocksdb.block_restart_interval|16|Sets the number of keys between restart points for delta encoding of keys. This parameter can be changed dynamically|
 |rocksdb.filter_policy|nil|Sets the filter policy opts reduce disk reads. Many applications will benefit from passing the result of NewBloomFilterPolicy() here|
 |rocksdb.index_type|kBinarySearch|Sets the index type used for this table. __kBinarySearch__: A space efficient index block that is optimized for binary-search-based index. __kHashSearch__: The hash index, if enabled, will do the hash lookup when `Options.prefix_extractor` is provided. __kTwoLevelIndexSearch__: A two-level index implementation. Both levels are binary search indexes|
+|rocksdb.block_align|false|Enable/Disable align data blocks on lesser of page size and block size|
 
 ## TODO
 
