@@ -9,9 +9,9 @@ endif
 
 ifeq ($(ROCKSDB_CHECK), 0)
 	TAGS += rocksdb
-    CGO_CPPFLAGS += "-std=c++11"
-    CGO_LDFLAGS += "-g -O2 -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
-    CGO_FLAGS += CGO_CXXFLAGS=$(CGO_CPPFLAGS) CGO_LDFLAGS=$(CGO_LDFLAGS)
+    CGO_CXXFLAGS := "${CGO_CXXFLAGS} -std=c++11"
+    CGO_LDFLAGS := "${CGO_LDFLAGS} -g -O2 -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd"
+    CGO_FLAGS += CGO_CXXFLAGS=$(CGO_CXXFLAGS) CGO_LDFLAGS=$(CGO_LDFLAGS)
 endif
 
 default: build
