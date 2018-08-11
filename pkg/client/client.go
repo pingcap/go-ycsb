@@ -129,8 +129,7 @@ func (w *worker) run(ctx context.Context) {
 		}
 
 		if err != nil {
-			// TODO: add error log
-			break
+			fmt.Printf("operation err: %v\n", err)
 		}
 
 		w.opsDone += int64(opsCount)
