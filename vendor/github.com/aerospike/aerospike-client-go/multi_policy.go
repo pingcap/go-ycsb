@@ -32,7 +32,7 @@ type MultiPolicy struct {
 	// Records received from multiple server nodes will be placed in a queue.
 	// A separate goroutine consumes these records in parallel.
 	// If the queue is full, the producer goroutines will block until records are consumed.
-	RecordQueueSize int //= 5000
+	RecordQueueSize int //= 50
 
 	// Indicates if bin data is retrieved. If false, only record digests are retrieved.
 	IncludeBinData bool //= true;

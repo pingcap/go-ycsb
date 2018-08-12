@@ -1,3 +1,5 @@
+// +build !app_engine
+
 package luaLib
 
 const LibStreamOps = `

@@ -27,7 +27,7 @@ type DropIndexTask struct {
 // NewDropIndexTask initializes a task with fields needed to query server nodes.
 func NewDropIndexTask(cluster *Cluster, namespace string, indexName string) *DropIndexTask {
 	return &DropIndexTask{
-		baseTask:  newTask(cluster, false),
+		baseTask:  newTask(cluster),
 		namespace: namespace,
 		indexName: indexName,
 	}

@@ -51,7 +51,6 @@ type Node struct {
 	connectionCount AtomicInt
 	health          AtomicInt //AtomicInteger
 
-	partitionMap        partitionMap
 	partitionGeneration AtomicInt
 	referenceCount      AtomicInt
 	failures            AtomicInt
@@ -309,7 +308,7 @@ func (nd *Node) refreshPeers(peers *peers) {
 	peers.refreshCount.IncrementAndGet()
 }
 
-func (nd *Node) refreshPartitions(peers *peers) {
+func (nd *Node) refreshPartitions(peers *peers, partitions partitionMap) {
 	// Do not refresh peers when node connection has already failed during this cluster tend iteration.
 	// Also, avoid "split cluster" case where this node thinks it's a 1-node cluster.
 	// Unchecked, such a node can dominate the partition map and cause all other
@@ -318,7 +317,7 @@ func (nd *Node) refreshPartitions(peers *peers) {
 		return
 	}
 
-	parser, err := newPartitionParser(nd, _PARTITIONS, nd.cluster.clientPolicy.RequestProleReplicas)
+	parser, err := newPartitionParser(nd, partitions, _PARTITIONS, nd.cluster.clientPolicy.RequestProleReplicas)
 	if err != nil {
 		nd.refreshFailed(err)
 		return
@@ -326,7 +325,6 @@ func (nd *Node) refreshPartitions(peers *peers) {
 
 	if parser.generation != nd.partitionGeneration.Get() {
 		Logger.Info("Node %s partition generation %d changed to %d", nd.GetName(), nd.partitionGeneration.Get(), parser.getGeneration())
-		nd.partitionMap = parser.getPartitionMap()
 		nd.partitionChanged.Set(true)
 		nd.partitionGeneration.Set(parser.getGeneration())
 		atomic.AddInt64(&nd.stats.PartitionMapUpdates, 1)
