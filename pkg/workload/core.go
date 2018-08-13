@@ -43,7 +43,7 @@ type coreState struct {
 type operationType int64
 
 const (
-	read            operationType = iota + 1
+	read operationType = iota + 1
 	update
 	insert
 	scan
@@ -291,7 +291,7 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 }
 
 // DoBatchInsert implements the Workload DoBatchInsert interface.
-func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) (int, error) {
+func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) error {
 	state := ctx.Value(stateKey).(*coreState)
 	r := state.r
 	var keys []string
@@ -313,13 +313,13 @@ func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) (in
 	for {
 		err = db.BatchInsert(ctx, c.table, keys, values)
 		if err == nil {
-			return batchSize, err
+			return err
 		}
 
 		select {
 		case <-ctx.Done():
 			if ctx.Err() == context.Canceled {
-				return 0, nil
+				return nil
 			}
 		default:
 		}
@@ -337,7 +337,7 @@ func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) (in
 
 		time.Sleep(time.Duration(sleepTimeMs) * time.Millisecond)
 	}
-	return 0, err
+	return err
 }
 
 // DoTransaction implements the Workload DoTransaction interface.
@@ -374,7 +374,7 @@ func (c *core) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.DB
 	case update:
 		return c.doBatchTransactionUpdate(ctx, batchSize, db, state)
 	case scan:
-		panic("The batch mode don't the scan operation")
+		panic("The batch mode don't support the scan operation")
 	default:
 		return nil
 	}
@@ -537,8 +537,28 @@ func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycs
 }
 
 func (c *core) doBatchTransactionInsert(ctx context.Context, batchSize int, db ycsb.DB, state *coreState) error {
+	r := state.r
+	keys := make([]string, batchSize)
+	values := make([]map[string][]byte, batchSize)
+	for i := 0; i < batchSize; i++ {
+		keyNum := c.transactionInsertKeySequence.Next(r)
+		keyName := c.buildKeyName(keyNum)
+		keys[i] = keyName
+		if c.writeAllFields {
+			values[i] = c.buildValues(state, keyName)
+		} else {
+			values[i] = c.buildSingleValue(state, keyName)
+		}
+		c.transactionInsertKeySequence.Acknowledge(keyNum)
+	}
 
-	return nil
+	defer func() {
+		for _, value := range values {
+			c.putValues(value)
+		}
+	}()
+
+	return db.BatchInsert(ctx, c.table, keys, values)
 }
 
 func (c *core) doBatchTransactionUpdate(ctx context.Context, batchSize int, db ycsb.DB, state *coreState) error {

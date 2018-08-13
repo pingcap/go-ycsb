@@ -118,11 +118,17 @@ func (w *worker) run(ctx context.Context) {
 		var err error
 		var insertCount int
 		if w.doTransactions {
-			// TODO: support the batch mode
-			err = w.workload.DoTransaction(ctx, w.workDB)
+			if w.doBatch {
+				err = w.workload.DoBatchTransaction(ctx, w.batchSize, w.workDB)
+				insertCount = w.batchSize
+			} else {
+				err = w.workload.DoTransaction(ctx, w.workDB)
+				insertCount = 1
+			}
 		} else {
 			if w.doBatch {
-				insertCount, err = w.workload.DoBatchInsert(ctx, w.batchSize, w.workDB)
+				err = w.workload.DoBatchInsert(ctx, w.batchSize, w.workDB)
+				insertCount = w.batchSize
 			} else {
 				err = w.workload.DoInsert(ctx, w.workDB)
 				insertCount = 1
