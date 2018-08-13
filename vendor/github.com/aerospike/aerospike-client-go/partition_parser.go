@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
+	"sync"
 
 	. "github.com/aerospike/aerospike-client-go/logger"
 	. "github.com/aerospike/aerospike-client-go/types"
@@ -33,6 +34,8 @@ const (
 	_ReplicasAll         = "replicas-all"
 )
 
+var partitionMapLock sync.Mutex
+
 // Parse node's master (and optionally prole) partitions.
 type partitionParser struct {
 	pmap           partitionMap
@@ -43,7 +46,7 @@ type partitionParser struct {
 	offset         int
 }
 
-func newPartitionParser(node *Node, partitionCount int, requestProleReplicas bool) (*partitionParser, error) {
+func newPartitionParser(node *Node, partitions partitionMap, partitionCount int, requestProleReplicas bool) (*partitionParser, error) {
 	newPartitionParser := &partitionParser{
 		partitionCount: partitionCount,
 	}
@@ -74,7 +77,10 @@ func newPartitionParser(node *Node, partitionCount int, requestProleReplicas boo
 		return nil, err
 	}
 
-	newPartitionParser.pmap = make(partitionMap)
+	newPartitionParser.pmap = partitions
+
+	partitionMapLock.Lock()
+	defer partitionMapLock.Unlock()
 
 	if node.supportsReplicas.Get() {
 		err = newPartitionParser.parseReplicasAll(node, command)
@@ -241,7 +247,7 @@ func (pp *partitionParser) parseReplicasAll(node *Node, command string) error {
 				// Ensure replicaArray is correct size.
 				Logger.Info("Namespace `%s` replication factor changed from `%d` to `%d` ", namespace, len(partitions.Replicas), replicaCount)
 
-				partitions = clonePartitions(partitions, replicaCount)
+				partitions.setReplicaCount(replicaCount) //= clonePartitions(partitions, replicaCount)
 				pp.pmap[namespace] = partitions
 			}
 
@@ -279,24 +285,22 @@ func (pp *partitionParser) parseReplicasAll(node *Node, command string) error {
 	return nil
 }
 
-func (pp *partitionParser) decodeBitmap(node *Node, partitions *Partitions, index int, regime int, begin int) error {
-	nodeArray := partitions.Replicas[index]
-	regimes := partitions.regimes
+func (pp *partitionParser) decodeBitmap(node *Node, partitions *Partitions, replica int, regime int, begin int) error {
 	restoreBuffer, err := base64.StdEncoding.DecodeString(string(pp.buffer[begin:pp.offset]))
 	if err != nil {
 		return err
 	}
 
-	for i := 0; i < pp.partitionCount; i++ {
-		nodeOld := nodeArray[i]
+	for partition := 0; partition < pp.partitionCount; partition++ {
+		nodeOld := partitions.Replicas[replica][partition]
 
-		if (restoreBuffer[i>>3] & (0x80 >> uint(i&7))) != 0 {
+		if (restoreBuffer[partition>>3] & (0x80 >> uint(partition&7))) != 0 {
 			// Node owns this partition.
-			regimeOld := regimes[i]
+			regimeOld := partitions.regimes[partition]
 
 			if regime == 0 || regime >= regimeOld {
 				if regime > regimeOld {
-					regimes[i] = regime
+					partitions.regimes[partition] = regime
 				}
 
 				if nodeOld != nil && nodeOld != node {
@@ -304,17 +308,13 @@ func (pp *partitionParser) decodeBitmap(node *Node, partitions *Partitions, inde
 					nodeOld.partitionGeneration.Set(-1)
 				}
 
-				// Use lazy set because there is only one producer thread. In addition,
-				// there is a one second delay due to the cluster tend polling interval.
-				// An extra millisecond for a node change will not make a difference and
-				// overall performance is improved.
-				nodeArray[i] = node
+				partitions.Replicas[replica][partition] = node
 			}
 		} else {
 			// Node does not own partition.
 			if node == nodeOld {
 				// Must erase previous map.
-				nodeArray[i] = nil
+				partitions.Replicas[replica][partition] = nil
 			}
 		}
 	}

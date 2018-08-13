@@ -1,6 +1,7 @@
 package gorocksdb
 
 // #include "rocksdb/c.h"
+// #include "rocksdb_c_ext.h"
 // #include "gorocksdb.h"
 import "C"
 
@@ -155,4 +156,10 @@ func (opts *BlockBasedTableOptions) SetWholeKeyFiltering(value bool) {
 // Default: kBinarySearch
 func (opts *BlockBasedTableOptions) SetIndexType(value IndexType) {
 	C.rocksdb_block_based_options_set_index_type(opts.c, C.int(value))
+}
+
+// SetBlockAlign sets align data blocks on lesser of page size and block size
+// Default: false
+func (opts *BlockBasedTableOptions) SetBlockAlign(value bool) {
+	C.rocksdb_block_based_options_set_block_align(opts.c, boolToChar(value))
 }

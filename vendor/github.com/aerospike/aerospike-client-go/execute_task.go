@@ -32,7 +32,7 @@ type ExecuteTask struct {
 // NewExecuteTask initializes task with fields needed to query server nodes.
 func NewExecuteTask(cluster *Cluster, statement *Statement) *ExecuteTask {
 	return &ExecuteTask{
-		baseTask: newTask(cluster, false),
+		baseTask: newTask(cluster),
 		taskId:   statement.TaskId,
 		scan:     statement.IsScan(),
 	}

@@ -31,7 +31,7 @@ type IndexTask struct {
 // NewIndexTask initializes a task with fields needed to query server nodes.
 func NewIndexTask(cluster *Cluster, namespace string, indexName string) *IndexTask {
 	return &IndexTask{
-		baseTask:  newTask(cluster, false),
+		baseTask:  newTask(cluster),
 		namespace: namespace,
 		indexName: indexName,
 	}
@@ -56,7 +56,7 @@ func (tski *IndexTask) IsDone() (bool, error) {
 			index := strings.Index(response, find)
 
 			if index < 0 {
-				if tski.retries > 2 {
+				if tski.retries.Get() > 2 {
 					complete = true
 				}
 				continue

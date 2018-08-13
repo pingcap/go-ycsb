@@ -57,6 +57,11 @@ func (ase AerospikeError) MarkInDoubt() {
 // NewAerospikeError generates a new AerospikeError instance.
 // If no message is provided, the result code will be translated into the default
 // error message automatically.
+// To be able to check for error type, you could use the following:
+//   if aerr, ok := err.(AerospikeError); ok {
+//       errCode := aerr.ResultCode()
+//       errMessage := aerr.Error()
+//   }
 func NewAerospikeError(code ResultCode, messages ...string) error {
 	if len(messages) == 0 {
 		messages = []string{ResultCodeToString(code)}

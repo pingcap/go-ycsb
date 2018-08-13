@@ -84,8 +84,9 @@ const (
 )
 
 var (
-	_1 = big.NewInt(1)
-	_2 = big.NewInt(2)
+	_m1 = big.NewInt(-1)
+	_1  = big.NewInt(1)
+	_2  = big.NewInt(2)
 )
 
 // GCDByte returns the greatest common divisor of a and b. Based on:
