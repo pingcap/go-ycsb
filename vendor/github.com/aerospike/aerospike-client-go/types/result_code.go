@@ -21,6 +21,9 @@ import "fmt"
 type ResultCode int
 
 const (
+	// Cluster has an invalid partition map, usually due to bad configuration.
+	INVALID_CLUSTER_PARTITION_MAP ResultCode = -12
+
 	// Server is not accepting requests.
 	SERVER_NOT_AVAILABLE ResultCode = -11
 

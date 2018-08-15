@@ -78,6 +78,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/tecbot/gorocksdb"
+  source = "https://github.com/DorianZheng/gorocksdb.git"
 
 [prune]
   go-tests = true

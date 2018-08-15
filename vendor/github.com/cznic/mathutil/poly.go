@@ -6,6 +6,7 @@ package mathutil
 
 import (
 	"fmt"
+	"math/big"
 )
 
 func abs(n int) uint64 {
@@ -52,8 +53,8 @@ type PolyFactor struct {
 // coefficients a, b, c of the form a*x^2+b*x+c in integers, or an error on
 // overflow.
 //
-// If the factorization in integers does not exists, the return value is (nil,
-// nil).
+// If the factorization in integers does not exists, the return value is (0,
+// nil, nil).
 //
 // See also:
 // https://en.wikipedia.org/wiki/Factorization_of_polynomials#Primitive_part.E2.80.93content_factorization
@@ -108,4 +109,140 @@ func QuadPolyFactors(a, b, c int) (content int, primitivePart []PolyFactor, _ er
 	x2denom /= gcd
 
 	return content, []PolyFactor{{x1denom, -x1num}, {x2denom, -x2num}}, nil
+}
+
+// QuadPolyDiscriminantBig returns the discriminant of a quadratic polynomial
+// in one variable of the form a*x^2+b*x+c with integer coefficients a, b, c.
+//
+// ds is the square of the discriminant. If |ds| is a square number, d is set
+// to sqrt(|ds|), otherwise d is nil.
+func QuadPolyDiscriminantBig(a, b, c *big.Int) (ds, d *big.Int) {
+	ds = big.NewInt(0).Set(b)
+	ds.Mul(ds, b)
+	x := big.NewInt(4)
+	x.Mul(x, a)
+	x.Mul(x, c)
+	ds.Sub(ds, x)
+
+	s := big.NewInt(0).Set(ds)
+	if s.Sign() < 0 {
+		s.Neg(s)
+	}
+
+	if s.Bit(1) != 0 { // s is not a square number
+		return ds, nil
+	}
+
+	d = SqrtBig(s)
+	x.Set(d)
+	x.Mul(x, x)
+	if x.Cmp(s) != 0 { // s is not a square number
+		d = nil
+	}
+	return ds, d
+}
+
+// PolyFactorBig describes an irreducible factor of a polynomial in one
+// variable with integer coefficients P, Q of the form P*x+Q.
+type PolyFactorBig struct {
+	P, Q *big.Int
+}
+
+// QuadPolyFactorsBig returns the content and the irreducible factors of the
+// primitive part of a quadratic polynomial in one variable with integer
+// coefficients a, b, c of the form a*x^2+b*x+c in integers.
+//
+// If the factorization in integers does not exists, the return value is (nil,
+// nil).
+//
+// See also:
+// https://en.wikipedia.org/wiki/Factorization_of_polynomials#Primitive_part.E2.80.93content_factorization
+func QuadPolyFactorsBig(a, b, c *big.Int) (content *big.Int, primitivePart []PolyFactorBig) {
+	content = bigGCD(bigAbs(a), bigGCD(bigAbs(b), bigAbs(c)))
+	switch {
+	case content.Sign() == 0:
+		content.SetInt64(1)
+	case content.Sign() > 0:
+		if a.Sign() < 0 || a.Sign() == 0 && b.Sign() < 0 {
+			content = bigNeg(content)
+		}
+	}
+	a = bigDiv(a, content)
+	b = bigDiv(b, content)
+	c = bigDiv(c, content)
+
+	if a.Sign() == 0 {
+		if b.Sign() == 0 {
+			return content, []PolyFactorBig{{big.NewInt(0), c}}
+		}
+
+		if b.Sign() < 0 && c.Sign() < 0 {
+			b = bigNeg(b)
+			c = bigNeg(c)
+		}
+		if b.Sign() < 0 {
+			b = bigNeg(b)
+			c = bigNeg(c)
+		}
+		return content, []PolyFactorBig{{b, c}}
+	}
+
+	ds, d := QuadPolyDiscriminantBig(a, b, c)
+	if ds.Sign() < 0 || d == nil {
+		return nil, nil
+	}
+
+	x1num := bigAdd(bigNeg(b), d)
+	x1denom := bigMul(_2, a)
+	gcd := bigGCD(bigAbs(x1num), bigAbs(x1denom))
+	x1num = bigDiv(x1num, gcd)
+	x1denom = bigDiv(x1denom, gcd)
+
+	x2num := bigAdd(bigNeg(b), bigNeg(d))
+	x2denom := bigMul(_2, a)
+	gcd = bigGCD(bigAbs(x2num), bigAbs(x2denom))
+	x2num = bigDiv(x2num, gcd)
+	x2denom = bigDiv(x2denom, gcd)
+
+	return content, []PolyFactorBig{{x1denom, bigNeg(x1num)}, {x2denom, bigNeg(x2num)}}
+}
+
+func bigAbs(n *big.Int) *big.Int {
+	n = big.NewInt(0).Set(n)
+	if n.Sign() >= 0 {
+		return n
+	}
+
+	return n.Neg(n)
+}
+
+func bigDiv(a, b *big.Int) *big.Int {
+	a = big.NewInt(0).Set(a)
+	return a.Div(a, b)
+}
+
+func bigGCD(a, b *big.Int) *big.Int {
+	a = big.NewInt(0).Set(a)
+	b = big.NewInt(0).Set(b)
+	for b.Sign() != 0 {
+		c := big.NewInt(0)
+		c.Mod(a, b)
+		a, b = b, c
+	}
+	return a
+}
+
+func bigNeg(n *big.Int) *big.Int {
+	n = big.NewInt(0).Set(n)
+	return n.Neg(n)
+}
+
+func bigMul(a, b *big.Int) *big.Int {
+	r := big.NewInt(0).Set(a)
+	return r.Mul(r, b)
+}
+
+func bigAdd(a, b *big.Int) *big.Int {
+	r := big.NewInt(0).Set(a)
+	return r.Add(r, b)
 }
