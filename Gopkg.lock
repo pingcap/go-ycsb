@@ -285,8 +285,8 @@
   revision = "5e120ed617983e03b08ba45d4d54fdcdde1f4ab8"
 
 [[projects]]
-  branch = "raw_batch_read_delete"
-  digest = "1:60af9ff604269e6703c60957f6e1607e07e05ef18603026db4eba4ea33a580cd"
+  branch = "master"
+  digest = "1:bb9418d9a38ae95acf524e277eaf2f3ab5ec95bc16a14e989b4bec5fd10e343c"
   name = "github.com/pingcap/tidb"
   packages = [
     "config",
@@ -317,6 +317,7 @@
     "util/charset",
     "util/chunk",
     "util/codec",
+    "util/execdetails",
     "util/format",
     "util/goroutine_pool",
     "util/hack",
@@ -325,8 +326,7 @@
     "util/memory",
   ]
   pruneopts = "NUT"
-  revision = "705a9cbd8479b149ca4efd6c279efdb9a875a317"
-  source = "https://github.com/liukun4515/tidb.git"
+  revision = "f18176f806db50bcfbf39be4dfddad59b1ff8f84"
 
 [[projects]]
   branch = "master"
