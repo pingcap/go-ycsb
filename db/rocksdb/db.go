@@ -195,10 +195,6 @@ func (db *rocksDB) Read(ctx context.Context, table string, key string, fields []
 	return db.r.Decode(cloneValue(value), fields)
 }
 
-func (db *rocksDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
-	panic("The rocksdb has not implemented the batch operation")
-}
-
 func (db *rocksDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	res := make([]map[string][]byte, count)
 	it := db.db.NewIterator(db.readOpts)
@@ -248,10 +244,6 @@ func (db *rocksDB) Update(ctx context.Context, table string, key string, values 
 	return db.db.Put(db.writeOpts, rowKey, rowData)
 }
 
-func (db *rocksDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	panic("The rocksdb has not implemented the batch operation")
-}
-
 func (db *rocksDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	rowKey := db.getRowKey(table, key)
 
@@ -265,18 +257,10 @@ func (db *rocksDB) Insert(ctx context.Context, table string, key string, values 
 	return db.db.Put(db.writeOpts, rowKey, rowData)
 }
 
-func (db *rocksDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	panic("The rocksdb has not implemented the batch operation")
-}
-
 func (db *rocksDB) Delete(ctx context.Context, table string, key string) error {
 	rowKey := db.getRowKey(table, key)
 
 	return db.db.Delete(db.writeOpts, rowKey)
-}
-
-func (db *rocksDB) BatchDelete(ctx context.Context, table string, keys []string) error {
-	panic("The rocksdb has not implemented the batch operation")
 }
 
 func init() {
