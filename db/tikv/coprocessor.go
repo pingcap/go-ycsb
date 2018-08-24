@@ -76,6 +76,29 @@ func (db *coprocessor) Read(ctx context.Context, table string, key string, field
 	return make(map[string][]byte, len(fields)), nil
 }
 
+func (db *coprocessor) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
+	tx, err := db.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	rowValues := make([]map[string][]byte, len(keys))
+	for i, key := range keys {
+		value, err := tx.Get(db.table.EncodeKey(key))
+		if kv.ErrNotExist.Equal(err) || value == nil {
+			rowValues[i] = nil
+		} else {
+			rowValues[i], err = db.table.DecodeValue(value, fields)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return rowValues, nil
+}
+
 func (db *coprocessor) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	// construct the req
 	req := kv.Request{Concurrency: 1, Tp: kv.ReqTypeDAG}
@@ -138,6 +161,26 @@ func (db *coprocessor) Update(ctx context.Context, table string, key string, val
 		return err
 	}
 
+	return tx.Commit(ctx)
+}
+
+func (db *coprocessor) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for i, key := range keys {
+		// TODO should we check the key exist?
+		rowData, err := db.table.EncodeValue(nil, values[i])
+		if err != nil {
+			return err
+		}
+		if err = tx.Set(db.table.EncodeKey(key), rowData); err != nil {
+			return err
+		}
+	}
 	return tx.Commit(ctx)
 }
 
@@ -204,6 +247,26 @@ func (db *coprocessor) Delete(ctx context.Context, table string, key string) err
 	err = tx.Delete(rowKey)
 	if err != nil {
 		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (db *coprocessor) BatchDelete(ctx context.Context, table string, keys []string) error {
+	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for _, key := range keys {
+		if err != nil {
+			return err
+		}
+		rowKey := db.table.EncodeKey(key)
+		err = tx.Delete(rowKey)
+		if err != nil {
+			return err
+		}
 	}
 	return tx.Commit(ctx)
 }

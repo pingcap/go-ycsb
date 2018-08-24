@@ -61,6 +61,10 @@ func (adb *aerospikedb) Read(ctx context.Context, table string, key string, fiel
 	return res, nil
 }
 
+func (adb *aerospikedb) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
+	panic("The aerospikedb has not implemented the batch operation")
+}
+
 // Scan scans records from the database.
 // table: The name of the table.
 // startKey: The first record key to read.
@@ -131,6 +135,10 @@ func (adb *aerospikedb) Update(ctx context.Context, table string, key string, va
 	return adb.client.Put(policy, asKey, bins)
 }
 
+func (adb *aerospikedb) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	panic("The aerospikedb has not implemented the batch operation")
+}
+
 // Insert inserts a record in the database. Any field/value pairs will be written into the
 // database.
 // table: The name of the table.
@@ -164,6 +172,10 @@ func (adb *aerospikedb) Delete(ctx context.Context, table string, key string) er
 	}
 	_, err = adb.client.Delete(nil, asKey)
 	return err
+}
+
+func (adb *aerospikedb) BatchDelete(ctx context.Context, table string, keys []string) error {
+	panic("The aerospikedb has not implemented the batch operation")
 }
 
 type aerospikeCreator struct{}

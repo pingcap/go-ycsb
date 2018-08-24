@@ -43,6 +43,12 @@ type DB interface {
 	// fields: The list of fields to read, nil|empty for reading all.
 	Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error)
 
+	// BatchRead reads records from the database.
+	// table: The name of the table.
+	// keys: The keys of records to read.
+	// fields: The list of fields to read, nil|empty for reading all.
+	BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error)
+
 	// Scan scans records from the database.
 	// table: The name of the table.
 	// startKey: The first record key to read.
@@ -56,6 +62,12 @@ type DB interface {
 	// key: The record key of the record to update.
 	// values: A map of field/value pairs to update in the record.
 	Update(ctx context.Context, table string, key string, values map[string][]byte) error
+
+	// BatchUpdate updates records in the database.
+	// table: The name of table.
+	// keys: The keys of records to update.
+	// values: The values of records to update.
+	BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error
 
 	// Insert inserts a record in the database. Any field/value pairs will be written into the
 	// database.
@@ -74,6 +86,11 @@ type DB interface {
 	// table: The name of the table.
 	// key: The record key of the record to delete.
 	Delete(ctx context.Context, table string, key string) error
+
+	// BatchDelete deletes records from the database.
+	// table: The name of the table.
+	// keys: The keys of the records to delete.
+	BatchDelete(ctx context.Context, table string, keys []string) error
 }
 
 var dbCreators = map[string]DBCreator{}
