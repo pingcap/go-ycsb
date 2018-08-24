@@ -24,7 +24,7 @@ import (
 
 // DbWrapper stores the pointer to a implementation of ycsb.DB.
 type DbWrapper struct {
-	db ycsb.DB
+	DB ycsb.DB
 }
 
 func measure(start time.Time, op string, err error) {
@@ -38,15 +38,15 @@ func measure(start time.Time, op string, err error) {
 }
 
 func (db DbWrapper) Close() error {
-	return db.db.Close()
+	return db.DB.Close()
 }
 
 func (db DbWrapper) InitThread(ctx context.Context, threadID int, threadCount int) context.Context {
-	return db.db.InitThread(ctx, threadID, threadCount)
+	return db.DB.InitThread(ctx, threadID, threadCount)
 }
 
 func (db DbWrapper) CleanupThread(ctx context.Context) {
-	db.db.CleanupThread(ctx)
+	db.DB.CleanupThread(ctx)
 }
 
 func (db DbWrapper) Read(ctx context.Context, table string, key string, fields []string) (_ map[string][]byte, err error) {
@@ -55,11 +55,11 @@ func (db DbWrapper) Read(ctx context.Context, table string, key string, fields [
 		measure(start, "READ", err)
 	}()
 
-	return db.db.Read(ctx, table, key, fields)
+	return db.DB.Read(ctx, table, key, fields)
 }
 
 func (db DbWrapper) BatchRead(ctx context.Context, table string, keys []string, fields []string) (_ []map[string][]byte, err error) {
-	batchDB, ok := db.db.(ycsb.BatchDB)
+	batchDB, ok := db.DB.(ycsb.BatchDB)
 	if ok {
 		start := time.Now()
 		defer func() {
@@ -68,7 +68,7 @@ func (db DbWrapper) BatchRead(ctx context.Context, table string, keys []string, 
 		return batchDB.BatchRead(ctx, table, keys, fields)
 	}
 	for _, key := range keys {
-		_, err := db.db.Read(ctx, table, key, fields)
+		_, err := db.DB.Read(ctx, table, key, fields)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +82,7 @@ func (db DbWrapper) Scan(ctx context.Context, table string, startKey string, cou
 		measure(start, "SCAN", err)
 	}()
 
-	return db.db.Scan(ctx, table, startKey, count, fields)
+	return db.DB.Scan(ctx, table, startKey, count, fields)
 }
 
 func (db DbWrapper) Update(ctx context.Context, table string, key string, values map[string][]byte) (err error) {
@@ -91,11 +91,11 @@ func (db DbWrapper) Update(ctx context.Context, table string, key string, values
 		measure(start, "UPDATE", err)
 	}()
 
-	return db.db.Update(ctx, table, key, values)
+	return db.DB.Update(ctx, table, key, values)
 }
 
 func (db DbWrapper) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) (err error) {
-	batchDB, ok := db.db.(ycsb.BatchDB)
+	batchDB, ok := db.DB.(ycsb.BatchDB)
 	if ok {
 		start := time.Now()
 		defer func() {
@@ -104,7 +104,7 @@ func (db DbWrapper) BatchUpdate(ctx context.Context, table string, keys []string
 		return batchDB.BatchUpdate(ctx, table, keys, values)
 	}
 	for i := range keys {
-		err := db.db.Update(ctx, table, keys[i], values[i])
+		err := db.DB.Update(ctx, table, keys[i], values[i])
 		if err != nil {
 			return err
 		}
@@ -118,11 +118,11 @@ func (db DbWrapper) Insert(ctx context.Context, table string, key string, values
 		measure(start, "INSERT", err)
 	}()
 
-	return db.db.Insert(ctx, table, key, values)
+	return db.DB.Insert(ctx, table, key, values)
 }
 
 func (db DbWrapper) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) (err error) {
-	batchDB, ok := db.db.(ycsb.BatchDB)
+	batchDB, ok := db.DB.(ycsb.BatchDB)
 	if ok {
 		start := time.Now()
 		defer func() {
@@ -131,7 +131,7 @@ func (db DbWrapper) BatchInsert(ctx context.Context, table string, keys []string
 		return batchDB.BatchInsert(ctx, table, keys, values)
 	}
 	for i := range keys {
-		err := db.db.Insert(ctx, table, keys[i], values[i])
+		err := db.DB.Insert(ctx, table, keys[i], values[i])
 		if err != nil {
 			return err
 		}
@@ -145,11 +145,11 @@ func (db DbWrapper) Delete(ctx context.Context, table string, key string) (err e
 		measure(start, "DELETE", err)
 	}()
 
-	return db.db.Delete(ctx, table, key)
+	return db.DB.Delete(ctx, table, key)
 }
 
 func (db DbWrapper) BatchDelete(ctx context.Context, table string, keys []string) (err error) {
-	batchDB, ok := db.db.(ycsb.BatchDB)
+	batchDB, ok := db.DB.(ycsb.BatchDB)
 	if ok {
 		start := time.Now()
 		defer func() {
@@ -158,7 +158,7 @@ func (db DbWrapper) BatchDelete(ctx context.Context, table string, keys []string
 		return batchDB.BatchDelete(ctx, table, keys)
 	}
 	for _, key := range keys {
-		err := db.db.Delete(ctx, table, key)
+		err := db.DB.Delete(ctx, table, key)
 		if err != nil {
 			return err
 		}

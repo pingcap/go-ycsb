@@ -292,6 +292,10 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 
 // DoBatchInsert implements the Workload DoBatchInsert interface.
 func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) error {
+	batchDB, ok := db.(ycsb.BatchDB)
+	if !ok {
+		return fmt.Errorf("The %T does't implement the batchDB interface.", db)
+	}
 	state := ctx.Value(stateKey).(*coreState)
 	r := state.r
 	var keys []string
@@ -311,7 +315,7 @@ func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) err
 	numOfRetries := int64(0)
 	var err error
 	for {
-		err = db.BatchInsert(ctx, c.table, keys, values)
+		err = batchDB.BatchInsert(ctx, c.table, keys, values)
 		if err == nil {
 			return err
 		}
@@ -362,17 +366,21 @@ func (c *core) DoTransaction(ctx context.Context, db ycsb.DB) error {
 
 // DoBatchTransaction implements the Workload DoBatchTransaction interface
 func (c *core) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.DB) error {
+	batchDB, ok := db.(ycsb.BatchDB)
+	if !ok {
+		return fmt.Errorf("The %T does't implement the batchDB interface.", db)
+	}
 	state := ctx.Value(stateKey).(*coreState)
 	r := state.r
 
 	operation := operationType(c.operationChooser.Next(r))
 	switch operation {
 	case read:
-		return c.doBatchTransactionRead(ctx, batchSize, db, state)
+		return c.doBatchTransactionRead(ctx, batchSize, batchDB, state)
 	case insert:
-		return c.doBatchTransactionInsert(ctx, batchSize, db, state)
+		return c.doBatchTransactionInsert(ctx, batchSize, batchDB, state)
 	case update:
-		return c.doBatchTransactionUpdate(ctx, batchSize, db, state)
+		return c.doBatchTransactionUpdate(ctx, batchSize, batchDB, state)
 	case scan:
 		panic("The batch mode don't support the scan operation")
 	default:
@@ -511,7 +519,7 @@ func (c *core) doTransactionUpdate(ctx context.Context, db ycsb.DB, state *coreS
 	return db.Update(ctx, c.table, keyName, values)
 }
 
-func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycsb.DB, state *coreState) error {
+func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycsb.BatchDB, state *coreState) error {
 	r := state.r
 	var fields []string
 
@@ -536,7 +544,7 @@ func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycs
 	return nil
 }
 
-func (c *core) doBatchTransactionInsert(ctx context.Context, batchSize int, db ycsb.DB, state *coreState) error {
+func (c *core) doBatchTransactionInsert(ctx context.Context, batchSize int, db ycsb.BatchDB, state *coreState) error {
 	r := state.r
 	keys := make([]string, batchSize)
 	values := make([]map[string][]byte, batchSize)
@@ -561,7 +569,7 @@ func (c *core) doBatchTransactionInsert(ctx context.Context, batchSize int, db y
 	return db.BatchInsert(ctx, c.table, keys, values)
 }
 
-func (c *core) doBatchTransactionUpdate(ctx context.Context, batchSize int, db ycsb.DB, state *coreState) error {
+func (c *core) doBatchTransactionUpdate(ctx context.Context, batchSize int, db ycsb.BatchDB, state *coreState) error {
 	keys := make([]string, batchSize)
 	values := make([]map[string][]byte, batchSize)
 	for i := 0; i < batchSize; i++ {
