@@ -1,9 +1,9 @@
-FDB_CHECK := $(shell fdbcli -v 2>/dev/null; echo $$?)
+FDB_CHECK := $(shell command -v fdbcli 2> /dev/null)
 ROCKSDB_CHECK := $(shell echo "int main() { return 0; }" | gcc -lrocksdb -x c++ -o /dev/null - 2>/dev/null; echo $$?)
 
 TAGS = 
 
-ifeq ($(FDB_CHECK), 0)
+ifdef FDB_CHECK
 	TAGS += foundationdb
 endif 
 
