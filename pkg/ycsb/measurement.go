@@ -27,7 +27,7 @@ type MeasurementInfo interface {
 // Measurement measures the operations metrics.
 type Measurement interface {
 	// Measure measures the operation latency.
-	Measure(latency time.Duration)
+	Measure(latency time.Duration, warmup bool)
 	// Summary returns the summary of the measurement.
 	Summary() string
 	// Info returns the MeasurementInfo of the measurement.

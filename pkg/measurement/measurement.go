@@ -30,7 +30,7 @@ type measurement struct {
 	opMeasurement map[string]ycsb.Measurement
 }
 
-func (m *measurement) measure(op string, lan time.Duration) {
+func (m *measurement) measure(op string, lan time.Duration, warmup bool) {
 	m.RLock()
 	opM, ok := m.opMeasurement[op]
 	m.RUnlock()
@@ -42,7 +42,7 @@ func (m *measurement) measure(op string, lan time.Duration) {
 		m.Unlock()
 	}
 
-	opM.Measure(lan)
+	opM.Measure(lan, warmup)
 }
 
 func (m *measurement) output() {
@@ -89,8 +89,8 @@ func Output() {
 }
 
 // Measure measures the operation.
-func Measure(op string, lan time.Duration) {
-	globalMeasure.measure(op, lan)
+func Measure(op string, lan time.Duration, warmup bool) {
+	globalMeasure.measure(op, lan, warmup)
 }
 
 // Info returns all the operations MeasurementInfo.

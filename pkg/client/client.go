@@ -40,7 +40,7 @@ type worker struct {
 	opsDone         int64
 }
 
-func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db ycsb.DB) *worker {
+func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db DbWrapper) *worker {
 	w := new(worker)
 	w.p = p
 	w.doTransactions = p.GetBool(prop.DoTransactions, true)
@@ -50,7 +50,7 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 	}
 	w.threadID = threadID
 	w.workload = workload
-	w.workDB = db
+	w.workDB = &db
 
 	var totalOpCount int64
 	if w.doTransactions {
@@ -153,12 +153,12 @@ type Client struct {
 	p        *properties.Properties
 	wg       sync.WaitGroup
 	workload ycsb.Workload
-	db       ycsb.DB
+	db       DbWrapper
 }
 
 // NewClient returns a client with the given workload and DB.
 // The workload and db can't be nil.
-func NewClient(p *properties.Properties, workload ycsb.Workload, db ycsb.DB) *Client {
+func NewClient(p *properties.Properties, workload ycsb.Workload, db DbWrapper) *Client {
 	return &Client{p: p, workload: workload, db: db}
 }
 
