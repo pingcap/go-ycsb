@@ -29,17 +29,17 @@ type DbWrapper struct {
 }
 
 func (db *DbWrapper) measure(start time.Time, op string, err error) {
-
+	// when warming up, ignore measure
+	if db.WarmUp {
+		return
+	}
 	lan := time.Now().Sub(start)
 	if err != nil {
-		measurement.Measure(fmt.Sprintf("%s_ERROR", op), lan, db.WarmUp)
+		measurement.Measure(fmt.Sprintf("%s_ERROR", op), lan)
 		return
 	}
 
-	measurement.Measure(op, lan, db.WarmUp)
-	if !db.WarmUp {
-		db.WarmUp = true
-	}
+	measurement.Measure(op, lan)
 }
 
 func (db *DbWrapper) Close() error {
@@ -172,4 +172,14 @@ func (db *DbWrapper) BatchDelete(ctx context.Context, table string, keys []strin
 		}
 	}
 	return nil
+}
+
+func (db *DbWrapper) ReadModifyWrite(ctx context.Context, table string, key string, fields []string, values map[string][]byte) (err error) {
+	start := time.Now()
+	defer func() {
+		db.measure(start, "READ-MODIFY-WRITE", err)
+	}()
+
+	db.DB.Read(ctx, table, key, fields)
+	return db.DB.Update(ctx, table, key, values)
 }

@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/client"
 	"github.com/pingcap/go-ycsb/pkg/generator"
-	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
@@ -431,10 +431,6 @@ func (c *core) doTransactionRead(ctx context.Context, db ycsb.DB, state *coreSta
 }
 
 func (c *core) doTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, state *coreState) error {
-	start := time.Now()
-	defer func() {
-		measurement.Measure("READ-MODIFY-WRITE", time.Now().Sub(start), true)
-	}()
 
 	r := state.r
 	keyNum := c.nextKeyNum(state)
@@ -456,17 +452,10 @@ func (c *core) doTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, sta
 	}
 	defer c.putValues(values)
 
-	readValues, err := db.Read(ctx, c.table, keyName, fields)
-	if err != nil {
-		return err
-	}
-
-	if err := db.Update(ctx, c.table, keyName, values); err != nil {
-		return err
-	}
-
-	if c.dataIntegrity {
-		c.verifyRow(state, keyName, readValues)
+	if t, ok := db.(*client.DbWrapper); ok {
+		t.ReadModifyWrite(ctx, c.table, keyName, fields, values)
+	} else {
+		panic("should not reach here")
 	}
 
 	return nil

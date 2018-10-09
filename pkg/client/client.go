@@ -22,13 +22,14 @@ import (
 	"time"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
 type worker struct {
 	p               *properties.Properties
-	workDB          ycsb.DB
+	workDB          *DbWrapper
 	workload        ycsb.Workload
 	doTransactions  bool
 	doBatch         bool
@@ -40,7 +41,7 @@ type worker struct {
 	opsDone         int64
 }
 
-func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db DbWrapper) *worker {
+func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db *DbWrapper) *worker {
 	w := new(worker)
 	w.p = p
 	w.doTransactions = p.GetBool(prop.DoTransactions, true)
@@ -50,7 +51,7 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 	}
 	w.threadID = threadID
 	w.workload = workload
-	w.workDB = &db
+	w.workDB = db
 
 	var totalOpCount int64
 	if w.doTransactions {
@@ -137,8 +138,10 @@ func (w *worker) run(ctx context.Context) {
 			fmt.Printf("operation err: %v\n", err)
 		}
 
-		w.opsDone += int64(opsCount)
-		w.throttle(ctx, startTime)
+		if !w.workDB.WarmUp {
+			w.opsDone += int64(opsCount)
+			w.throttle(ctx, startTime)
+		}
 
 		select {
 		case <-ctx.Done():
@@ -151,7 +154,6 @@ func (w *worker) run(ctx context.Context) {
 // Client is a struct which is used the run workload to a specific DB.
 type Client struct {
 	p        *properties.Properties
-	wg       sync.WaitGroup
 	workload ycsb.Workload
 	db       DbWrapper
 }
@@ -164,14 +166,39 @@ func NewClient(p *properties.Properties, workload ycsb.Workload, db DbWrapper) *
 
 // Run runs the workload to the target DB, and blocks until all workers end.
 func (c *Client) Run(ctx context.Context) {
+	var wg sync.WaitGroup
 	threadCount := c.p.GetInt(prop.ThreadCount, 100)
 
-	c.wg.Add(threadCount)
+	wg.Add(threadCount)
+	measureCtx, measureCancel := context.WithCancel(ctx)
+	go func() {
+		// load stage no need to warm up
+		if c.p.GetBool(prop.DoTransactions, true) {
+			dur := c.p.GetInt64("warmuptime", 0)
+			time.Sleep(time.Duration(dur) * time.Second)
+		}
+		// finish warming up
+		c.db.WarmUp = false
+
+		dur := c.p.GetInt64("measurement.interval", 10)
+		t := time.NewTicker(time.Duration(dur) * time.Second)
+		defer t.Stop()
+
+		for {
+			select {
+			case <-t.C:
+				measurement.Output()
+			case <-measureCtx.Done():
+				return
+			}
+		}
+	}()
+
 	for i := 0; i < threadCount; i++ {
 		go func(threadId int) {
-			defer c.wg.Done()
+			defer wg.Done()
 
-			w := newWorker(c.p, threadId, threadCount, c.workload, c.db)
+			w := newWorker(c.p, threadId, threadCount, c.workload, &c.db)
 			ctx := c.workload.InitThread(ctx, threadId, threadCount)
 			ctx = c.db.InitThread(ctx, threadId, threadCount)
 			w.run(ctx)
@@ -180,5 +207,6 @@ func (c *Client) Run(ctx context.Context) {
 		}(i)
 	}
 
-	c.wg.Wait()
+	wg.Wait()
+	measureCancel()
 }

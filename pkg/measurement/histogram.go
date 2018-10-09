@@ -104,15 +104,11 @@ func newHistogram(_ *properties.Properties) *histogram {
 	return h
 }
 
-func (h *histogram) Measure(latency time.Duration, warmup bool) {
-	atomic.AddInt64(&h.count, 1)
-	if !warmup {
-		return
-	}
-
+func (h *histogram) Measure(latency time.Duration) {
 	n := int64(latency / time.Microsecond)
 
 	atomic.AddInt64(&h.sum, n)
+	atomic.AddInt64(&h.count, 1)
 
 	i := sort.SearchInts(h.upperBounds, int(n))
 	if i < len(h.counts) {

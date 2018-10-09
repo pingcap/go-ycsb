@@ -14,7 +14,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -51,27 +50,9 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 	}
 	fmt.Println("**********************************************")
 
-	measureCtx, measureCancel := context.WithCancel(globalContext)
-	go func() {
-		dur := globalProps.GetInt64("measurement.interval", 10)
-		t := time.NewTicker(time.Duration(dur) * time.Second)
-		defer t.Stop()
-
-		for {
-			select {
-			case <-t.C:
-				measurement.Output()
-			case <-measureCtx.Done():
-				return
-			}
-		}
-	}()
-
-	start := time.Now()
 	c := client.NewClient(globalProps, globalWorkload, globalDB)
+	start := time.Now()
 	c.Run(globalContext)
-
-	measureCancel()
 
 	fmt.Printf("Run finished, takes %s\n", time.Now().Sub(start))
 	measurement.Output()
