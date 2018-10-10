@@ -70,7 +70,8 @@ type DB interface {
 	Delete(ctx context.Context, table string, key string) error
 }
 
-type AtomicDB interface {
+// WrappedDB gives some combined operations based on basic DB Operations.
+type WrappedDB interface {
 	// ReadModifyWrite reads and updates a record from the database.
 	// table: The name of the table.
 	// key: The record key of the record to update.
