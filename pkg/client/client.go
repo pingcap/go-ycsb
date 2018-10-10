@@ -19,6 +19,7 @@ import (
 	"math/rand"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/magiconair/properties"
@@ -138,7 +139,7 @@ func (w *worker) run(ctx context.Context) {
 			fmt.Printf("operation err: %v\n", err)
 		}
 
-		if !w.workDB.WarmUp {
+		if atomic.LoadInt32(&w.workDB.WarmUp) == 0 {
 			w.opsDone += int64(opsCount)
 			w.throttle(ctx, startTime)
 		}
@@ -175,10 +176,14 @@ func (c *Client) Run(ctx context.Context) {
 		// load stage no need to warm up
 		if c.p.GetBool(prop.DoTransactions, true) {
 			dur := c.p.GetInt64("warmuptime", 0)
-			time.Sleep(time.Duration(dur) * time.Second)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Duration(dur) * time.Second):
+			}
 		}
 		// finish warming up
-		c.db.WarmUp = false
+		atomic.StoreInt32(&c.db.WarmUp, 0)
 
 		dur := c.p.GetInt64("measurement.interval", 10)
 		t := time.NewTicker(time.Duration(dur) * time.Second)

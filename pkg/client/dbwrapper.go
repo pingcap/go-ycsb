@@ -16,6 +16,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/pingcap/go-ycsb/pkg/measurement"
@@ -25,12 +26,12 @@ import (
 // DbWrapper stores the pointer to a implementation of ycsb.DB.
 type DbWrapper struct {
 	DB     ycsb.DB
-	WarmUp bool
+	WarmUp int32 // use as bool, 1 for true, 0 for false
 }
 
 func (db *DbWrapper) measure(start time.Time, op string, err error) {
 	// when warming up, ignore measure
-	if db.WarmUp {
+	if atomic.LoadInt32(&db.WarmUp) == 1 {
 		return
 	}
 	lan := time.Now().Sub(start)
