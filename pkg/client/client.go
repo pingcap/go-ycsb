@@ -175,7 +175,7 @@ func (c *Client) Run(ctx context.Context) {
 	go func() {
 		// load stage no need to warm up
 		if c.p.GetBool(prop.DoTransactions, true) {
-			dur := c.p.GetInt64("warmuptime", 0)
+			dur := c.p.GetInt64(prop.WarmUpTime, 0)
 			select {
 			case <-ctx.Done():
 				return
