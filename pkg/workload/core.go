@@ -452,7 +452,13 @@ func (c *core) doTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, sta
 	defer c.putValues(values)
 
 	if t, ok := db.(ycsb.WrappedDB); ok {
-		t.ReadModifyWrite(ctx, c.table, keyName, fields, values)
+		values, err := t.ReadModifyWrite(ctx, c.table, keyName, fields, values)
+		if err != nil {
+			return err
+		}
+		if c.dataIntegrity {
+			c.verifyRow(state, keyName, values)
+		}
 	} else {
 		panic("should not reach here")
 	}

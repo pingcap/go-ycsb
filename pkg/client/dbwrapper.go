@@ -26,7 +26,7 @@ import (
 // DbWrapper stores the pointer to a implementation of ycsb.DB.
 type DbWrapper struct {
 	DB     ycsb.DB
-	WarmUp int32 // use as bool, 1 for true, 0 for false
+	WarmUp int32 // use as bool, 1 means in warmup progress, 0 means warmup finished.
 }
 
 func (db *DbWrapper) measure(start time.Time, op string, err error) {

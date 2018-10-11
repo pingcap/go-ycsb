@@ -77,7 +77,7 @@ type WrappedDB interface {
 	// key: The record key of the record to update.
 	// fields: The list of fields to read, nil|empty for reading all.
 	// values: A map of field/value pairs to update in the record.
-	ReadModifyWrite(ctx context.Context, table string, key string, fields []string, values map[string][]byte) error
+	ReadModifyWrite(ctx context.Context, table string, key string, fields []string, values map[string][]byte) (map[string][]byte, error)
 }
 
 type BatchDB interface {
