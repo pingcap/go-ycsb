@@ -51,6 +51,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/badger"
 	// Register RocksDB database
 	_ "github.com/pingcap/go-ycsb/db/rocksdb"
+	// Register pegasus database
+	_ "github.com/pingcap/go-ycsb/db/pegasus"
 )
 
 var (
