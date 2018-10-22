@@ -62,7 +62,7 @@ var (
 	globalContext context.Context
 	globalCancel  context.CancelFunc
 
-	globalDB       client.DbWrapper
+	globalDB       ycsb.DB
 	globalWorkload ycsb.Workload
 	globalProps    *properties.Properties
 )
@@ -105,11 +105,10 @@ func initialGlobal(dbName string, onProperties func()) {
 	if dbCreator == nil {
 		util.Fatalf("%s is not registered", dbName)
 	}
-	db, err := dbCreator.Create(globalProps)
-	if err != nil {
+	if globalDB, err = dbCreator.Create(globalProps); err != nil {
 		util.Fatalf("create db %s failed %v", dbName, err)
 	}
-	globalDB = client.DbWrapper{db, 1}
+	globalDB = client.DbWrapper{globalDB}
 }
 
 func main() {
@@ -159,7 +158,9 @@ func main() {
 	}
 
 	globalCancel()
-	globalDB.Close()
+	if globalDB != nil {
+		globalDB.Close()
+	}
 
 	if globalWorkload != nil {
 		globalWorkload.Close()

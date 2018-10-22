@@ -16,6 +16,7 @@ package measurement
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/magiconair/properties"
@@ -81,6 +82,7 @@ func InitMeasure(p *properties.Properties) {
 	globalMeasure = new(measurement)
 	globalMeasure.p = p
 	globalMeasure.opMeasurement = make(map[string]ycsb.Measurement, 16)
+	warmUp = 1
 }
 
 // Output prints the measurement summary.
@@ -88,9 +90,21 @@ func Output() {
 	globalMeasure.output()
 }
 
+// FinishWarmUp enables measurement.
+func FinishWarmUp() {
+	atomic.StoreInt32(&warmUp, 0)
+}
+
+// IsWarmUpFinished returns whether warm-up is finished or not.
+func IsWarmUpFinished() bool {
+	return atomic.LoadInt32(&warmUp) == 0
+}
+
 // Measure measures the operation.
 func Measure(op string, lan time.Duration) {
-	globalMeasure.measure(op, lan)
+	if IsWarmUpFinished() {
+		globalMeasure.measure(op, lan)
+	}
 }
 
 // Info returns all the operations MeasurementInfo.
@@ -105,3 +119,4 @@ func GetOpNames() []string {
 }
 
 var globalMeasure *measurement
+var warmUp int32 // use as bool, 1 means in warmup progress, 0 means warmup finished.

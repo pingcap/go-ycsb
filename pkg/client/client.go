@@ -19,7 +19,6 @@ import (
 	"math/rand"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/magiconair/properties"
@@ -30,7 +29,7 @@ import (
 
 type worker struct {
 	p               *properties.Properties
-	workDB          *DbWrapper
+	workDB          ycsb.DB
 	workload        ycsb.Workload
 	doTransactions  bool
 	doBatch         bool
@@ -42,7 +41,7 @@ type worker struct {
 	opsDone         int64
 }
 
-func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db *DbWrapper) *worker {
+func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db ycsb.DB) *worker {
 	w := new(worker)
 	w.p = p
 	w.doTransactions = p.GetBool(prop.DoTransactions, true)
@@ -139,7 +138,7 @@ func (w *worker) run(ctx context.Context) {
 			fmt.Printf("operation err: %v\n", err)
 		}
 
-		if atomic.LoadInt32(&w.workDB.WarmUp) == 0 {
+		if !measurement.IsWarmUpFinished() {
 			w.opsDone += int64(opsCount)
 			w.throttle(ctx, startTime)
 		}
@@ -156,12 +155,12 @@ func (w *worker) run(ctx context.Context) {
 type Client struct {
 	p        *properties.Properties
 	workload ycsb.Workload
-	db       DbWrapper
+	db       ycsb.DB
 }
 
 // NewClient returns a client with the given workload and DB.
 // The workload and db can't be nil.
-func NewClient(p *properties.Properties, workload ycsb.Workload, db DbWrapper) *Client {
+func NewClient(p *properties.Properties, workload ycsb.Workload, db ycsb.DB) *Client {
 	return &Client{p: p, workload: workload, db: db}
 }
 
@@ -183,7 +182,7 @@ func (c *Client) Run(ctx context.Context) {
 			}
 		}
 		// finish warming up
-		atomic.StoreInt32(&c.db.WarmUp, 0)
+		measurement.FinishWarmUp()
 
 		dur := c.p.GetInt64("measurement.interval", 10)
 		t := time.NewTicker(time.Duration(dur) * time.Second)
@@ -203,7 +202,7 @@ func (c *Client) Run(ctx context.Context) {
 		go func(threadId int) {
 			defer wg.Done()
 
-			w := newWorker(c.p, threadId, threadCount, c.workload, &c.db)
+			w := newWorker(c.p, threadId, threadCount, c.workload, c.db)
 			ctx := c.workload.InitThread(ctx, threadId, threadCount)
 			ctx = c.db.InitThread(ctx, threadId, threadCount)
 			w.run(ctx)

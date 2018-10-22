@@ -70,16 +70,6 @@ type DB interface {
 	Delete(ctx context.Context, table string, key string) error
 }
 
-// WrappedDB gives some combined operations based on basic DB Operations.
-type WrappedDB interface {
-	// ReadModifyWrite reads and updates a record from the database.
-	// table: The name of the table.
-	// key: The record key of the record to update.
-	// fields: The list of fields to read, nil|empty for reading all.
-	// values: A map of field/value pairs to update in the record.
-	ReadModifyWrite(ctx context.Context, table string, key string, fields []string, values map[string][]byte) (map[string][]byte, error)
-}
-
 type BatchDB interface {
 	// BatchInsert inserts batch records in the database.
 	// table: The name of the table.
