@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
@@ -82,7 +83,11 @@ func InitMeasure(p *properties.Properties) {
 	globalMeasure = new(measurement)
 	globalMeasure.p = p
 	globalMeasure.opMeasurement = make(map[string]ycsb.Measurement, 16)
-	warmUp = 1
+	if p.GetInt64(prop.WarmUpTime, 0) <= 0 {
+		warmUp = 0
+	} else {
+		warmUp = 1
+	}
 }
 
 // Output prints the measurement summary.
