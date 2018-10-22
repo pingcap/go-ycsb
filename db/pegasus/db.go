@@ -1,0 +1,164 @@
+// Copyright (c) 2017, Xiaomi, Inc.  All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Copyright 2018 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * Copyright (c) 2010-2016 Yahoo! Inc., 2017 YCSB contributors All rights reserved.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
+
+package pegasus
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	_ "net/http/pprof"
+	"strings"
+	"time"
+
+	"github.com/XiaoMi/pegasus-go-client/pegalog"
+	"github.com/XiaoMi/pegasus-go-client/pegasus"
+	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/ycsb"
+)
+
+var (
+	RequestTimeout = 3 * time.Second
+)
+
+type pegasusDB struct {
+	db pegasus.TableConnector
+}
+
+func (db *pegasusDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
+	return ctx
+}
+
+func (db *pegasusDB) CleanupThread(_ context.Context) {
+}
+
+func (db *pegasusDB) Close() error {
+	return db.db.Close()
+}
+
+func (db *pegasusDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
+	rawValue, err := db.db.Get(ctx, []byte(key), nil)
+	if err == nil {
+		var value map[string][]byte
+		json.Unmarshal(rawValue, value)
+
+		result := make(map[string][]byte)
+		for _, field := range fields {
+			if v, ok := value[field]; ok {
+				result[field] = v
+			}
+		}
+
+		return result, nil
+	} else {
+		pegalog.GetLogger().Println(err)
+		return nil, err
+	}
+}
+
+func (db *pegasusDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
+	return nil, nil
+}
+
+func (db *pegasusDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
+	timeoutCtx, _ := context.WithTimeout(ctx, time.Second*3)
+
+	value, _ := json.Marshal(values)
+	err := db.db.Set(timeoutCtx, []byte(key), nil, value)
+	if err != nil {
+		pegalog.GetLogger().Println(err)
+	}
+	return err
+}
+
+func (db *pegasusDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
+	timeoutCtx, _ := context.WithTimeout(ctx, time.Second*3)
+
+	value, _ := json.Marshal(values)
+	err := db.db.Set(timeoutCtx, []byte(key), nil, value)
+	if err != nil {
+		pegalog.GetLogger().Println(err)
+	}
+	return err
+}
+
+func (db *pegasusDB) Delete(ctx context.Context, table string, key string) error {
+	timeoutCtx, _ := context.WithTimeout(ctx, time.Second*3)
+
+	err := db.db.Del(timeoutCtx, []byte(key), nil)
+	if err != nil {
+		pegalog.GetLogger().Println(err)
+	}
+	return err
+}
+
+type pegasusCreator struct{}
+
+func (pegasusCreator) Create(p *properties.Properties) (ycsb.DB, error) {
+	conf := p.MustGetString("meta_servers")
+	metaServers := strings.Split(conf, ",")
+
+	tbName := p.MustGetString("table")
+
+	cfg := pegasus.Config{MetaServers: metaServers}
+	c := pegasus.NewClient(cfg)
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*3)
+	tb, err := c.OpenTable(ctx, tbName)
+	if err != nil {
+		fmt.Println("failed to open table: ", err)
+		return nil, err
+	}
+
+	return &pegasusDB{db: tb}, nil
+}
+
+func init() {
+	ycsb.RegisterDBCreator("pegasus", pegasusCreator{})
+
+	go func() {
+		pegalog.GetLogger().Println("Start pprof of pegasus-go-client")
+		http.ListenAndServe("localhost:6060", nil)
+	}()
+}
