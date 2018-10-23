@@ -182,7 +182,7 @@ func (c *Client) Run(ctx context.Context) {
 			}
 		}
 		// finish warming up
-		measurement.FinishWarmUp()
+		measurement.EnableWarmUp(false)
 
 		dur := c.p.GetInt64("measurement.interval", 10)
 		t := time.NewTicker(time.Duration(dur) * time.Second)

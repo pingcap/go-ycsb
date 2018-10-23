@@ -83,11 +83,7 @@ func InitMeasure(p *properties.Properties) {
 	globalMeasure = new(measurement)
 	globalMeasure.p = p
 	globalMeasure.opMeasurement = make(map[string]ycsb.Measurement, 16)
-	if p.GetInt64(prop.WarmUpTime, 0) <= 0 {
-		warmUp = 0
-	} else {
-		warmUp = 1
-	}
+	EnableWarmUp(p.GetInt64(prop.WarmUpTime, 0) > 0)
 }
 
 // Output prints the measurement summary.
@@ -95,9 +91,13 @@ func Output() {
 	globalMeasure.output()
 }
 
-// FinishWarmUp enables measurement.
-func FinishWarmUp() {
-	atomic.StoreInt32(&warmUp, 0)
+// EnableWarmUp sets whether to enable warm-up.
+func EnableWarmUp(b bool) {
+	if b {
+		atomic.StoreInt32(&warmUp, 1)
+	} else {
+		atomic.StoreInt32(&warmUp, 0)
+	}
 }
 
 // IsWarmUpFinished returns whether warm-up is finished or not.
