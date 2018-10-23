@@ -138,7 +138,7 @@ func (w *worker) run(ctx context.Context) {
 			fmt.Printf("operation err: %v\n", err)
 		}
 
-		if !measurement.IsWarmUpFinished() {
+		if measurement.IsWarmUpFinished() {
 			w.opsDone += int64(opsCount)
 			w.throttle(ctx, startTime)
 		}
