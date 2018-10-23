@@ -30,6 +30,7 @@ const (
 	ThreadCountDefault = int64(200)
 	Target             = "target"
 	MaxExecutiontime   = "maxexecutiontime"
+	WarmUpTime         = "warmuptime"
 	DoTransactions     = "dotransactions"
 	Status             = "status"
 	Label              = "label"
