@@ -179,6 +179,15 @@ You can pass the database configuraitons through `-p field=value` in the command
 |rocksdb.index_type|kBinarySearch|Sets the index type used for this table. __kBinarySearch__: A space efficient index block that is optimized for binary-search-based index. __kHashSearch__: The hash index, if enabled, will do the hash lookup when `Options.prefix_extractor` is provided. __kTwoLevelIndexSearch__: A two-level index implementation. Both levels are binary search indexes|
 |rocksdb.block_align|false|Enable/Disable align data blocks on lesser of page size and block size|
 
+### Spanner 
+
+|field|default value|description|
+|-|-|-|
+|spanner.db|""|Spanner Database|
+|spanner.credentials|"~/.spanner/credentials.json"|Google application credentials for Spanner|
+|spanner.verbose|false|Output the execution query|
+|spanner.droptable|false|Drop Table at first|
+
 ## TODO
 
 - [ ] Support more measurement, like HdrHistogram

@@ -80,7 +80,13 @@
   name = "github.com/tecbot/gorocksdb"
   source = "https://github.com/DorianZheng/gorocksdb.git"
 
+[[constraint]]
+  name = "cloud.google.com/go"
+  branch = "master"
+  
 [prune]
   go-tests = true
   unused-packages = true
   non-go = true
+
+
