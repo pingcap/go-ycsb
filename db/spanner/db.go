@@ -347,7 +347,7 @@ func (db *spannerDB) Update(ctx context.Context, table string, key string, mutat
 
 func (db *spannerDB) Insert(ctx context.Context, table string, key string, mutations map[string][]byte) error {
 	keys, values := createMutations(key, mutations)
-	m := spanner.Insert(table, keys, values)
+	m := spanner.InsertOrUpdate(table, keys, values)
 	_, err := db.client.Apply(ctx, []*spanner.Mutation{m})
 	return err
 }
