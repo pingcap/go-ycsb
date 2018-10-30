@@ -46,7 +46,6 @@ package pegasus
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	_ "net/http/pprof"
 	"strings"
 	"time"
@@ -174,9 +173,4 @@ func (pegasusCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 func init() {
 	ycsb.RegisterDBCreator("pegasus", pegasusCreator{})
-
-	go func() {
-		pegalog.GetLogger().Println("Start pprof of pegasus-go-client")
-		http.ListenAndServe("localhost:6060", nil)
-	}()
 }
