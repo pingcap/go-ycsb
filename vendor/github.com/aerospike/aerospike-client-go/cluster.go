@@ -116,6 +116,10 @@ func NewCluster(policy *ClientPolicy, hosts []*Host) (*Cluster, error) {
 
 	// setup auth info for cluster
 	if policy.RequiresAuthentication() {
+		if policy.AuthMode == AuthModeExternal && policy.TlsConfig == nil {
+			return nil, errors.New("External Authentication requires TLS configuration to be set, because it sends clear password on the wire.")
+		}
+
 		newCluster.user = policy.User
 		hashedPass, err := hashPassword(policy.Password)
 		if err != nil {
@@ -160,7 +164,7 @@ func (clstr *Cluster) clusterBoss(policy *ClientPolicy) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			Logger.Error("Cluster tend goroutine crashed:", debug.Stack())
+			Logger.Error("Cluster tend goroutine crashed: %s", debug.Stack())
 			go clstr.clusterBoss(&clstr.clientPolicy)
 		}
 	}()
@@ -272,7 +276,18 @@ func (clstr *Cluster) tend() error {
 		wg.Wait()
 	}
 
-	partitionMap := clstr.getPartitions().clone()
+	var partitionMap partitionMap
+
+	// Use the following function to allocate memory for the partitionMap on demand.
+	// This will prevent the allocation when the cluster is stable, and make tend a bit faster.
+	pmlock := new(sync.Mutex)
+	setPartitionMap := func(l *sync.Mutex) {
+		l.Lock()
+		defer l.Unlock()
+		if partitionMap == nil {
+			partitionMap = clstr.getPartitions().clone()
+		}
+	}
 
 	// find the first host that connects
 	for _, _peer := range peers.peers() {
@@ -305,6 +320,7 @@ func (clstr *Cluster) tend() error {
 				// Create new node.
 				node := clstr.createNode(&nv)
 				peers.addNode(nv.name, node)
+				setPartitionMap(pmlock)
 				node.refreshPartitions(peers, partitionMap)
 				break
 			}
@@ -317,6 +333,7 @@ func (clstr *Cluster) tend() error {
 		go func(node *Node) {
 			defer wg.Done()
 			if node.partitionChanged.Get() {
+				setPartitionMap(pmlock)
 				node.refreshPartitions(peers, partitionMap)
 			}
 		}(node)
@@ -374,7 +391,7 @@ func (clstr *Cluster) tend() error {
 		clstr.setPartitions(partitionMap)
 	}
 
-	if err := partitionMap.validate(); err != nil {
+	if err := clstr.getPartitions().validate(); err != nil {
 		Logger.Debug("Error validating the cluster partition map after tend: %s", err.Error())
 	}
 
@@ -542,13 +559,9 @@ func (clstr *Cluster) seedNodes() (bool, error) {
 	Logger.Info("Seeding the cluster. Seeds count: %d", len(seedArray))
 
 	// Add all nodes at once to avoid copying entire array multiple times.
-	var wg sync.WaitGroup
-	wg.Add(len(seedArray))
 	for i, seed := range seedArray {
 		go func(index int, seed *Host) {
-			defer wg.Done()
-
-			nodesToAdd := &nodesToAddT{nodesToAdd: map[string]*Node{}}
+			nodesToAdd := make(nodesToAddT, 128)
 			nv := nodeValidator{}
 			err := nv.seedNodes(clstr, seed, nodesToAdd)
 			if err != nil {
@@ -556,7 +569,7 @@ func (clstr *Cluster) seedNodes() (bool, error) {
 				errChan <- err
 				return
 			}
-			clstr.addNodes(nodesToAdd.nodesToAdd)
+			clstr.addNodes(nodesToAdd)
 			successChan <- struct{}{}
 		}(i, seed)
 	}
@@ -577,7 +590,6 @@ L:
 			return true, nil
 		case <-time.After(clstr.clientPolicy.Timeout):
 			// time is up, no seeds found
-			wg.Wait()
 			break L
 		}
 	}
@@ -811,7 +823,6 @@ func (clstr *Cluster) getSequenceNode(partition *Partition, seq *int) (*Node, er
 	}
 
 	if partitions.CPMode {
-		// When master only specified, both AP and CP modes should never get random nodes.
 		return nil, NewAerospikeError(INVALID_NODE_ERROR)
 	}
 
@@ -854,7 +865,6 @@ func (clstr *Cluster) getMasterProleNode(partition *Partition) (*Node, error) {
 	}
 
 	if partitions.CPMode {
-		// When master only specified, both AP and CP modes should never get random nodes.
 		return nil, NewAerospikeError(INVALID_NODE_ERROR)
 	}
 

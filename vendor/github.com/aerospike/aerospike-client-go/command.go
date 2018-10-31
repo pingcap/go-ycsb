@@ -887,6 +887,10 @@ func (cmd *baseCommand) setQuery(policy *QueryPolicy, statement *Statement, writ
 		// Estimate scan options size.
 		cmd.dataOffset += (2 + int(_FIELD_HEADER_SIZE))
 		fieldCount++
+
+		// Estimate scan timeout size.
+		cmd.dataOffset += (4 + int(_FIELD_HEADER_SIZE))
+		fieldCount++
 	}
 
 	if len(statement.predExps) > 0 {
@@ -994,8 +998,17 @@ func (cmd *baseCommand) setQuery(policy *QueryPolicy, statement *Statement, writ
 		cmd.writeFieldHeader(2, SCAN_OPTIONS)
 		priority := byte(policy.Priority)
 		priority <<= 4
+
+		if !write && policy.FailOnClusterChange {
+			priority |= 0x08
+		}
+
 		cmd.WriteByte(priority)
 		cmd.WriteByte(byte(100))
+
+		// Write scan timeout
+		cmd.writeFieldHeader(4, SCAN_TIMEOUT)
+		cmd.WriteInt32(int32(policy.ServerSocketTimeout / time.Millisecond)) // in milliseconds
 	}
 
 	if len(statement.predExps) > 0 {
@@ -1549,11 +1562,14 @@ func (cmd *baseCommand) end() {
 
 ////////////////////////////////////
 
-func setInDoubt(err error, isRead bool, commandSentCounter int) {
+func setInDoubt(err error, isRead bool, commandSentCounter int) error {
 	// set inDoubt flag
-	if _, ok := err.(AerospikeError); ok {
-		err.(AerospikeError).SetInDoubt(isRead, commandSentCounter)
+	if ae, ok := err.(AerospikeError); ok {
+		ae.SetInDoubt(isRead, commandSentCounter)
+		return ae
 	}
+
+	return err
 }
 
 // SetCommandBufferPool can be used to customize the command Buffer Pool parameters to calibrate
@@ -1583,9 +1599,11 @@ func (cmd *baseCommand) execute(ifc command, isRead bool) error {
 	for {
 		// too many retries
 		if iterations++; (policy.MaxRetries <= 0 && iterations > 0) || (policy.MaxRetries > 0 && iterations > policy.MaxRetries) {
-			err := NewAerospikeError(TIMEOUT, fmt.Sprintf("command execution timed out on client: Exceeded number of retries. See `Policy.MaxRetries`. (last error: %s)", err))
-			setInDoubt(err, isRead, commandSentCounter)
-			return err
+			if ae, ok := err.(AerospikeError); ok {
+				err = NewAerospikeError(ae.ResultCode(), fmt.Sprintf("command execution timed out on client: Exceeded number of retries. See `Policy.MaxRetries`. (last error: %s)", err.Error()))
+			}
+
+			return setInDoubt(err, isRead, commandSentCounter)
 		}
 
 		// Sleep before trying again, after the first iteration
@@ -1623,6 +1641,7 @@ func (cmd *baseCommand) execute(ifc command, isRead bool) error {
 			// All runtime exceptions are considered fatal. Do not retry.
 			// Close socket to flush out possible garbage. Do not put back in pool.
 			cmd.conn.Close()
+			cmd.conn = nil
 			return err
 		}
 
@@ -1636,6 +1655,7 @@ func (cmd *baseCommand) execute(ifc command, isRead bool) error {
 			// IO errors are considered temporary anomalies. Retry.
 			// Close socket to flush out possible garbage. Do not put back in pool.
 			cmd.conn.Close()
+			cmd.conn = nil
 
 			Logger.Debug("Node " + cmd.node.String() + ": " + err.Error())
 			continue
@@ -1654,6 +1674,7 @@ func (cmd *baseCommand) execute(ifc command, isRead bool) error {
 
 				// retry only for non-streaming commands
 				if !cmd.oneShot {
+					cmd.conn = nil
 					continue
 				}
 			}
@@ -1667,11 +1688,10 @@ func (cmd *baseCommand) execute(ifc command, isRead bool) error {
 				cmd.node.PutConnection(cmd.conn)
 			} else {
 				cmd.conn.Close()
-
+				cmd.conn = nil
 			}
 
-			setInDoubt(err, isRead, commandSentCounter)
-			return err
+			return setInDoubt(err, isRead, commandSentCounter)
 		}
 
 		// in case it has grown and re-allocated

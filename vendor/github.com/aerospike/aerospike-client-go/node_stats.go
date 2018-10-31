@@ -25,6 +25,7 @@ type nodeStats struct {
 	ConnectionsFailed     int64 `json:"connections-failed"`
 	ConnectionsPoolEmpty  int64 `json:"connections-pool-empty"`
 	ConnectionsOpen       int64 `json:"open-connections"`
+	ConnectionsClosed     int64 `json:"closed-connections"`
 	TendsTotal            int64 `json:"tends-total"`
 	TendsSuccessful       int64 `json:"tends-successful"`
 	TendsFailed           int64 `json:"tends-failed"`
@@ -41,6 +42,7 @@ func (ns *nodeStats) getAndReset() *nodeStats {
 		ConnectionsFailed:     atomic.SwapInt64(&ns.ConnectionsFailed, 0),
 		ConnectionsPoolEmpty:  atomic.SwapInt64(&ns.ConnectionsPoolEmpty, 0),
 		ConnectionsOpen:       atomic.SwapInt64(&ns.ConnectionsOpen, 0),
+		ConnectionsClosed:     atomic.SwapInt64(&ns.ConnectionsClosed, 0),
 		TendsTotal:            atomic.SwapInt64(&ns.TendsTotal, 0),
 		TendsSuccessful:       atomic.SwapInt64(&ns.TendsSuccessful, 0),
 		TendsFailed:           atomic.SwapInt64(&ns.TendsFailed, 0),
@@ -58,6 +60,7 @@ func (ns *nodeStats) clone() nodeStats {
 		ConnectionsFailed:     atomic.LoadInt64(&ns.ConnectionsFailed),
 		ConnectionsPoolEmpty:  atomic.LoadInt64(&ns.ConnectionsPoolEmpty),
 		ConnectionsOpen:       atomic.LoadInt64(&ns.ConnectionsOpen),
+		ConnectionsClosed:     atomic.LoadInt64(&ns.ConnectionsClosed),
 		TendsTotal:            atomic.LoadInt64(&ns.TendsTotal),
 		TendsSuccessful:       atomic.LoadInt64(&ns.TendsSuccessful),
 		TendsFailed:           atomic.LoadInt64(&ns.TendsFailed),
@@ -73,6 +76,7 @@ func (ns *nodeStats) aggregate(newStats *nodeStats) {
 	atomic.AddInt64(&ns.ConnectionsFailed, newStats.ConnectionsFailed)
 	atomic.AddInt64(&ns.ConnectionsPoolEmpty, newStats.ConnectionsPoolEmpty)
 	atomic.AddInt64(&ns.ConnectionsOpen, newStats.ConnectionsOpen)
+	atomic.AddInt64(&ns.ConnectionsClosed, newStats.ConnectionsClosed)
 	atomic.AddInt64(&ns.TendsTotal, newStats.TendsTotal)
 	atomic.AddInt64(&ns.TendsSuccessful, newStats.TendsSuccessful)
 	atomic.AddInt64(&ns.TendsFailed, newStats.TendsFailed)

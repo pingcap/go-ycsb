@@ -154,9 +154,18 @@ const (
 // type ListWriteFlags int
 
 const (
-	ListWriteFlagsDefault       = 0
-	ListWriteFlagsAddUnique     = 1
+	// ListWriteFlagsDefault is the default behavior. It means:  Allow duplicate values and insertions at any index.
+	ListWriteFlagsDefault = 0
+	// ListWriteFlagsAddUnique means: Only add unique values.
+	ListWriteFlagsAddUnique = 1
+	// ListWriteFlagsInsertBounded means: Enforce list boundaries when inserting.  Do not allow values to be inserted
+	// at index outside current list boundaries.
 	ListWriteFlagsInsertBounded = 2
+	// ListWriteFlagsNoFail means: do not raise error if a list item fails due to write flag constraints.
+	ListWriteFlagsNoFail = 4
+	// ListWriteFlagsPartial means: allow other valid list items to be committed if a list item fails due to
+	// write flag constraints.
+	ListWriteFlagsPartial = 8
 )
 
 func listGenericOpEncoder(op *Operation, packer BufferEx) (int, error) {

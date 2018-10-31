@@ -43,14 +43,14 @@ func (ase AerospikeError) InDoubt() bool {
 // SetInDoubt sets whether it is possible that the write transaction may have completed
 // even though this error was generated.  This may be the case when a
 // client error occurs (like timeout) after the command was sent to the server.
-func (ase AerospikeError) SetInDoubt(isRead bool, commandSentCounter int) {
+func (ase *AerospikeError) SetInDoubt(isRead bool, commandSentCounter int) {
 	if !isRead && (commandSentCounter > 1 || (commandSentCounter == 1 && (ase.resultCode == TIMEOUT || ase.resultCode <= 0))) {
 		ase.inDoubt = true
 	}
 }
 
 // MarkInDoubt marks an error as in doubt.
-func (ase AerospikeError) MarkInDoubt() {
+func (ase *AerospikeError) MarkInDoubt() {
 	ase.inDoubt = true
 }
 

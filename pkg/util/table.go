@@ -18,7 +18,7 @@ import (
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/tidb/kv"
-	"github.com/pingcap/tidb/mysql"
+	"github.com/pingcap/parser/mysql"
 	"github.com/pingcap/tidb/tablecodec"
 	"github.com/pingcap/tidb/types"
 	"github.com/pingcap/tipb/go-tipb"
