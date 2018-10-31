@@ -23,21 +23,18 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/juju/errors"
-	"github.com/opentracing/opentracing-go"
+	"github.com/cznic/mathutil"
 	"github.com/pingcap/kvproto/pkg/coprocessor"
 	"github.com/pingcap/kvproto/pkg/kvrpcpb"
 	"github.com/pingcap/tidb/kv"
 	"github.com/pingcap/tidb/metrics"
 	"github.com/pingcap/tidb/store/tikv/tikvrpc"
 	"github.com/pingcap/tidb/util/execdetails"
-	"github.com/pingcap/tidb/util/goroutine_pool"
 	"github.com/pingcap/tipb/go-tipb"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
-
-var copIteratorGP = gp.New(time.Minute)
 
 // CopClient is coprocessor client.
 type CopClient struct {
@@ -235,6 +232,9 @@ func (r *copRanges) split(key []byte) (*copRanges, *copRanges) {
 	return r.slice(0, n), r.slice(n, r.len())
 }
 
+// rangesPerTask limits the length of the ranges slice sent in one copTask.
+const rangesPerTask = 25000
+
 func buildCopTasks(bo *Backoffer, cache *RegionCache, ranges *copRanges, desc bool, streaming bool) ([]*copTask, error) {
 	start := time.Now()
 	rangesLen := ranges.len()
@@ -245,12 +245,19 @@ func buildCopTasks(bo *Backoffer, cache *RegionCache, ranges *copRanges, desc bo
 
 	var tasks []*copTask
 	appendTask := func(region RegionVerID, ranges *copRanges) {
-		tasks = append(tasks, &copTask{
-			region:   region,
-			ranges:   ranges,
-			respChan: make(chan *copResponse, 1),
-			cmdType:  cmdType,
-		})
+		// TiKV will return gRPC error if the message is too large. So we need to limit the length of the ranges slice
+		// to make sure the message can be sent successfully.
+		rLen := ranges.len()
+		for i := 0; i < rLen; {
+			nextI := mathutil.Min(i+rangesPerTask, rLen)
+			tasks = append(tasks, &copTask{
+				region:   region,
+				ranges:   ranges.slice(i, nextI),
+				respChan: make(chan *copResponse, 1),
+				cmdType:  cmdType,
+			})
+			i = nextI
+		}
 	}
 
 	err := splitRanges(bo, cache, ranges, appendTask)
@@ -406,11 +413,6 @@ const minLogCopTaskTime = 300 * time.Millisecond
 // run is a worker function that get a copTask from channel, handle it and
 // send the result back.
 func (worker *copIteratorWorker) run(ctx context.Context) {
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		span, ctx = opentracing.StartSpanFromContext(ctx, "copIteratorWorker.run")
-		defer span.Finish()
-	}
-
 	defer worker.wg.Done()
 	for task := range worker.taskCh {
 		respCh := worker.respChan
@@ -447,9 +449,7 @@ func (it *copIterator) open(ctx context.Context) {
 			finishCh: it.finishCh,
 			vars:     it.vars,
 		}
-		copIteratorGP.Go(func() {
-			worker.run(ctx)
-		})
+		go worker.run(ctx)
 	}
 	taskSender := &copIteratorTaskSender{
 		taskCh:   taskCh,
@@ -458,7 +458,7 @@ func (it *copIterator) open(ctx context.Context) {
 		finishCh: it.finishCh,
 	}
 	taskSender.respChan = it.respChan
-	copIteratorGP.Go(taskSender.run)
+	go taskSender.run()
 }
 
 func (sender *copIteratorTaskSender) run() {
@@ -599,6 +599,7 @@ func (worker *copIteratorWorker) handleTaskOnce(bo *Backoffer, task *copTask, ch
 			Priority:       kvPriorityToCommandPri(worker.req.Priority),
 			NotFillCache:   worker.req.NotFillCache,
 			HandleTime:     true,
+			ScanDetail:     true,
 		},
 	}
 	startTime := time.Now()
@@ -729,7 +730,7 @@ func (worker *copIteratorWorker) handleCopResponse(bo *Backoffer, resp *copRespo
 	}
 	if otherErr := resp.pbResp.GetOtherError(); otherErr != "" {
 		err := errors.Errorf("other error: %s", otherErr)
-		log.Warnf("coprocessor err: %v", err)
+		log.Warnf("txn_start_ts:%d region_id:%d store_addr:%s, coprocessor err: %v", worker.req.StartTs, task.region.id, task.storeAddr, err)
 		return nil, errors.Trace(err)
 	}
 	// When the request is using streaming API, the `Range` is not nil.

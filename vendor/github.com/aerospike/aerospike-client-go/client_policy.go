@@ -23,6 +23,9 @@ const defaultIdleTimeout = 14 * time.Second
 
 // ClientPolicy encapsulates parameters for client policy command.
 type ClientPolicy struct {
+	// AuthMode specifies authentication mode used when user/password is defined. It is set to AuthModeInternal by default.
+	AuthMode AuthMode
+
 	// User authentication to cluster. Leave empty for clusters running without restricted access.
 	User string
 
@@ -43,6 +46,9 @@ type ClientPolicy struct {
 	// deadline will be extended by this duration. When this deadline is reached,
 	// the connection will be closed and discarded from the connection pool.
 	IdleTimeout time.Duration //= 14 seconds
+
+	// LoginTimeout specifies the timeout for login operation for external authentication such as LDAP.
+	LoginTimeout time.Duration //= 10 seconds
 
 	// ConnectionQueueCache specifies the size of the Connection Queue cache PER NODE.
 	ConnectionQueueSize int //= 256
@@ -94,8 +100,10 @@ type ClientPolicy struct {
 // NewClientPolicy generates a new ClientPolicy with default values.
 func NewClientPolicy() *ClientPolicy {
 	return &ClientPolicy{
+		AuthMode:                    AuthModeInternal,
 		Timeout:                     30 * time.Second,
 		IdleTimeout:                 defaultIdleTimeout,
+		LoginTimeout:                10 * time.Second,
 		ConnectionQueueSize:         256,
 		FailIfNotConnected:          true,
 		TendInterval:                time.Second,
@@ -110,9 +118,40 @@ func (cp *ClientPolicy) RequiresAuthentication() bool {
 	return (cp.User != "") || (cp.Password != "")
 }
 
-func (cp *ClientPolicy) serviceString() string {
+func (cp *ClientPolicy) servicesString() string {
 	if cp.UseServicesAlternate {
 		return "services-alternate"
 	}
 	return "services"
+}
+
+func (cp *ClientPolicy) serviceString() string {
+	if cp.TlsConfig == nil {
+		if cp.UseServicesAlternate {
+			return "service-clear-alt"
+		}
+		return "service-clear-std"
+	}
+
+	if cp.UseServicesAlternate {
+		return "service-tls-alt"
+	}
+	return "service-tls-std"
+}
+
+func (cp *ClientPolicy) peersString() string {
+	if cp.TlsConfig != nil {
+		if cp.UseServicesAlternate {
+			return "peers-tls-alt"
+		} else {
+			return "peers-tls-std"
+		}
+	}
+
+	if cp.UseServicesAlternate {
+		return "peers-clear-alt"
+	} else {
+		return "peers-clear-std"
+	}
+
 }

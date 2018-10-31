@@ -58,10 +58,11 @@ func (btsk *baseTask) onComplete(ifc Task) chan error {
 				done, err := ifc.IsDone()
 				btsk.retries.IncrementAndGet()
 				if err != nil {
-					if _, ok := err.(AerospikeError); ok && err.(AerospikeError).ResultCode() == TIMEOUT {
-						err.(AerospikeError).MarkInDoubt()
+					ae, ok := err.(AerospikeError)
+					if ok && ae.ResultCode() == TIMEOUT {
+						ae.MarkInDoubt()
 					}
-					ch <- err
+					ch <- ae
 					return
 				} else if done {
 					ch <- nil

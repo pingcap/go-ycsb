@@ -261,22 +261,40 @@ func (ctn *Connection) Close() {
 			// deregister
 			if ctn.node != nil {
 				ctn.node.connectionCount.DecrementAndGet()
+				atomic.AddInt64(&ctn.node.stats.ConnectionsClosed, 1)
 			}
 
 			if err := ctn.conn.Close(); err != nil {
 				Logger.Warn(err.Error())
 			}
 			ctn.conn = nil
+			ctn.dataBuffer = nil
 		}
 	})
 }
 
 // Authenticate will send authentication information to the server.
-func (ctn *Connection) Authenticate(user string, password []byte) error {
+// Notice: This method does not support external authentication mechanisms like LDAP.
+// This method is deprecated and will be removed in the future.
+func (ctn *Connection) Authenticate(user string, password string) error {
 	// need to authenticate
 	if user != "" {
-		command := newAdminCommand(ctn.dataBuffer)
-		if err := command.authenticate(ctn, user, password); err != nil {
+		hashedPass, err := hashPassword(password)
+		if err != nil {
+			return err
+		}
+
+		return ctn.authenticateFast(user, hashedPass)
+	}
+	return nil
+}
+
+// authenticateFast will send authentication information to the server.
+func (ctn *Connection) authenticateFast(user string, hashedPass []byte) error {
+	// need to authenticate
+	if len(user) > 0 {
+		command := NewLoginCommand(ctn.dataBuffer)
+		if err := command.authenticateInternal(ctn, user, hashedPass); err != nil {
 			if ctn.node != nil {
 				atomic.AddInt64(&ctn.node.stats.ConnectionsFailed, 1)
 			}
@@ -285,6 +303,46 @@ func (ctn *Connection) Authenticate(user string, password []byte) error {
 			return err
 		}
 	}
+	return nil
+}
+
+// Login will send authentication information to the server.
+func (ctn *Connection) login(sessionToken []byte) error {
+	// need to authenticate
+	if ctn.node.cluster.clientPolicy.RequiresAuthentication() {
+		policy := &ctn.node.cluster.clientPolicy
+
+		switch policy.AuthMode {
+		case AuthModeExternal:
+			var err error
+			command := NewLoginCommand(ctn.dataBuffer)
+			if sessionToken == nil {
+				err = command.login(&ctn.node.cluster.clientPolicy, ctn, ctn.node.cluster.Password())
+			} else {
+				err = command.authenticateViaToken(&ctn.node.cluster.clientPolicy, ctn, sessionToken)
+			}
+
+			if err != nil {
+				if ctn.node != nil {
+					atomic.AddInt64(&ctn.node.stats.ConnectionsFailed, 1)
+				}
+				// Socket not authenticated. Do not put back into pool.
+				ctn.Close()
+				return err
+			}
+
+			if command.SessionToken != nil {
+				ctn.node._sessionToken.Store(command.SessionToken)
+				ctn.node._sessionExpiration.Store(command.SessionExpiration)
+			}
+
+			return nil
+
+		case AuthModeInternal:
+			return ctn.authenticateFast(policy.User, ctn.node.cluster.Password())
+		}
+	}
+
 	return nil
 }
 

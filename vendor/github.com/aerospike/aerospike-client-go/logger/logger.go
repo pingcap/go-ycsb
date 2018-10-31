@@ -15,6 +15,7 @@
 package logger
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -84,28 +85,56 @@ func (lgr *logger) LogAtLevel(level LogPriority, format string, v ...interface{}
 
 // Debug logs a message if log level allows to do so.
 func (lgr *logger) Debug(format string, v ...interface{}) {
+	lgr.mutex.RLock()
+	defer lgr.mutex.RUnlock()
+
 	if lgr.level <= DEBUG {
-		lgr.Logger.Printf(format, v...)
+		if l, ok := lgr.Logger.(*log.Logger); ok {
+			l.Output(2, fmt.Sprintf(format, v...))
+		} else {
+			lgr.Logger.Printf(format, v...)
+		}
 	}
 }
 
 // Info logs a message if log level allows to do so.
 func (lgr *logger) Info(format string, v ...interface{}) {
+	lgr.mutex.RLock()
+	defer lgr.mutex.RUnlock()
+
 	if lgr.level <= INFO {
-		lgr.Logger.Printf(format, v...)
+		if l, ok := lgr.Logger.(*log.Logger); ok {
+			l.Output(2, fmt.Sprintf(format, v...))
+		} else {
+			lgr.Logger.Printf(format, v...)
+		}
 	}
 }
 
 // Warn logs a message if log level allows to do so.
 func (lgr *logger) Warn(format string, v ...interface{}) {
+	lgr.mutex.RLock()
+	defer lgr.mutex.RUnlock()
+
 	if lgr.level <= WARNING {
-		lgr.Logger.Printf(format, v...)
+		if l, ok := lgr.Logger.(*log.Logger); ok {
+			l.Output(2, fmt.Sprintf(format, v...))
+		} else {
+			lgr.Logger.Printf(format, v...)
+		}
 	}
 }
 
 // Error logs a message if log level allows to do so.
 func (lgr *logger) Error(format string, v ...interface{}) {
+	lgr.mutex.RLock()
+	defer lgr.mutex.RUnlock()
+
 	if lgr.level <= ERR {
-		lgr.Logger.Printf(format, v...)
+		if l, ok := lgr.Logger.(*log.Logger); ok {
+			l.Output(2, fmt.Sprintf(format, v...))
+		} else {
+			lgr.Logger.Printf(format, v...)
+		}
 	}
 }

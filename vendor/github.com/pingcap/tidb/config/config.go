@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/juju/errors"
 	"github.com/pingcap/tidb/util/logutil"
+	"github.com/pkg/errors"
 	tracing "github.com/uber/jaeger-client-go/config"
 )
 
@@ -47,6 +47,7 @@ type Config struct {
 	Host             string          `toml:"host" json:"host"`
 	AdvertiseAddress string          `toml:"advertise-address" json:"advertise-address"`
 	Port             uint            `toml:"port" json:"port"`
+	Cors             string          `toml:"cors" json:"cors"`
 	Store            string          `toml:"store" json:"store"`
 	Path             string          `toml:"path" json:"path"`
 	Socket           string          `toml:"socket" json:"socket"`
@@ -157,6 +158,7 @@ type Performance struct {
 	FeedbackProbability float64 `toml:"feedback-probability" json:"feedback-probability"`
 	QueryFeedbackLimit  uint    `toml:"query-feedback-limit" json:"query-feedback-limit"`
 	PseudoEstimateRatio float64 `toml:"pseudo-estimate-ratio" json:"pseudo-estimate-ratio"`
+	ForcePriority       string  `toml:"force-priority" json:"force-priority"`
 }
 
 // XProtocol is the XProtocol section of the config.
@@ -188,7 +190,7 @@ type PreparedPlanCache struct {
 
 // OpenTracing is the opentracing section of the config.
 type OpenTracing struct {
-	Enable     bool                `toml:"enable" json:"enbale"`
+	Enable     bool                `toml:"enable" json:"enable"`
 	Sampler    OpenTracingSampler  `toml:"sampler" json:"sampler"`
 	Reporter   OpenTracingReporter `toml:"reporter" json:"reporter"`
 	RPCMetrics bool                `toml:"rpc-metrics" json:"rpc-metrics"`
@@ -240,9 +242,9 @@ type TiKVClient struct {
 
 // Binlog is the config for binlog.
 type Binlog struct {
-	BinlogSocket string `toml:"binlog-socket" json:"binlog-socket"`
+	Enable       bool   `toml:"enable" json:"enable"`
 	WriteTimeout string `toml:"write-timeout" json:"write-timeout"`
-	// If IgnoreError is true, when writting binlog meets error, TiDB would
+	// If IgnoreError is true, when writing binlog meets error, TiDB would
 	// ignore the error.
 	IgnoreError bool `toml:"ignore-error" json:"ignore-error"`
 }
@@ -251,6 +253,7 @@ var defaultConf = Config{
 	Host:             "0.0.0.0",
 	AdvertiseAddress: "",
 	Port:             4000,
+	Cors:             "",
 	Store:            "mocktikv",
 	Path:             "/tmp/tidb",
 	RunDDL:           true,
@@ -261,8 +264,8 @@ var defaultConf = Config{
 	MemQuotaQuery:    32 << 30,
 	EnableStreaming:  false,
 	TxnLocalLatches: TxnLocalLatches{
-		Enabled:  false,
-		Capacity: 10240000,
+		Enabled:  true,
+		Capacity: 2048000,
 	},
 	LowerCaseTableNames: 2,
 	Log: Log{
@@ -290,6 +293,7 @@ var defaultConf = Config{
 		FeedbackProbability: 0.05,
 		QueryFeedbackLimit:  1024,
 		PseudoEstimateRatio: 0.8,
+		ForcePriority:       "NO_PRIORITY",
 	},
 	XProtocol: XProtocol{
 		XHost: "",

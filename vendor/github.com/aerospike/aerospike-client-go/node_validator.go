@@ -20,26 +20,20 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
+	"time"
 
 	. "github.com/aerospike/aerospike-client-go/logger"
 	. "github.com/aerospike/aerospike-client-go/types"
 )
 
-type nodesToAddT struct {
-	nodesToAdd map[string]*Node
-	mutex      sync.RWMutex
-}
+type nodesToAddT map[string]*Node
 
-func (nta *nodesToAddT) addNodeIfNotExists(ndv *nodeValidator, cluster *Cluster) bool {
-	nta.mutex.Lock()
-	defer nta.mutex.Unlock()
-
-	_, exists := nta.nodesToAdd[ndv.name]
+func (nta nodesToAddT) addNodeIfNotExists(ndv *nodeValidator, cluster *Cluster) bool {
+	_, exists := nta[ndv.name]
 	if !exists {
 		// found a new node
 		node := cluster.createNode(ndv)
-		nta.nodesToAdd[ndv.name] = node
+		nta[ndv.name] = node
 	}
 	return exists
 }
@@ -50,10 +44,15 @@ type nodeValidator struct {
 	aliases     []*Host
 	primaryHost *Host
 
+	detectLoadBalancer bool
+
+	sessionToken      []byte
+	SessionExpiration time.Time
+
 	supportsFloat, supportsBatchIndex, supportsReplicasAll, supportsReplicas, supportsGeo, supportsPeers bool
 }
 
-func (ndv *nodeValidator) seedNodes(cluster *Cluster, host *Host, nodesToAdd *nodesToAddT) error {
+func (ndv *nodeValidator) seedNodes(cluster *Cluster, host *Host, nodesToAdd nodesToAddT) error {
 	if err := ndv.setAliases(host); err != nil {
 		return err
 	}
@@ -111,9 +110,14 @@ func (ndv *nodeValidator) validateNode(cluster *Cluster, host *Host) error {
 }
 
 func (ndv *nodeValidator) setAliases(host *Host) error {
+	ndv.detectLoadBalancer = true
+
 	// IP addresses do not need a lookup
 	ip := net.ParseIP(host.Name)
 	if ip != nil {
+		// avoid detecting load balancer on localhost
+		ndv.detectLoadBalancer = !ip.IsLoopback()
+
 		aliases := make([]*Host, 1)
 		aliases[0] = NewHost(host.Name, host.Port)
 		aliases[0].TLSName = host.TLSName
@@ -128,6 +132,11 @@ func (ndv *nodeValidator) setAliases(host *Host) error {
 		for idx, addr := range addresses {
 			aliases[idx] = NewHost(addr, host.Port)
 			aliases[idx].TLSName = host.TLSName
+
+			// avoid detecting load balancer on localhost
+			if ip := net.ParseIP(host.Name); ip != nil && ip.IsLoopback() {
+				ndv.detectLoadBalancer = false
+			}
 		}
 		ndv.aliases = aliases
 	}
@@ -136,15 +145,25 @@ func (ndv *nodeValidator) setAliases(host *Host) error {
 }
 
 func (ndv *nodeValidator) validateAlias(cluster *Cluster, alias *Host) error {
-	conn, err := NewSecureConnection(&cluster.clientPolicy, alias)
+	clientPolicy := cluster.clientPolicy
+	clientPolicy.Timeout /= time.Duration(2)
+
+	conn, err := NewSecureConnection(&clientPolicy, alias)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	// need to authenticate
-	if err := conn.Authenticate(cluster.user, cluster.Password()); err != nil {
-		return err
+	if clientPolicy.RequiresAuthentication() {
+		// need to authenticate
+		acmd := NewLoginCommand(conn.dataBuffer)
+		err = acmd.login(&clientPolicy, conn, cluster.Password())
+		if err != nil {
+			return err
+		}
+
+		ndv.sessionToken = acmd.SessionToken
+		ndv.SessionExpiration = acmd.SessionExpiration
 	}
 
 	// check to make sure we have actually connected
@@ -156,14 +175,18 @@ func (ndv *nodeValidator) validateAlias(cluster *Cluster, alias *Host) error {
 		return NewAerospikeError(NOT_AUTHENTICATED)
 	}
 
-	hasClusterName := len(cluster.clientPolicy.ClusterName) > 0
+	hasClusterName := len(clientPolicy.ClusterName) > 0
 
-	var infoKeys []string
+	infoKeys := []string{"node", "partition-generation", "features"}
 	if hasClusterName {
-		infoKeys = []string{"node", "partition-generation", "features", "cluster-name"}
-	} else {
-		infoKeys = []string{"node", "partition-generation", "features"}
+		infoKeys = append(infoKeys, "cluster-name")
 	}
+
+	addressCommand := clientPolicy.serviceString()
+	if ndv.detectLoadBalancer {
+		infoKeys = append(infoKeys, addressCommand)
+	}
+
 	infoMap, err := RequestInfo(conn, infoKeys...)
 	if err != nil {
 		return err
@@ -191,14 +214,79 @@ func (ndv *nodeValidator) validateAlias(cluster *Cluster, alias *Host) error {
 	if hasClusterName {
 		id := infoMap["cluster-name"]
 
-		if len(id) == 0 || id != cluster.clientPolicy.ClusterName {
-			return NewAerospikeError(CLUSTER_NAME_MISMATCH_ERROR, fmt.Sprintf("Node %s (%s) expected cluster name `%s` but received `%s`", nodeName, alias.String(), cluster.clientPolicy.ClusterName, id))
+		if len(id) == 0 || id != clientPolicy.ClusterName {
+			return NewAerospikeError(CLUSTER_NAME_MISMATCH_ERROR, fmt.Sprintf("Node %s (%s) expected cluster name `%s` but received `%s`", nodeName, alias.String(), clientPolicy.ClusterName, id))
 		}
 	}
 
 	// set features
 	if features, exists := infoMap["features"]; exists {
 		ndv.setFeatures(features)
+	}
+
+	// check if the host is a load-balancer
+	if peersStr, exists := infoMap[addressCommand]; exists {
+		var hostAddress []*Host
+		peerParser := peerListParser{buf: []byte("[" + peersStr + "]")}
+		if hostAddress, err = peerParser.readHosts(alias.TLSName); err != nil {
+			Logger.Error("Failed to parse `%s` results... err: %s", alias.String(), err.Error())
+		}
+
+		if len(hostAddress) > 0 {
+			isLoadBalancer := true
+		LOAD_BALANCER:
+			for _, h := range hostAddress {
+				for _, a := range ndv.aliases {
+					if h.equals(a) {
+						// one of the aliases were the same as an advertised service
+						// no need to replace the seed host with the alias
+						isLoadBalancer = false
+						break LOAD_BALANCER
+					}
+				}
+			}
+
+			if isLoadBalancer && ndv.detectLoadBalancer {
+				aliasFound := false
+
+				// take the seed out of the aliases if it is load balancer
+				Logger.Info("Host `%s` seems to be a load balancer. It is going to be replace by `%v`", alias.String(), hostAddress[0])
+				// try to connect to the aliases, and coose the first one that connects
+				for _, h := range hostAddress {
+					hconn, err := NewSecureConnection(&clientPolicy, h)
+					if err != nil {
+						continue
+					}
+					defer hconn.Close()
+
+					if clientPolicy.RequiresAuthentication() {
+						// need to authenticate
+						acmd := NewLoginCommand(hconn.dataBuffer)
+						err = acmd.login(&clientPolicy, hconn, cluster.Password())
+						if err != nil {
+							continue
+						}
+
+						ndv.sessionToken = acmd.SessionToken
+						ndv.SessionExpiration = acmd.SessionExpiration
+					}
+
+					alias = h
+					ndv.aliases = hostAddress
+					aliasFound = true
+
+					// found one, no need to try the rest
+					break
+				}
+
+				// Failed to find a valid address to connect. IP Address is probably internal on the cloud
+				// because the server access-address is not configured.  Log warning and continue
+				// with original seed.
+				if !aliasFound {
+					Logger.Info("Inaccessible address `%s` as cluster seed. access-address is probably not configured on server.", alias.String())
+				}
+			}
+		}
 	}
 
 	ndv.name = nodeName

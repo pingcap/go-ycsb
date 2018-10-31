@@ -126,6 +126,8 @@ type mapWriteMode struct {
 	itemsCommand int
 }
 
+// MapWriteMode should only be used for server versions < 4.3.
+// MapWriteFlags are recommended for server versions >= 4.3.
 var MapWriteMode = struct {
 	// If the key already exists, the item will be overwritten.
 	// If the key does not exist, a new item will be created.
@@ -144,20 +146,55 @@ var MapWriteMode = struct {
 	&mapWriteMode{_CDT_MAP_ADD, _CDT_MAP_ADD_ITEMS},
 }
 
+/**
+ * Map write bit flags.
+ * Requires server versions >= 4.3.
+ */
+const (
+	// MapWriteFlagsDefault is the Default. Allow create or update.
+	MapWriteFlagsDefault = 0
+
+	// MapWriteFlagsCreateOnly means: If the key already exists, the item will be denied.
+	// If the key does not exist, a new item will be created.
+	MapWriteFlagsCreateOnly = 1
+
+	// MapWriteFlagsUpdateOnly means: If the key already exists, the item will be overwritten.
+	// If the key does not exist, the item will be denied.
+	MapWriteFlagsUpdateOnly = 2
+
+	// MapWriteFlagsNoFail means: Do not raise error if a map item is denied due to write flag constraints.
+	MapWriteFlagsNoFail = 4
+
+	// MapWriteFlagsNoFail means: Allow other valid map items to be committed if a map item is denied due to
+	// write flag constraints.
+	MapWriteFlagsPartial = 8
+)
+
 // MapPolicy directives when creating a map and writing map items.
 type MapPolicy struct {
 	attributes   mapOrderType
+	flags        int
 	itemCommand  int
 	itemsCommand int
 }
 
-// Create unique key map with specified order when map does not exist.
-// Use specified write mode when writing map items.
+// NewMapPolicy creates a MapPolicy with WriteMode. Use with servers before v4.3
 func NewMapPolicy(order mapOrderType, writeMode *mapWriteMode) *MapPolicy {
 	return &MapPolicy{
 		attributes:   order,
+		flags:        MapWriteFlagsDefault,
 		itemCommand:  writeMode.itemCommand,
 		itemsCommand: writeMode.itemsCommand,
+	}
+}
+
+// NewMapPolicyWithFlags creates a MapPolicy with WriteFlags. Use with servers v4.3+
+func NewMapPolicyWithFlags(order mapOrderType, flags int) *MapPolicy {
+	return &MapPolicy{
+		attributes:   order,
+		flags:        flags,
+		itemCommand:  MapWriteMode.UPDATE.itemCommand,
+		itemsCommand: MapWriteMode.UPDATE.itemsCommand,
 	}
 }
 
@@ -181,27 +218,6 @@ func newMapSetPolicy(binName string, attributes mapOrderType) *Operation {
 
 func newMapCreatePutEncoder(op *Operation, packer BufferEx) (int, error) {
 	return packCDTIfcParamsAsArray(packer, int16(*op.opSubType), op.binValue.(ListValue))
-}
-
-func newMapCreatePut(command int, attributes mapOrderType, binName string, value1 interface{}, value2 interface{}) *Operation {
-	if command == _CDT_MAP_REPLACE {
-		// Replace doesn't allow map attributes because it does not create on non-existing key.
-		return &Operation{
-			opType:    MAP_MODIFY,
-			opSubType: &command,
-			binName:   binName,
-			binValue:  ListValue([]interface{}{value1, value2}),
-			encoder:   newMapCreatePutEncoder,
-		}
-	}
-
-	return &Operation{
-		opType:    MAP_MODIFY,
-		opSubType: &command,
-		binName:   binName,
-		binValue:  ListValue([]interface{}{value1, value2, IntegerValue(attributes)}),
-		encoder:   newMapCreatePutEncoder,
-	}
 }
 
 /////////////////////////
@@ -246,7 +262,37 @@ func MapSetPolicyOp(policy *MapPolicy, binName string) *Operation {
 // The required map policy dictates the type of map to create when it does not exist.
 // The map policy also specifies the mode used when writing items to the map.
 func MapPutOp(policy *MapPolicy, binName string, key interface{}, value interface{}) *Operation {
-	return newMapCreatePut(policy.itemCommand, policy.attributes, binName, key, value)
+	if policy.flags != 0 {
+		ops := _CDT_MAP_PUT
+
+		// Replace doesn't allow map attributes because it does not create on non-existing key.
+		return &Operation{
+			opType:    MAP_MODIFY,
+			opSubType: &ops,
+			binName:   binName,
+			binValue:  ListValue([]interface{}{key, value, IntegerValue(policy.attributes), IntegerValue(policy.flags)}),
+			encoder:   newMapCreatePutEncoder,
+		}
+	} else {
+		if policy.itemCommand == _CDT_MAP_REPLACE {
+			// Replace doesn't allow map attributes because it does not create on non-existing key.
+			return &Operation{
+				opType:    MAP_MODIFY,
+				opSubType: &policy.itemCommand,
+				binName:   binName,
+				binValue:  ListValue([]interface{}{key, value}),
+				encoder:   newMapCreatePutEncoder,
+			}
+		}
+
+		return &Operation{
+			opType:    MAP_MODIFY,
+			opSubType: &policy.itemCommand,
+			binName:   binName,
+			binValue:  ListValue([]interface{}{key, value, IntegerValue(policy.attributes)}),
+			encoder:   newMapCreatePutEncoder,
+		}
+	}
 }
 
 // MapPutItemsOp creates map put items operation
@@ -255,23 +301,36 @@ func MapPutOp(policy *MapPolicy, binName string, key interface{}, value interfac
 // The required map policy dictates the type of map to create when it does not exist.
 // The map policy also specifies the mode used when writing items to the map.
 func MapPutItemsOp(policy *MapPolicy, binName string, amap map[interface{}]interface{}) *Operation {
-	if policy.itemsCommand == int(_CDT_MAP_REPLACE_ITEMS) {
+	if policy.flags != 0 {
+		ops := _CDT_MAP_PUT_ITEMS
+
 		// Replace doesn't allow map attributes because it does not create on non-existing key.
+		return &Operation{
+			opType:    MAP_MODIFY,
+			opSubType: &ops,
+			binName:   binName,
+			binValue:  ListValue([]interface{}{amap, IntegerValue(policy.attributes), IntegerValue(policy.flags)}),
+			encoder:   newCDTCreateOperationEncoder,
+		}
+	} else {
+		if policy.itemsCommand == int(_CDT_MAP_REPLACE_ITEMS) {
+			// Replace doesn't allow map attributes because it does not create on non-existing key.
+			return &Operation{
+				opType:    MAP_MODIFY,
+				opSubType: &policy.itemsCommand,
+				binName:   binName,
+				binValue:  ListValue([]interface{}{MapValue(amap)}),
+				encoder:   newCDTCreateOperationEncoder,
+			}
+		}
+
 		return &Operation{
 			opType:    MAP_MODIFY,
 			opSubType: &policy.itemsCommand,
 			binName:   binName,
-			binValue:  ListValue([]interface{}{MapValue(amap)}),
+			binValue:  ListValue([]interface{}{MapValue(amap), IntegerValue(policy.attributes)}),
 			encoder:   newCDTCreateOperationEncoder,
 		}
-	}
-
-	return &Operation{
-		opType:    MAP_MODIFY,
-		opSubType: &policy.itemsCommand,
-		binName:   binName,
-		binValue:  ListValue([]interface{}{MapValue(amap), IntegerValue(policy.attributes)}),
-		encoder:   newCDTCreateOperationEncoder,
 	}
 }
 

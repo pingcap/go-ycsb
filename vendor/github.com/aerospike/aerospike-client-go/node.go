@@ -32,11 +32,13 @@ const (
 
 // Node represents an Aerospike Database Server Node
 type Node struct {
-	cluster *Cluster
-	name    string
-	host    *Host
-	aliases atomic.Value //[]*Host
-	stats   nodeStats
+	cluster            *Cluster
+	name               string
+	host               *Host
+	aliases            atomic.Value //[]*Host
+	stats              nodeStats
+	_sessionToken      atomic.Value //[]byte
+	_sessionExpiration atomic.Value //time.Time
 
 	// tendConn reserves a connection for tend so that it won't have to
 	// wait in queue for connections, since that will cause starvation
@@ -47,7 +49,7 @@ type Node struct {
 	peersGeneration AtomicInt
 	peersCount      AtomicInt
 
-	connections     connectionQueue //AtomicQueue //ArrayBlockingQueue<*Connection>
+	connections     connectionHeap
 	connectionCount AtomicInt
 	health          AtomicInt //AtomicInteger
 
@@ -55,6 +57,7 @@ type Node struct {
 	referenceCount      AtomicInt
 	failures            AtomicInt
 	partitionChanged    AtomicBool
+	performLogin        AtomicBool
 
 	active AtomicBool
 
@@ -71,7 +74,7 @@ func newNode(cluster *Cluster, nv *nodeValidator) *Node {
 
 		// Assign host to first IP alias because the server identifies nodes
 		// by IP address (not hostname).
-		connections:         *newConnectionQueue(cluster.clientPolicy.ConnectionQueueSize), //*NewAtomicQueue(cluster.clientPolicy.ConnectionQueueSize),
+		connections:         *newConnectionHeap(cluster.clientPolicy.ConnectionQueueSize),
 		connectionCount:     *NewAtomicInt(0),
 		peersGeneration:     *NewAtomicInt(-1),
 		partitionGeneration: *NewAtomicInt(-2),
@@ -89,6 +92,7 @@ func newNode(cluster *Cluster, nv *nodeValidator) *Node {
 	}
 
 	newNode.aliases.Store(nv.aliases)
+	newNode._sessionToken.Store(nv.sessionToken)
 
 	// this will reset to zero on first aggregation on the cluster,
 	// therefore will only be counted once.
@@ -132,7 +136,7 @@ func (nd *Node) Refresh(peers *peers) error {
 			return err
 		}
 	} else {
-		commands := []string{"node", "partition-generation", nd.cluster.clientPolicy.serviceString()}
+		commands := []string{"node", "partition-generation", nd.cluster.clientPolicy.servicesString()}
 
 		infoMap, err := nd.RequestInfo(commands...)
 		if err != nil {
@@ -159,6 +163,47 @@ func (nd *Node) Refresh(peers *peers) error {
 	peers.refreshCount.IncrementAndGet()
 	nd.referenceCount.IncrementAndGet()
 	atomic.AddInt64(&nd.stats.TendsSuccessful, 1)
+
+	if err := nd.refreshSessionToken(); err != nil {
+		Logger.Error("Error refreshing session token: %s", err.Error())
+	}
+
+	return nil
+}
+
+// refreshSessionToken refreshes the session token if it has been expired
+func (nd *Node) refreshSessionToken() error {
+	// no session token to refresh
+	if !nd.cluster.clientPolicy.RequiresAuthentication() || nd.cluster.clientPolicy.AuthMode != AuthModeExternal {
+		return nil
+	}
+
+	var deadline time.Time
+	deadlineIfc := nd._sessionExpiration.Load()
+	if deadlineIfc != nil {
+		deadline = deadlineIfc.(time.Time)
+	}
+
+	if deadline.IsZero() || time.Now().Before(deadline) {
+		return nil
+	}
+
+	nd.tendConnLock.Lock()
+	defer nd.tendConnLock.Unlock()
+
+	if err := nd.initTendConn(nd.cluster.clientPolicy.LoginTimeout); err != nil {
+		return err
+	}
+
+	command := NewLoginCommand(nd.tendConn.dataBuffer)
+	if err := command.login(&nd.cluster.clientPolicy, nd.tendConn, nd.cluster.Password()); err != nil {
+		// Socket not authenticated. Do not put back into pool.
+		nd.tendConn.Close()
+		return err
+	}
+
+	nd._sessionToken.Store(command.SessionToken)
+	nd._sessionExpiration.Store(command.SessionExpiration)
 
 	return nil
 }
@@ -212,7 +257,7 @@ func (nd *Node) verifyPartitionGeneration(infoMap map[string]string) error {
 }
 
 func (nd *Node) addFriends(infoMap map[string]string, peers *peers) error {
-	friendString, exists := infoMap[nd.cluster.clientPolicy.serviceString()]
+	friendString, exists := infoMap[nd.cluster.clientPolicy.servicesString()]
 
 	if !exists || len(friendString) == 0 {
 		nd.peersCount.Set(0)
@@ -233,7 +278,7 @@ func (nd *Node) addFriends(infoMap map[string]string, peers *peers) error {
 		hostName := friendInfo[0]
 		port, _ := strconv.Atoi(friendInfo[1])
 
-		if nd.cluster.clientPolicy.IpMap != nil {
+		if len(nd.cluster.clientPolicy.IpMap) > 0 {
 			if alternativeHost, ok := nd.cluster.clientPolicy.IpMap[hostName]; ok {
 				hostName = alternativeHost
 			}
@@ -257,7 +302,7 @@ func (nd *Node) addFriends(infoMap map[string]string, peers *peers) error {
 func (nd *Node) prepareFriend(host *Host, peers *peers) bool {
 	nv := &nodeValidator{}
 	if err := nv.validateNode(nd.cluster, host); err != nil {
-		Logger.Warn("Adding node `%s` failed: ", host, err)
+		Logger.Warn("Adding node `%s` failed: %s", host, err)
 		return false
 	}
 
@@ -324,7 +369,7 @@ func (nd *Node) refreshPartitions(peers *peers, partitions partitionMap) {
 	}
 
 	if parser.generation != nd.partitionGeneration.Get() {
-		Logger.Info("Node %s partition generation %d changed to %d", nd.GetName(), nd.partitionGeneration.Get(), parser.getGeneration())
+		Logger.Info("Node %s partition generation changed from %d to %d", nd.host.String(), nd.partitionGeneration.Get(), parser.getGeneration())
 		nd.partitionChanged.Set(true)
 		nd.partitionGeneration.Set(parser.getGeneration())
 		atomic.AddInt64(&nd.stats.PartitionMapUpdates, 1)
@@ -416,7 +461,7 @@ func (nd *Node) getConnectionWithHint(timeout time.Duration, hint byte) (conn *C
 		conn.node = nd
 
 		// need to authenticate
-		if err = conn.Authenticate(nd.cluster.user, nd.cluster.Password()); err != nil {
+		if err = conn.login(nd.sessionToken()); err != nil {
 			atomic.AddInt64(&nd.stats.ConnectionsFailed, 1)
 
 			// Socket not authenticated. Do not put back into pool.
@@ -646,4 +691,24 @@ func (nd *Node) requestRawInfo(name ...string) (*info, error) {
 		return nil, err
 	}
 	return response, nil
+}
+
+// sessionToken returns the session token for the node.
+// It will return nil if the session has expired.
+func (nd *Node) sessionToken() []byte {
+	var deadline time.Time
+	deadlineIfc := nd._sessionExpiration.Load()
+	if deadlineIfc != nil {
+		deadline = deadlineIfc.(time.Time)
+	}
+
+	if deadline.IsZero() || time.Now().After(deadline) {
+		return nil
+	}
+
+	st := nd._sessionToken.Load()
+	if st != nil {
+		return st.([]byte)
+	}
+	return nil
 }

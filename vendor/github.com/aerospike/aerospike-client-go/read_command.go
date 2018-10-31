@@ -76,7 +76,7 @@ func (cmd *readCommand) parseResult(ifc command, conn *Connection) error {
 	// Read header.
 	_, err := conn.Read(cmd.dataBuffer, int(_MSG_TOTAL_HEADER_SIZE))
 	if err != nil {
-		Logger.Warn("parse result error: " + err.Error())
+		Logger.Debug("Connection error reading data for ReadCommand: %s", err.Error())
 		return err
 	}
 
@@ -104,7 +104,7 @@ func (cmd *readCommand) parseResult(ifc command, conn *Connection) error {
 		}
 		_, err = conn.Read(cmd.dataBuffer, receiveSize)
 		if err != nil {
-			Logger.Warn("parse result error: " + err.Error())
+			Logger.Debug("Connection error reading data for ReadCommand: %s", err.Error())
 			return err
 		}
 

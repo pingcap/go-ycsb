@@ -26,20 +26,7 @@ import (
 var aeroerr error = NewAerospikeError(PARSE_ERROR, "Error parsing peers list.")
 
 func parsePeers(cluster *Cluster, node *Node) (*peerListParser, error) {
-	var cmd string
-	if cluster.clientPolicy.TlsConfig != nil {
-		if cluster.clientPolicy.UseServicesAlternate {
-			cmd = "peers-tls-alt"
-		} else {
-			cmd = "peers-tls-std"
-		}
-	} else {
-		if cluster.clientPolicy.UseServicesAlternate {
-			cmd = "peers-clear-alt"
-		} else {
-			cmd = "peers-clear-std"
-		}
-	}
+	cmd := cluster.clientPolicy.peersString()
 
 	info, err := node.RequestInfo(cmd)
 	if err != nil {

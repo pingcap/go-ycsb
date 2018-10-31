@@ -257,7 +257,7 @@ func (s *session) destroy(isExpire bool) bool {
 	// Unregister s from healthcheck queue.
 	s.pool.hc.unregister(s)
 	// Remove s from Cloud Spanner service.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	s.delete(ctx)
 	return true
@@ -292,13 +292,15 @@ func (s *session) prepareForWrite(ctx context.Context) error {
 type SessionPoolConfig struct {
 	// getRPCClient is the caller supplied method for getting a gRPC client to Cloud Spanner, this makes session pool able to use client pooling.
 	getRPCClient func() (sppb.SpannerClient, error)
-	// MaxOpened is the maximum number of opened sessions allowed by the
-	// session pool. Defaults to NumChannels * 100.
+	// MaxOpened is the maximum number of opened sessions allowed by the session
+	// pool. Defaults to NumChannels * 100. If the client tries to open a session and
+	// there are already MaxOpened sessions, it will block until one becomes
+	// available or the context passed to the client method is canceled or times out.
 	MaxOpened uint64
 	// MinOpened is the minimum number of opened sessions that the session pool
 	// tries to maintain. Session pool won't continue to expire sessions if number
-	// of opened connections drops below MinOpened. However, if session is found
-	// to be broken, it will still be evicted from session pool, therefore it is
+	// of opened connections drops below MinOpened. However, if a session is found
+	// to be broken, it will still be evicted from the session pool, therefore it is
 	// posssible that the number of opened sessions drops below MinOpened.
 	MinOpened uint64
 	// MaxIdle is the maximum number of idle sessions, pool is allowed to keep. Defaults to 0.

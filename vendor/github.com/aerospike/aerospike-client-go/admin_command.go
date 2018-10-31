@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	// . "github.com/aerospike/aerospike-client-go/logger"
 	"github.com/aerospike/aerospike-client-go/pkg/bcrypt"
 	. "github.com/aerospike/aerospike-client-go/types"
 	Buffer "github.com/aerospike/aerospike-client-go/utils/buffer"
@@ -39,15 +40,19 @@ const (
 	_GRANT_PRIVILEGES  byte = 12
 	_REVOKE_PRIVILEGES byte = 13
 	_QUERY_ROLES       byte = 16
+	_LOGIN             byte = 20
 
 	// Field IDs
-	_USER         byte = 0
-	_PASSWORD     byte = 1
-	_OLD_PASSWORD byte = 2
-	_CREDENTIAL   byte = 3
-	_ROLES        byte = 10
-	_ROLE         byte = 11
-	_PRIVILEGES   byte = 12
+	_USER           byte = 0
+	_PASSWORD       byte = 1
+	_OLD_PASSWORD   byte = 2
+	_CREDENTIAL     byte = 3
+	_CLEAR_PASSWORD byte = 4
+	_SESSION_TOKEN  byte = 5
+	_SESSION_TTL    byte = 6
+	_ROLES          byte = 10
+	_ROLE           byte = 11
+	_PRIVILEGES     byte = 12
 
 	// Misc
 	_MSG_VERSION int64 = 0
@@ -57,6 +62,9 @@ const (
 	_HEADER_REMAINING int = 16
 	_RESULT_CODE      int = 9
 	_QUERY_END        int = 50
+
+	// Result Codes
+	_INVALID_COMMAND int = 54
 )
 
 type adminCommand struct {
@@ -72,36 +80,6 @@ func newAdminCommand(buf []byte) *adminCommand {
 		dataBuffer: buf,
 		dataOffset: 8,
 	}
-}
-
-func (acmd *adminCommand) authenticate(conn *Connection, user string, password []byte) error {
-
-	acmd.setAuthenticate(user, password)
-	if _, err := conn.Write(acmd.dataBuffer[:acmd.dataOffset]); err != nil {
-		return err
-	}
-
-	if _, err := conn.Read(acmd.dataBuffer, _HEADER_SIZE); err != nil {
-		return err
-	}
-
-	result := acmd.dataBuffer[_RESULT_CODE]
-	if result != 0 {
-		return NewAerospikeError(ResultCode(result), "Authentication failed")
-	}
-
-	// bufPool.Put(acmd.dataBuffer)
-
-	return nil
-}
-
-func (acmd *adminCommand) setAuthenticate(user string, password []byte) int {
-	acmd.writeHeader(_AUTHENTICATE, 2)
-	acmd.writeFieldStr(_USER, user)
-	acmd.writeFieldBytes(_CREDENTIAL, password)
-	acmd.writeSize()
-
-	return acmd.dataOffset
 }
 
 func (acmd *adminCommand) createUser(cluster *Cluster, policy *AdminPolicy, user string, password []byte, roles []string) error {
@@ -352,15 +330,8 @@ func (acmd *adminCommand) executeCommand(cluster *Cluster, policy *AdminPolicy) 
 		timeout = policy.Timeout
 	}
 
-	node.tendConnLock.Lock()
-	defer node.tendConnLock.Unlock()
-
-	if err := node.initTendConn(timeout); err != nil {
-		return err
-	}
-
-	conn := node.tendConn
-	if _, err := conn.Write(acmd.dataBuffer[:acmd.dataOffset]); err != nil {
+	conn, err := acmd.getConnection(node, timeout)
+	if err != nil {
 		return err
 	}
 
@@ -374,6 +345,22 @@ func (acmd *adminCommand) executeCommand(cluster *Cluster, policy *AdminPolicy) 
 	}
 
 	return nil
+}
+
+func (acmd *adminCommand) getConnection(node *Node, timeout time.Duration) (*Connection, error) {
+	node.tendConnLock.Lock()
+	defer node.tendConnLock.Unlock()
+
+	if err := node.initTendConn(timeout); err != nil {
+		return nil, err
+	}
+
+	conn := node.tendConn
+	if _, err := conn.Write(acmd.dataBuffer[:acmd.dataOffset]); err != nil {
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 func (acmd *adminCommand) readUsers(cluster *Cluster, policy *AdminPolicy) ([]*UserRoles, error) {
@@ -490,12 +477,12 @@ func (acmd *adminCommand) parseUsers(receiveSize int) (int, []*UserRoles, error)
 }
 
 func (acmd *adminCommand) parseRoles(userRoles *UserRoles) {
-	size := int(acmd.dataBuffer[acmd.dataOffset])
+	size := int(acmd.dataBuffer[acmd.dataOffset] & 0xFF)
 	acmd.dataOffset++
 	userRoles.Roles = make([]string, 0, size)
 
 	for i := 0; i < size; i++ {
-		len := int(acmd.dataBuffer[acmd.dataOffset])
+		len := int(acmd.dataBuffer[acmd.dataOffset] & 0xFF)
 		acmd.dataOffset++
 		role := string(acmd.dataBuffer[acmd.dataOffset : acmd.dataOffset+len])
 		acmd.dataOffset += len
@@ -626,7 +613,7 @@ func (acmd *adminCommand) parseRolesFull(receiveSize int) (int, []*Role, error) 
 }
 
 func (acmd *adminCommand) parsePrivileges(role *Role) {
-	size := int(acmd.dataBuffer[acmd.dataOffset])
+	size := int(acmd.dataBuffer[acmd.dataOffset] & 0xFF)
 	acmd.dataOffset++
 	role.Privileges = make([]Privilege, 0, size)
 
@@ -636,12 +623,12 @@ func (acmd *adminCommand) parsePrivileges(role *Role) {
 		acmd.dataOffset++
 
 		if priv.canScope() {
-			len := int(acmd.dataBuffer[acmd.dataOffset])
+			len := int(acmd.dataBuffer[acmd.dataOffset] & 0xFF)
 			acmd.dataOffset++
 			priv.Namespace = string(acmd.dataBuffer[acmd.dataOffset : acmd.dataOffset+len])
 			acmd.dataOffset += len
 
-			len = int(acmd.dataBuffer[acmd.dataOffset])
+			len = int(acmd.dataBuffer[acmd.dataOffset] & 0xFF)
 			acmd.dataOffset++
 			priv.SetName = string(acmd.dataBuffer[acmd.dataOffset : acmd.dataOffset+len])
 			acmd.dataOffset += len

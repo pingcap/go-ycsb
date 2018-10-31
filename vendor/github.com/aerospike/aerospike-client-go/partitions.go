@@ -95,40 +95,6 @@ func (pm partitionMap) clone() partitionMap {
 }
 
 // String implements stringer interface for partitionMap
-func (pm partitionMap) merge(other partitionMap) {
-	// merge partitions; iterate over the new partition and update the old one
-	for ns, partitions := range other {
-		replicaArray := partitions.Replicas
-		if pm[ns] == nil {
-			pm[ns] = partitions.clone()
-		} else {
-			if len(pm[ns].regimes) < len(partitions.regimes) {
-				// expand regime size array
-				regimes := make([]int, len(partitions.regimes))
-				copy(regimes, pm[ns].regimes)
-				pm[ns].regimes = regimes
-			}
-
-			for i, nodeArray := range replicaArray {
-				if len(pm[ns].Replicas) <= i {
-					pm[ns].Replicas = append(pm[ns].Replicas, make([]*Node, len(nodeArray)))
-				} else if pm[ns].Replicas[i] == nil {
-					pm[ns].Replicas[i] = make([]*Node, len(nodeArray))
-				}
-
-				// merge nodes into the partition map
-				for j, node := range nodeArray {
-					if pm[ns].regimes[i] <= partitions.regimes[i] && node != nil {
-						pm[ns].Replicas[i][j] = node
-						pm[ns].regimes[i] = partitions.regimes[i]
-					}
-				}
-			}
-		}
-	}
-}
-
-// String implements stringer interface for partitionMap
 func (pm partitionMap) String() string {
 	res := bytes.Buffer{}
 	for ns, partitions := range pm {
