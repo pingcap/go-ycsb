@@ -7,7 +7,7 @@ require (
 	github.com/XiaoMi/pegasus-go-client v0.0.0-20181029071519-9400942c5d1c
 	github.com/aerospike/aerospike-client-go v1.35.2
 	github.com/apache/thrift v0.0.0-20171203172758-327ebb6c2b6d // indirect
-	github.com/apple/foundationdb v0.0.0-20180801012510-ae899a1c6a06
+	github.com/apple/foundationdb v0.0.0-20181113211710-8903c5f6212a
 	github.com/blacktear23/go-proxyprotocol v0.0.0-20180807104634-af7a81e8dd0d // indirect
 	github.com/chzyer/logex v1.1.10 // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
@@ -82,3 +82,5 @@ require (
 )
 
 replace github.com/apache/thrift => github.com/apache/thrift v0.0.0-20171203172758-327ebb6c2b6d
+
+replace github.com/tecbot/gorocksdb => github.com/DorianZheng/gorocksdb v0.0.0-20180811132858-ab9bf2cc4b67

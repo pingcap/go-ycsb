@@ -20,7 +20,7 @@ make
 
 Notice:
 
-+ To use FoundationDB, you must install [client](https://www.foundationdb.org/download/) library at first.
++ To use FoundationDB, you must install [client](https://www.foundationdb.org/download/) library at first, now the supported version is 6.0.15.
 
 ## Usage 
 
