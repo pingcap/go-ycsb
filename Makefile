@@ -15,6 +15,7 @@ endif
 
 default: build
 
+build: export GO111MODULE=on
 build:
 ifeq ($(TAGS),)
 	$(CGO_FLAGS) go build -o bin/go-ycsb cmd/go-ycsb/*
