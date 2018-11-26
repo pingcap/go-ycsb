@@ -117,7 +117,7 @@ func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count 
 	}
 	defer tx.Rollback()
 
-	it, err := tx.Seek(db.getRowKey(table, startKey))
+	it, err := tx.Iter(db.getRowKey(table, startKey), nil)
 	if err != nil {
 		return nil, err
 	}
