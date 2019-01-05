@@ -100,4 +100,7 @@ const (
 	VerboseDefault  = false
 	DropData        = "dropdata"
 	DropDataDefault = false
+
+	Silence        = "silence"
+	SilenceDefault = true
 )

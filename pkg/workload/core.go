@@ -277,8 +277,8 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 		// even if one single insertion fails. User can optionally configure
 		// an insertion retry limit (default is 0) to enable retry.
 		numOfRetries++
-		if numOfRetries <= c.insertionRetryLimit {
-			fmt.Printf("retrying insertion, retry count %d\n", numOfRetries)
+		if numOfRetries > c.insertionRetryLimit {
+			break
 		}
 
 		// Sleep for a random time betweensz [0.8, 1.2)*insertionRetryInterval
@@ -294,7 +294,7 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) error {
 	batchDB, ok := db.(ycsb.BatchDB)
 	if !ok {
-		return fmt.Errorf("The %T does't implement the batchDB interface.", db)
+		return fmt.Errorf("the %T does't implement the batchDB interface", db)
 	}
 	state := ctx.Value(stateKey).(*coreState)
 	r := state.r
@@ -317,7 +317,7 @@ func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) err
 	for {
 		err = batchDB.BatchInsert(ctx, c.table, keys, values)
 		if err == nil {
-			return err
+			break
 		}
 
 		select {
@@ -332,8 +332,8 @@ func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) err
 		// even if one single insertion fails. User can optionally configure
 		// an insertion retry limit (default is 0) to enable retry.
 		numOfRetries++
-		if numOfRetries <= c.insertionRetryLimit {
-			fmt.Printf("retrying insertion, retry count %d\n", numOfRetries)
+		if numOfRetries > c.insertionRetryLimit {
+			break
 		}
 
 		// Sleep for a random time betweensz [0.8, 1.2)*insertionRetryInterval
@@ -368,7 +368,7 @@ func (c *core) DoTransaction(ctx context.Context, db ycsb.DB) error {
 func (c *core) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.DB) error {
 	batchDB, ok := db.(ycsb.BatchDB)
 	if !ok {
-		return fmt.Errorf("The %T does't implement the batchDB interface.", db)
+		return fmt.Errorf("the %T does't implement the batchDB interface", db)
 	}
 	state := ctx.Value(stateKey).(*coreState)
 	r := state.r

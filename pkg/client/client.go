@@ -134,7 +134,7 @@ func (w *worker) run(ctx context.Context) {
 			}
 		}
 
-		if err != nil {
+		if err != nil && !w.p.GetBool(prop.Silence, prop.SilenceDefault) {
 			fmt.Printf("operation err: %v\n", err)
 		}
 
@@ -171,7 +171,11 @@ func (c *Client) Run(ctx context.Context) {
 
 	wg.Add(threadCount)
 	measureCtx, measureCancel := context.WithCancel(ctx)
+	measureCh := make(chan struct{}, 1)
 	go func() {
+		defer func() {
+			measureCh <- struct{}{}
+		}()
 		// load stage no need to warm up
 		if c.p.GetBool(prop.DoTransactions, true) {
 			dur := c.p.GetInt64(prop.WarmUpTime, 0)
@@ -213,4 +217,5 @@ func (c *Client) Run(ctx context.Context) {
 
 	wg.Wait()
 	measureCancel()
+	<-measureCh
 }

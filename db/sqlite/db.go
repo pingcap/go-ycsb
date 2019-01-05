@@ -22,6 +22,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
@@ -49,6 +50,9 @@ type sqliteDB struct {
 	verbose bool
 
 	bufPool *util.BufPool
+
+	// Sqlite can only allow one single writer
+	writeLock sync.Mutex
 }
 
 type contextKey string
@@ -71,7 +75,7 @@ func (c sqliteCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	}
 
 	mode := p.GetString(sqliteMode, "rwc")
-	journalMode := p.GetString(sqliteJournalMode, "DELETE")
+	journalMode := p.GetString(sqliteJournalMode, "WAL")
 	cache := p.GetString(sqliteCache, "shared")
 
 	v := url.Values{}
@@ -108,7 +112,7 @@ func (db *sqliteDB) createTable() error {
 	fieldLength := db.p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
 
 	buf := new(bytes.Buffer)
-	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(%d) PRIMARY KEY", tableName, fieldLength)
+	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(64) PRIMARY KEY", tableName)
 	buf.WriteString(s)
 
 	for i := int64(0); i < fieldCount; i++ {
@@ -261,6 +265,9 @@ func (db *sqliteDB) execQuery(ctx context.Context, query string, args ...interfa
 	if err != nil {
 		return err
 	}
+
+	db.writeLock.Lock()
+	defer db.writeLock.Unlock()
 
 	_, err = stmt.ExecContext(ctx, args...)
 	db.clearCacheIfFailed(ctx, query, err)

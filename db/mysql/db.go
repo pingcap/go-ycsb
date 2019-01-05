@@ -106,7 +106,7 @@ func (db *mysqlDB) createTable() error {
 	fieldLength := db.p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
 
 	buf := new(bytes.Buffer)
-	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(%d) PRIMARY KEY", tableName, fieldLength)
+	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(64) PRIMARY KEY", tableName)
 	buf.WriteString(s)
 
 	for i := int64(0); i < fieldCount; i++ {
@@ -327,4 +327,6 @@ func (db *mysqlDB) Delete(ctx context.Context, table string, key string) error {
 
 func init() {
 	ycsb.RegisterDBCreator("mysql", mysqlCreator{})
+	ycsb.RegisterDBCreator("mysql8", mysqlCreator{})
+	ycsb.RegisterDBCreator("tidb", mysqlCreator{})
 }
