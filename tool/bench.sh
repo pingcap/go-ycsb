@@ -7,7 +7,7 @@ DB=$2
 DATA=./data
 CMD=../bin/go-ycsb
 # Direcotry to save logs
-LOG=./log
+LOG=./logs
 
 RECORDCOUNT=100000000
 OPERATIONCOUNT=100000000
@@ -38,22 +38,7 @@ fi
 
 if [ ${TYPE} == 'load' ]; then 
     echo "clear data before load"
-    case ${DB} in 
-        rocksdb)
-            PROPS+=" -p rocksdb.dropdata=true"
-            ;;
-        badger)
-            PROPS+=" -p badger.dropdata=true"
-            ;;
-        mysql)
-            PROPS+=" -p mysql.droptable=true"
-            ;;
-        pg)
-            PROPS+=" -p pg.droptable=true"
-            ;;
-        *)
-        ;;
-    esac
+    PROPS+=" -p dropdata=true"
 fi 
 
 echo ${TYPE} ${DB} ${WORKLOADS} ${PROPS}

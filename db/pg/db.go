@@ -74,10 +74,11 @@ func (c pgCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	dbName := p.GetString(pgDBName, "test")
 	sslMode := p.GetString(pdSSLMode, "disable")
 
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d?sslmode=%s", user, password, host, port, sslMode)
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s", user, password, host, port, dbName, sslMode)
 	var err error
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
+		fmt.Printf("open pg failed %v", err)
 		return nil, err
 	}
 
@@ -101,12 +102,8 @@ func (c pgCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 func (db *pgDB) createTable() error {
 	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
 
-	if _, err := db.db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", db.dbName)); err != nil {
-		return err
-	}
-
 	if db.p.GetBool(prop.DropData, prop.DropDataDefault) {
-		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", db.dbName, tableName)); err != nil {
+		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
 			return err
 		}
 	}
@@ -115,7 +112,7 @@ func (db *pgDB) createTable() error {
 	fieldLength := db.p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
 
 	buf := new(bytes.Buffer)
-	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s.%s (YCSB_KEY VARCHAR(%d) PRIMARY KEY", db.dbName, tableName, fieldLength)
+	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(64) PRIMARY KEY", tableName)
 	buf.WriteString(s)
 
 	for i := int64(0); i < fieldCount; i++ {
@@ -226,10 +223,10 @@ func (db *pgDB) queryRows(ctx context.Context, query string, count int, args ...
 func (db *pgDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
-		query = fmt.Sprintf(`SELECT * FROM %s.%s WHERE YCSB_KEY = $1`, db.dbName, table)
+		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = $1`, table)
 	} else {
 		sort.Strings(fields)
-		query = fmt.Sprintf(`SELECT %s FROM %s.%s WHERE YCSB_KEY = $1`, strings.Join(fields, ","), db.dbName, table)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = $1`, strings.Join(fields, ","), table)
 	}
 
 	rows, err := db.queryRows(ctx, query, 1, key)
@@ -247,10 +244,10 @@ func (db *pgDB) Read(ctx context.Context, table string, key string, fields []str
 func (db *pgDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
-		query = fmt.Sprintf(`SELECT * FROM %s.%s WHERE YCSB_KEY >= $1 LIMIT $2`, db.dbName, table)
+		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY >= $1 LIMIT $2`, table)
 	} else {
 		sort.Strings(fields)
-		query = fmt.Sprintf(`SELECT %s FROM %s.%s WHERE YCSB_KEY >= $1 LIMIT $2`, strings.Join(fields, ","), db.dbName, table)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= $1 LIMIT $2`, strings.Join(fields, ","), table)
 	}
 
 	rows, err := db.queryRows(ctx, query, count, startKey, count)
@@ -279,7 +276,7 @@ func (db *pgDB) Update(ctx context.Context, table string, key string, values map
 	defer db.bufPool.Put(buf)
 
 	buf.WriteString("UPDATE ")
-	buf.WriteString(fmt.Sprintf("%s.%s", db.dbName, table))
+	buf.WriteString(table)
 	buf.WriteString(" SET ")
 	firstField := true
 	args := make([]interface{}, 0, len(values)+1)
@@ -309,7 +306,7 @@ func (db *pgDB) Insert(ctx context.Context, table string, key string, values map
 	defer db.bufPool.Put(buf)
 
 	buf.WriteString("INSERT INTO ")
-	buf.WriteString(fmt.Sprintf("%s.%s", db.dbName, table))
+	buf.WriteString(table)
 	buf.WriteString(" (YCSB_KEY")
 	pairs := util.NewFieldPairs(values)
 	for _, p := range pairs {
@@ -329,7 +326,7 @@ func (db *pgDB) Insert(ctx context.Context, table string, key string, values map
 }
 
 func (db *pgDB) Delete(ctx context.Context, table string, key string) error {
-	query := fmt.Sprintf(`DELETE FROM %s.%s WHERE YCSB_KEY = $1`, db.dbName, table)
+	query := fmt.Sprintf(`DELETE FROM %s WHERE YCSB_KEY = $1`, table)
 
 	return db.execQuery(ctx, query, key)
 }
@@ -337,4 +334,6 @@ func (db *pgDB) Delete(ctx context.Context, table string, key string) error {
 func init() {
 	ycsb.RegisterDBCreator("pg", pgCreator{})
 	ycsb.RegisterDBCreator("postgresql", pgCreator{})
+	ycsb.RegisterDBCreator("cockroach", pgCreator{})
+	ycsb.RegisterDBCreator("cdb", pgCreator{})
 }
