@@ -73,6 +73,7 @@ You can pass the database configuraitons through `-p field=value` in the command
 Common configurations:
 
 |field|default value|description|
+|-|-|-|
 |dropdata|false|Whether to remove all data before test|
 |verbose|false|Output the execution query|
 |debug.pprof|":6060"|Go debug profile address|
@@ -187,6 +188,15 @@ Common configurations:
 |-|-|-|
 |spanner.db|""|Spanner Database|
 |spanner.credentials|"~/.spanner/credentials.json"|Google application credentials for Spanner|
+
+### Sqlite
+
+|field|default value|description|
+|-|-|-|
+|sqlite.db|"/tmp/sqlite.db"|Database path|
+|sqlite.mode|"rwc"|Open Mode: ro, rc, rwc, memory|
+|sqlite.journalmode|"DELETE"|Journal mode: DELETE, TRUNCSTE, PERSIST, MEMORY, WAL, OFF|
+|sqlite.cache|"Shared"|Cache: shared, private|
 
 ## TODO
 

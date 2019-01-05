@@ -40,6 +40,7 @@ require (
 	github.com/klauspost/cpuid v1.2.0 // indirect
 	github.com/lib/pq v0.0.0-20181016162627-9eb73efc1fcc
 	github.com/magiconair/properties v1.8.0
+	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/montanaflynn/stats v0.0.0-20151014174947-eeaced052adb // indirect
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.7.0 // indirect
