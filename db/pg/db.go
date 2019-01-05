@@ -32,14 +32,12 @@ import (
 
 // pg properties
 const (
-	pgHost      = "pg.host"
-	pgPort      = "pg.port"
-	pgUser      = "pg.user"
-	pgPassword  = "pg.password"
-	pgDBName    = "pg.db"
-	pdSSLMode   = "pg.sslmode"
-	pgVerbose   = "pg.verbose"
-	pgDropTable = "pg.droptable"
+	pgHost     = "pg.host"
+	pgPort     = "pg.port"
+	pgUser     = "pg.user"
+	pgPassword = "pg.password"
+	pgDBName   = "pg.db"
+	pdSSLMode  = "pg.sslmode"
 	// TODO: support batch and auto commit
 )
 
@@ -87,7 +85,7 @@ func (c pgCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	db.SetMaxIdleConns(threadCount + 1)
 	db.SetMaxOpenConns(threadCount * 2)
 
-	d.verbose = p.GetBool(pgVerbose, false)
+	d.verbose = p.GetBool(prop.Verbose, prop.VerboseDefault)
 	d.db = db
 	d.dbName = dbName
 
@@ -107,7 +105,7 @@ func (db *pgDB) createTable() error {
 		return err
 	}
 
-	if db.p.GetBool(pgDropTable, false) {
+	if db.p.GetBool(prop.DropData, prop.DropDataDefault) {
 		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", db.dbName, tableName)); err != nil {
 			return err
 		}

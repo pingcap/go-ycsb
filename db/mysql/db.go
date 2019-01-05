@@ -32,13 +32,11 @@ import (
 
 // mysql properties
 const (
-	mysqlHost      = "mysql.host"
-	mysqlPort      = "mysql.port"
-	mysqlUser      = "mysql.user"
-	mysqlPassword  = "mysql.password"
-	mysqlDBName    = "mysql.db"
-	mysqlVerbose   = "mysql.verbose"
-	mysqlDropTable = "mysql.droptable"
+	mysqlHost     = "mysql.host"
+	mysqlPort     = "mysql.port"
+	mysqlUser     = "mysql.user"
+	mysqlPassword = "mysql.password"
+	mysqlDBName   = "mysql.db"
 	// TODO: support batch and auto commit
 )
 
@@ -83,7 +81,7 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	db.SetMaxIdleConns(threadCount + 1)
 	db.SetMaxOpenConns(threadCount * 2)
 
-	d.verbose = p.GetBool(mysqlVerbose, false)
+	d.verbose = p.GetBool(prop.Verbose, prop.VerboseDefault)
 	d.db = db
 
 	d.bufPool = util.NewBufPool()
@@ -98,7 +96,7 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 func (db *mysqlDB) createTable() error {
 	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
 
-	if db.p.GetBool(mysqlDropTable, false) && !db.p.GetBool(prop.DoTransactions, true) {
+	if db.p.GetBool(prop.DropData, prop.DropDataDefault) && !db.p.GetBool(prop.DoTransactions, true) {
 		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
 			return err
 		}

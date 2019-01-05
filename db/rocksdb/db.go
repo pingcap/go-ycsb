@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/tecbot/gorocksdb"
@@ -28,8 +29,7 @@ import (
 
 //  properties
 const (
-	rocksdbDir      = "rocksdb.dir"
-	rocksdbDropData = "rocksdb.dropdata"
+	rocksdbDir = "rocksdb.dir"
 	// DBOptions
 	rocksdbAllowConcurrentMemtableWrites   = "rocksdb.allow_concurrent_memtable_writes"
 	rocsdbAllowMmapReads                   = "rocksdb.allow_mmap_reads"
@@ -84,7 +84,7 @@ type contextKey string
 func (c rocksDBCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	dir := p.GetString(rocksdbDir, "/tmp/rocksdb")
 
-	if p.GetBool(rocksdbDropData, false) {
+	if p.GetBool(prop.DropData, prop.DropDataDefault) {
 		os.RemoveAll(dir)
 	}
 
