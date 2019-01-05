@@ -70,6 +70,13 @@ Available Commands:
 
 You can pass the database configuraitons through `-p field=value` in the command line directly.
 
+Common configurations:
+
+|field|default value|description|
+|dropdata|false|Whether to remove all data before test|
+|verbose|false|Output the execution query|
+|debug.pprof|":6060"|Go debug profile address|
+
 ### mysql
 
 |field|default value|description|
@@ -79,8 +86,7 @@ You can pass the database configuraitons through `-p field=value` in the command
 |mysql.user|"root"|MySQL User|
 |mysql.passowrd||MySQL Password|
 |mysql.db|"test"|MySQL Database|
-|mysql.verbose|false|Output the execution query|
-|mysql.droptable|false|Drop Table at first|
+
 
 ### TiKV
 
@@ -108,8 +114,6 @@ You can pass the database configuraitons through `-p field=value` in the command
 |pg.passowrd||PostgreSQL Password|
 |pg.db|"test"|PostgreSQL Database|
 |pg.sslmode|"disable|PostgreSQL ssl mode|
-|pg.verbose|false|Output the execution query|
-|pg.droptable|false|Drop Table at first|
 
 ### Aerospike
 
@@ -125,7 +129,6 @@ You can pass the database configuraitons through `-p field=value` in the command
 |-|-|-|
 |badger.dir|"/tmp/badger"|The directory to save data|
 |badger.valuedir|"/tmp/badger"|The directory to save value, if not set, use badger.dir|
-|badger.dropdata|false|Whether to remove all data before test|
 |badger.sync_writes|false|Sync all writes to disk|
 |badger.num_versions_to_keep|1|How many versions to keep per key|
 |badger.max_table_size|64MB|Each table (or file) is at most this size|
@@ -148,7 +151,6 @@ You can pass the database configuraitons through `-p field=value` in the command
 |field|default value|description|
 |-|-|-|
 |rocksdb.dir|"/tmp/rocksdb"|The directory to save data|
-|rocksdb.dropdata|false|Whether to remove all data before test|
 |rocksdb.allow_concurrent_memtable_writes|true|Sets whether to allow concurrent memtable writes|
 |rocksdb.allow_mmap_reads|false|Enable/Disable mmap reads for reading sst tables|
 |rocksdb.allow_mmap_writes|false|Enable/Disable mmap writes for writing sst tables|
@@ -185,8 +187,6 @@ You can pass the database configuraitons through `-p field=value` in the command
 |-|-|-|
 |spanner.db|""|Spanner Database|
 |spanner.credentials|"~/.spanner/credentials.json"|Google application credentials for Spanner|
-|spanner.verbose|false|Output the execution query|
-|spanner.droptable|false|Drop Table at first|
 
 ## TODO
 

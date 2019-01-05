@@ -40,8 +40,6 @@ import (
 const (
 	spannerDBName      = "spanner.db"
 	spannerCredentials = "spanner.credentials"
-	spannerDropTable   = "spanner.droptable"
-	spannerVerbose     = "spanner.verbose"
 )
 
 type spannerCreator struct {
@@ -88,7 +86,7 @@ func (c spannerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		return nil, fmt.Errorf("must provide a database like projects/xxxx/instances/xxxx/databases/xxx")
 	}
 
-	d.verbose = p.GetBool(spannerVerbose, false)
+	d.verbose = p.GetBool(prop.Verbose, prop.VerboseDefault)
 
 	_, err = d.createDatabase(ctx, adminClient, dbName)
 	if err != nil {
@@ -172,7 +170,7 @@ func (db *spannerDB) createTable(ctx context.Context, adminClient *database.Data
 		return err
 	}
 
-	if db.p.GetBool(spannerDropTable, false) && existed {
+	if db.p.GetBool(prop.DropData, prop.DropDataDefault) && existed {
 		op, err := adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 			Database: dbName,
 			Statements: []string{

@@ -21,6 +21,7 @@ import (
 	"github.com/dgraph-io/badger"
 	"github.com/dgraph-io/badger/options"
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
@@ -29,7 +30,6 @@ import (
 const (
 	badgerDir                     = "badger.dir"
 	badgerValueDir                = "badger.valuedir"
-	badgerDropData                = "badger.dropdata"
 	badgerSyncWrites              = "badger.sync_writes"
 	badgerNumVersionsToKeep       = "badger.num_versions_to_keep"
 	badgerMaxTableSize            = "badger.max_table_size"
@@ -71,7 +71,7 @@ type badgerState struct {
 func (c badgerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	opts := getOptions(p)
 
-	if p.GetBool(badgerDropData, false) {
+	if p.GetBool(prop.DropData, prop.DropDataDefault) {
 		os.RemoveAll(opts.Dir)
 		os.RemoveAll(opts.ValueDir)
 	}

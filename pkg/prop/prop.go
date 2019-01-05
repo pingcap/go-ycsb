@@ -95,4 +95,9 @@ const (
 
 	DebugPprof        = "debug.pprof"
 	DebugPprofDefault = ":6060"
+
+	Verbose         = "verbose"
+	VerboseDefault  = false
+	DropData        = "dropdata"
+	DropDataDefault = false
 )

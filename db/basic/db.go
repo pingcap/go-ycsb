@@ -38,12 +38,11 @@ import (
 	"time"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
 const (
-	verbose               = "basicdb.verbose"
-	verboseDefault        = true
 	simulateDelay         = "basicdb.simulatedelay"
 	simulateDelayDefault  = int64(0)
 	randomizeDelay        = "basicdb.randomizedelay"
@@ -260,7 +259,7 @@ type basicDBCreator struct{}
 func (basicDBCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	db := new(basicDB)
 
-	db.verbose = p.GetBool(verbose, verboseDefault)
+	db.verbose = p.GetBool(prop.Verbose, prop.VerboseDefault)
 	db.randomizeDelay = p.GetBool(randomizeDelay, randomizeDelayDefault)
 	db.toDelay = p.GetInt64(simulateDelay, simulateDelayDefault)
 
