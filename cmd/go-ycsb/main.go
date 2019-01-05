@@ -55,6 +55,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/spanner"
 	// Register pegasus database
 	_ "github.com/pingcap/go-ycsb/db/pegasus"
+	// Register sqlite database
+	_ "github.com/pingcap/go-ycsb/db/sqlite"
 )
 
 var (
