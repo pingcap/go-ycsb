@@ -320,7 +320,7 @@ func (db *pgDB) Insert(ctx context.Context, table string, key string, values map
 		buf.WriteString(fmt.Sprintf(" ,$%d", i+2))
 	}
 
-	buf.WriteByte(')')
+	buf.WriteString(") ON CONFLICT DO NOTHING")
 
 	return db.execQuery(ctx, buf.String(), args...)
 }

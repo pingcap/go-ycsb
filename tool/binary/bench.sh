@@ -14,12 +14,14 @@ OPERATIONCOUNT=100000000
 THREADCOUNT=16
 FIELDCOUNT=10
 FIELDLENGTH=100
+MAXSCANLENGTH=10
 
 PROPS="-p recordcount=${RECORDCOUNT} \
     -p operationcount=${OPERATIONCOUNT} \
     -p threadcount=${THREADCOUNT} \
     -p fieldcount=${FIELDCOUNT} \
-    -p fieldlength=${FIELDLENGTH}"
+    -p fieldlength=${FIELDLENGTH} \
+    -p maxscanlength=${MAXSCANLENGTH}"
 PROPS+=" ${@:3}"
 WORKLOADS=
 
