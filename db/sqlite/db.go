@@ -22,7 +22,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
@@ -50,9 +49,6 @@ type sqliteDB struct {
 	verbose bool
 
 	bufPool *util.BufPool
-
-	// Sqlite can only allow one single writer
-	writeLock sync.Mutex
 }
 
 type contextKey string
@@ -89,9 +85,7 @@ func (c sqliteCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		return nil, err
 	}
 
-	threadCount := int(p.GetInt64(prop.ThreadCount, prop.ThreadCountDefault))
-	db.SetMaxIdleConns(threadCount + 1)
-	db.SetMaxOpenConns(threadCount * 2)
+	db.SetMaxOpenConns(1)
 
 	d.verbose = p.GetBool(prop.Verbose, prop.VerboseDefault)
 	d.db = db
@@ -265,9 +259,6 @@ func (db *sqliteDB) execQuery(ctx context.Context, query string, args ...interfa
 	if err != nil {
 		return err
 	}
-
-	db.writeLock.Lock()
-	defer db.writeLock.Unlock()
 
 	_, err = stmt.ExecContext(ctx, args...)
 	db.clearCacheIfFailed(ctx, query, err)

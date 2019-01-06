@@ -11,12 +11,14 @@ OPERATIONCOUNT=100000
 THREADCOUNT=20
 FIELDCOUNT=5
 FIELDLENGTH=16
+MAXSCANLENGTH=10
 
 PROPS="-p recordcount=${RECORDCOUNT} \
     -p operationcount=${OPERATIONCOUNT} \
     -p threadcount=${THREADCOUNT} \
     -p fieldcount=${FIELDCOUNT} \
-    -p fieldlength=${FIELDLENGTH}"
+    -p fieldlength=${FIELDLENGTH} \
+    -p maxscanlength=${MAXSCANLENGTH}"
 PROPS+=" ${@:3}"
 WORKLOADS=
 SLEEPTIME=10
@@ -63,16 +65,18 @@ if [ ${TYPE} == 'load' ]; then
     sleep ${SLEEPTIME}
 
     $CMD run ycsb load ${DB} ${WORKLOADS} -p=workload=core ${PROPS} | tee ${LOG}/${DB}_load.log
+
+    $CMD down
 elif [ ${TYPE} == 'run' ]; then
-    $CMD start
+    $CMD up -d
     sleep 10
 
     for workload in a b c d e f 
     do 
-        $CMD run ycsb run ${DB} -P ../../workloads/workload${workload} ${WORKLOADS} ${PROPS} | tee ${LOG}/${DB}_run_workload${workload}.log
+        $CMD run --rm ycsb run ${DB} -P ../../workloads/workload${workload} ${WORKLOADS} ${PROPS} | tee ${LOG}/${DB}_run_workload${workload}.log
     done
 
-    $CMD stop
+    $CMD down
 else
     echo "invalid type ${TYPE}"
     exit 1
