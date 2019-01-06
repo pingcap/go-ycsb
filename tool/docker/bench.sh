@@ -25,6 +25,8 @@ SLEEPTIME=10
 
 mkdir -p ${LOG} 
 
+BENCH_DB=${DB}
+
 case ${DB} in
     mysql)
         PROPS+=" -p mysql.host=mysql"
@@ -39,7 +41,11 @@ case ${DB} in
         SLEEPTIME=30
         ;;
     tikv)
-        PROPS+=" -p tikv.pd=pd:2379"
+        PROPS+=" -p tikv.pd=pd:2379 -p tikv.type=txn"
+        ;;
+    raw)
+        PROPS+=" -p tikv.pd=pd:2379 -p tikv.type=raw"
+        DB="tikv"
         ;;
     tidb)
         PROPS+=" -p mysql.host=tidb -p mysql.port=4000"
@@ -56,7 +62,7 @@ esac
 
 echo ${TYPE} ${DB} ${WORKLOADS} ${PROPS}
 
-CMD="docker-compose -f ${DB}.yml" 
+CMD="docker-compose -f ${BENCH_DB}.yml" 
 
 if [ ${TYPE} == 'load' ]; then 
     $CMD down --remove-orphans
@@ -64,7 +70,7 @@ if [ ${TYPE} == 'load' ]; then
     $CMD up -d
     sleep ${SLEEPTIME}
 
-    $CMD run ycsb load ${DB} ${WORKLOADS} -p=workload=core ${PROPS} | tee ${LOG}/${DB}_load.log
+    $CMD run ycsb load ${DB} ${WORKLOADS} -p=workload=core ${PROPS} | tee ${LOG}/${BENCH_DB}_load.log
 
     $CMD down
 elif [ ${TYPE} == 'run' ]; then
@@ -73,7 +79,7 @@ elif [ ${TYPE} == 'run' ]; then
 
     for workload in a b c d e f 
     do 
-        $CMD run --rm ycsb run ${DB} -P ../../workloads/workload${workload} ${WORKLOADS} ${PROPS} | tee ${LOG}/${DB}_run_workload${workload}.log
+        $CMD run --rm ycsb run ${DB} -P ../../workloads/workload${workload} ${WORKLOADS} ${PROPS} | tee ${LOG}/${BENCH_DB}_run_workload${workload}.log
     done
 
     $CMD down
