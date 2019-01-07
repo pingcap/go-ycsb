@@ -5,7 +5,7 @@ DB=$2
 
 # Directory to save data
 DATA=./data
-CMD=../bin/go-ycsb
+CMD=../../bin/go-ycsb
 # Direcotry to save logs
 LOG=./logs
 
@@ -50,7 +50,7 @@ if [ ${TYPE} == 'load' ]; then
 elif [ ${TYPE} == 'run' ]; then
     for workload in a b c d e f 
     do 
-        $CMD run ${DB} -P ../workloads/workload${workload} ${WORKLOADS} ${PROPS} | tee ${LOG}/${DB}_run_workload${workload}.log
+        $CMD run ${DB} -P ../../workloads/workload${workload} ${WORKLOADS} ${PROPS} | tee ${LOG}/${DB}_run_workload${workload}.log
     done
 else
     echo "invalid type ${TYPE}"
