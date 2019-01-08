@@ -57,6 +57,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/pegasus"
 	// Register sqlite database
 	_ "github.com/pingcap/go-ycsb/db/sqlite"
+	// Register cassandra database
+	_ "github.com/pingcap/go-ycsb/db/cassandra"
 )
 
 var (
