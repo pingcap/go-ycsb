@@ -78,7 +78,7 @@ Common configurations:
 |verbose|false|Output the execution query|
 |debug.pprof|":6060"|Go debug profile address|
 
-### mysql
+### MySQL
 
 |field|default value|description|
 |-|-|-|
@@ -197,6 +197,13 @@ Common configurations:
 |sqlite.mode|"rwc"|Open Mode: ro, rc, rwc, memory|
 |sqlite.journalmode|"DELETE"|Journal mode: DELETE, TRUNCSTE, PERSIST, MEMORY, WAL, OFF|
 |sqlite.cache|"Shared"|Cache: shared, private|
+
+### Cassandra 
+
+|field|default value|description|
+|-|-|-|
+|cassandra.cluster|"127.0.0.1:9042"|Cassandra cluster|
+|cassandra.keyspace|"test"|Keyspace|
 
 ## TODO
 
