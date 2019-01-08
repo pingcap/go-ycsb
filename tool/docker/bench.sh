@@ -56,6 +56,14 @@ case ${DB} in
     sqlite)
         PROPS+=" -p sqlite.db=/data/sqlite.db"
         ;;
+    cassandra)
+        PROPS+=" -p cassandra.cluster=cassandra"
+        SLEEPTIME=30
+        ;;
+    scylla)
+        PROPS+=" -p cassandra.cluster=scylla"
+        SLEEPTIME=30
+        ;;
     *)
     ;;
 esac
