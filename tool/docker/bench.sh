@@ -83,11 +83,11 @@ if [ ${TYPE} == 'load' ]; then
     $CMD down
 elif [ ${TYPE} == 'run' ]; then
     $CMD up -d
-    sleep 10
+    sleep ${SLEEPTIME}
 
     for workload in a b c d e f 
     do 
-        $CMD run --rm ycsb run ${DB} -P ../../workloads/workload${workload} ${WORKLOADS} ${PROPS} | tee ${LOG}/${BENCH_DB}_run_workload${workload}.log
+        $CMD run --rm ycsb run ${DB} -P ../../workloads/workload${workload} ${WORKLOADS} ${PROPS} | tee ${LOG}/${BENCH_DB}_workload${workload}.log
     done
 
     $CMD down
