@@ -433,7 +433,7 @@ func (c *core) doTransactionRead(ctx context.Context, db ycsb.DB, state *coreSta
 func (c *core) doTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, state *coreState) error {
 	start := time.Now()
 	defer func() {
-		measurement.Measure("READ-MODIFY-WRITE", time.Now().Sub(start))
+		measurement.Measure("READ_MODIFY_WRITE", time.Now().Sub(start))
 	}()
 
 	r := state.r
