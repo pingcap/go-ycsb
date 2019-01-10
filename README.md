@@ -205,6 +205,13 @@ Common configurations:
 |cassandra.cluster|"127.0.0.1:9042"|Cassandra cluster|
 |cassandra.keyspace|"test"|Keyspace|
 
+### MongoDB
+
+|field|default value|description|
+|-|-|-|
+|mongodb.uri|"mongodb://localhost:27017/ycsb?w=1"|Connection string URI format|
+|mongodb.ns|"ycsb.ycsb"|Namespace|
+
 ## TODO
 
 - [ ] Support more measurement, like HdrHistogram
