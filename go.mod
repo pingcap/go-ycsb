@@ -29,6 +29,7 @@ require (
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-sql-driver/mysql v1.4.1
+	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gocql/gocql v0.0.0-20181124151448-70385f88b28b
 	github.com/golang/groupcache v0.0.0-20181024230925-c65c006176ff // indirect
 	github.com/golang/lint v0.0.0-20181026193005-c67002cb31c3 // indirect
@@ -42,6 +43,7 @@ require (
 	github.com/lib/pq v0.0.0-20181016162627-9eb73efc1fcc
 	github.com/magiconair/properties v1.8.0
 	github.com/mattn/go-sqlite3 v1.10.0
+	github.com/mongodb/mongo-go-driver v0.2.0
 	github.com/montanaflynn/stats v0.0.0-20151014174947-eeaced052adb // indirect
 	github.com/myesui/uuid v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.7.0 // indirect
@@ -61,6 +63,8 @@ require (
 	github.com/uber-go/atomic v1.3.2 // indirect
 	github.com/ugorji/go v1.1.1 // indirect
 	github.com/unrolled/render v0.0.0-20171102162132-65450fb6b2d3 // indirect
+	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
+	github.com/xdg/stringprep v1.0.0 // indirect
 	github.com/xiang90/probing v0.0.0-20160813154853-07dd2e8dfe18 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20181031023651-12c4817b42c5 // indirect
 	go.opencensus.io v0.18.0 // indirect
