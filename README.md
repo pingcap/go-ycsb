@@ -6,7 +6,6 @@ go-ycsb is a Go port of [YCSB](https://github.com/brianfrankcooper/YCSB). It ful
 
 + We want to build a standard benchmark tool in Go.
 + We are not familiar with Java.
-+ TiKV only has a Go client.
 
 ## Getting Started
 
@@ -21,6 +20,7 @@ make
 Notice:
 
 + To use FoundationDB, you must install [client](https://www.foundationdb.org/download/) library at first, now the supported version is 6.0.15.
++ To use RocksDB, you must follow [INSTALL](https://github.com/facebook/rocksdb/blob/master/INSTALL.md) to install RocksDB at first.
 
 ## Usage 
 
@@ -60,11 +60,17 @@ Available Commands:
 
 ## Supported Database
 
-- basic
-- mysql
-- tikv
-- foundationdb or fdb
-- aerospike
+- MySQL / TiDB
+- TiKV
+- FoundationDB 
+- Aerospike
+- Badger
+- Cassandra / ScyllaDB
+- Pegasus
+- PostgreSQL / CockroachDB
+- RocksDB
+- Spanner
+- Sqlite
 
 ## Database Configuration
 
