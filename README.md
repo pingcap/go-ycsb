@@ -71,6 +71,7 @@ Available Commands:
 - RocksDB
 - Spanner
 - Sqlite
+- MongoDB
 
 ## Database Configuration
 
