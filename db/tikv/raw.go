@@ -33,7 +33,6 @@ type rawDB struct {
 
 func createRawDB(p *properties.Properties) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	tikv.MaxConnectionCount = 128
 	db, err := tikv.NewRawKVClient(strings.Split(pdAddr, ","), config.Security{})
 	if err != nil {
 		return nil, err
@@ -95,7 +94,7 @@ func (db *rawDB) BatchRead(ctx context.Context, table string, keys []string, fie
 }
 
 func (db *rawDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
-	_, rows, err := db.db.Scan(db.getRowKey(table, startKey), count)
+	_, rows, err := db.db.Scan(db.getRowKey(table, startKey), nil, count)
 	if err != nil {
 		return nil, err
 	}
