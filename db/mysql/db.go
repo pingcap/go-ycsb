@@ -327,6 +327,6 @@ func (db *mysqlDB) Delete(ctx context.Context, table string, key string) error {
 
 func init() {
 	ycsb.RegisterDBCreator("mysql", mysqlCreator{})
-	ycsb.RegisterDBCreator("mysql8", mysqlCreator{})
 	ycsb.RegisterDBCreator("tidb", mysqlCreator{})
+	ycsb.RegisterDBCreator("mariadb", mysqlCreator{})
 }
