@@ -103,6 +103,8 @@ Common configurations:
 |-|-|-|
 |tikv.pd|"127.0.0.1:2379"|PD endpoints, seperated by comma|
 |tikv.type|"raw"|TiKV mode, "raw", "txn", or "coprocessor"|
+|tikv.conncount|128|gRPC connection count|
+|tikv.batchsize|128|Request batch size|
 
 
 ### FoundationDB

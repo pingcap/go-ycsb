@@ -35,7 +35,6 @@ func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
 	pdAddr = strings.TrimPrefix(pdAddr, "http://")
 
-	tikv.MaxConnectionCount = 128
 	driver := tikv.Driver{}
 	db, err := driver.Open(fmt.Sprintf("tikv://%s?disableGC=true", pdAddr))
 

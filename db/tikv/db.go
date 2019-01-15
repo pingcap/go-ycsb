@@ -18,18 +18,24 @@ import (
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
+	"github.com/pingcap/tidb/config"
 )
 
 const (
 	tikvPD = "tikv.pd"
 	// raw, txn, or coprocessor
-	tikvType = "tikv.type"
+	tikvType      = "tikv.type"
+	tikvConnCount = "tikv.conncount"
+	tikvBatchSize = "tikv.batchsize"
 )
 
 type tikvCreator struct {
 }
 
 func (c tikvCreator) Create(p *properties.Properties) (ycsb.DB, error) {
+	config.GetGlobalConfig().TiKVClient.GrpcConnectionCount = p.GetUint(tikvConnCount, 128)
+	config.GetGlobalConfig().TiKVClient.MaxBatchSize = p.GetUint(tikvBatchSize, 128)
+
 	tp := p.GetString(tikvType, "raw")
 	switch tp {
 	case "raw":
