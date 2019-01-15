@@ -1,12 +1,12 @@
 version: '2.1'
 
 services:
-  mysql:
-    image: mysql:8.0
+  mariadb:
+    image: mariadb
     ports:
-      - "3307:3306"
+      - "3308:3306"
     volumes:
-      - ./data/mysql8:/var/lib/mysql
+      - ./data/mariadb:/var/lib/mysql
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_DATABASE: "test"
