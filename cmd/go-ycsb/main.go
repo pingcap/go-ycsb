@@ -61,6 +61,10 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/cassandra"
 	// Register mongodb database
 	_ "github.com/pingcap/go-ycsb/db/mongodb"
+	// Register redis database
+	_ "github.com/pingcap/go-ycsb/db/redis"
+	// Register redis_cluster database
+	_ "github.com/pingcap/go-ycsb/db/redis_cluster"
 )
 
 var (
