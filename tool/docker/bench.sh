@@ -80,7 +80,7 @@ CMD="docker-compose -f ${BENCH_DB}.yml"
 
 if [ ${TYPE} == 'load' ]; then 
     $CMD down --remove-orphans
-    rm -rf ./data/${DB}
+    rm -rf ./data/${BENCH_DB}
     $CMD up -d
     sleep ${SLEEPTIME}
 
