@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	goredis "github.com/go-redis/redis"
@@ -20,11 +21,22 @@ func init() {
 }
 
 type redis struct {
-	cli *goredis.Client
+	singleCli  *goredis.Client
+	clusterCli *goredis.ClusterClient
+	mode       string
 }
 
 func (r *redis) Close() error {
-	return r.cli.Close()
+	var err error
+	switch r.mode {
+	case "cluster":
+		err = r.clusterCli.Close()
+	case "single":
+		fallthrough
+	default:
+		err = r.singleCli.Close()
+	}
+	return err
 }
 
 func (r *redis) InitThread(ctx context.Context, _ int, _ int) context.Context {
@@ -35,10 +47,24 @@ func (r *redis) CleanupThread(_ context.Context) {
 }
 
 func (r *redis) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
+	var res string
+	var err error
+
 	data := map[string][]byte{}
-	res, err := r.cli.Get(table + "/" + key).Result()
-	if err != nil {
-		return nil, err
+
+	switch r.mode {
+	case "cluster":
+		res, err = r.clusterCli.Get(table + "/" + key).Result()
+		if err != nil {
+			return nil, err
+		}
+	case "single":
+		fallthrough
+	default:
+		res, err = r.singleCli.Get(table + "/" + key).Result()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = json.Unmarshal([]byte(res), &data)
@@ -56,24 +82,49 @@ func (r *redis) Scan(ctx context.Context, table string, startKey string, count i
 	var keys []string
 	var err error
 
-	keys, cursor, err = r.cli.Scan(cursor, table+"/*", int64(count)).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, k := range keys {
-		res, err := r.cli.Get(k).Result()
+	switch r.mode {
+	case "cluster":
+		keys, cursor, err = r.clusterCli.Scan(cursor, table+"/*", int64(count)).Result()
 		if err != nil {
 			return nil, err
 		}
 
-		tmp := map[string][]byte{}
-		err = json.Unmarshal([]byte(res), &tmp)
+		for _, k := range keys {
+			res, err := r.clusterCli.Get(k).Result()
+			if err != nil {
+				return nil, err
+			}
+
+			tmp := map[string][]byte{}
+			err = json.Unmarshal([]byte(res), &tmp)
+			if err != nil {
+				return nil, err
+			}
+
+			data = append(data, tmp)
+		}
+	case "single":
+		fallthrough
+	default:
+		keys, cursor, err = r.singleCli.Scan(cursor, table+"/*", int64(count)).Result()
 		if err != nil {
 			return nil, err
 		}
 
-		data = append(data, tmp)
+		for _, k := range keys {
+			res, err := r.singleCli.Get(k).Result()
+			if err != nil {
+				return nil, err
+			}
+
+			tmp := map[string][]byte{}
+			err = json.Unmarshal([]byte(res), &tmp)
+			if err != nil {
+				return nil, err
+			}
+
+			data = append(data, tmp)
+		}
 	}
 
 	return data, nil
@@ -85,7 +136,16 @@ func (r *redis) Update(ctx context.Context, table string, key string, values map
 		return err
 	}
 
-	return r.cli.Set(table+"/"+key, string(data), 0).Err()
+	switch r.mode {
+	case "cluster":
+		err = r.clusterCli.Set(table+"/"+key, string(data), 0).Err()
+	case "single":
+		fallthrough
+	default:
+		err = r.singleCli.Set(table+"/"+key, string(data), 0).Err()
+	}
+
+	return err
 }
 
 func (r *redis) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -94,35 +154,77 @@ func (r *redis) Insert(ctx context.Context, table string, key string, values map
 		return err
 	}
 
-	return r.cli.Set(table+"/"+key, string(data), 0).Err()
+	switch r.mode {
+	case "cluster":
+		err = r.clusterCli.Set(table+"/"+key, string(data), 0).Err()
+	case "single":
+		fallthrough
+	default:
+		err = r.singleCli.Set(table+"/"+key, string(data), 0).Err()
+	}
+
+	return err
 }
 
 func (r *redis) Delete(ctx context.Context, table string, key string) error {
-	return r.cli.Del(table + "/" + key).Err()
+	var err error
+
+	switch r.mode {
+	case "cluster":
+		err = r.clusterCli.Del(table + "/" + key).Err()
+	case "single":
+		fallthrough
+	default:
+		err = r.singleCli.Del(table + "/" + key).Err()
+	}
+
+	return err
 }
 
 type redisCreator struct{}
 
 func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
-	cli := goredis.NewClient(getOptions(p))
+	rds := &redis{}
 
-	if p.GetBool(prop.DropData, prop.DropDataDefault) {
-		err := cli.FlushDB().Err()
-		if err != nil {
-			return nil, err
+	mode, _ := p.Get(redisMode)
+	switch mode {
+	case "cluster":
+		rds.clusterCli = goredis.NewClusterClient(getOptionsCluster(p))
+
+		if p.GetBool(prop.DropData, prop.DropDataDefault) {
+			err := rds.clusterCli.FlushDB().Err()
+			if err != nil {
+				return nil, err
+			}
+		}
+	case "single":
+		fallthrough
+	default:
+		mode = "single"
+		rds.singleCli = goredis.NewClient(getOptionsSingle(p))
+
+		if p.GetBool(prop.DropData, prop.DropDataDefault) {
+			err := rds.singleCli.FlushDB().Err()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
+	rds.mode = mode
 
-	return &redis{
-		cli: cli,
-	}, nil
+	return rds, nil
 }
 
 const (
+	redisMode                  = "redis.mode"
 	redisNetwork               = "redis.network"
 	redisAddr                  = "redis.addr"
 	redisPassword              = "redis.password"
 	redisDB                    = "redis.db"
+	redisMaxRedirects          = "redis.max_redirects"
+	redisReadOnly              = "redis.read_only"
+	redisRouteByLatency        = "redis.route_by_latency"
+	redisRouteRandomly         = "redis.route_randomly"
 	redisMaxRetries            = "redis.max_retries"
 	redisMinRetryBackoff       = "redis.min_retry_backoff"
 	redisMaxRetryBackoff       = "redis.max_retry_backoff"
@@ -141,12 +243,116 @@ const (
 	redisTLSInsecureSkipVerify = "redis.tls_insecure_skip_verify"
 )
 
-func getOptions(p *properties.Properties) *goredis.Options {
+func getOptionsSingle(p *properties.Properties) *goredis.Options {
 	opts := &goredis.Options{}
 	opts.Network, _ = p.Get(redisNetwork)
 	opts.Addr, _ = p.Get(redisAddr)
 	opts.Password, _ = p.Get(redisPassword)
 	opts.DB = p.GetInt(redisDB, 0)
+	opts.MaxRetries = p.GetInt(redisMaxRetries, 0)
+
+	var err error
+	tmp, ok := p.Get(redisMinRetryBackoff)
+	if ok {
+		opts.MinRetryBackoff, err = time.ParseDuration(tmp)
+		if err != nil {
+			opts.MinRetryBackoff = 0
+		}
+	}
+
+	tmp, ok = p.Get(redisMaxRetryBackoff)
+	if ok {
+		opts.MaxRetryBackoff, err = time.ParseDuration(tmp)
+		if err != nil {
+			opts.MaxRetryBackoff = 0
+		}
+	}
+
+	tmp, ok = p.Get(redisDialTimeout)
+	if ok {
+		opts.DialTimeout, err = time.ParseDuration(tmp)
+		if err != nil {
+			opts.DialTimeout = 0
+		}
+	}
+
+	tmp, ok = p.Get(redisReadTimeout)
+	if ok {
+		opts.ReadTimeout, err = time.ParseDuration(tmp)
+		if err != nil {
+			opts.ReadTimeout = 0
+		}
+	}
+
+	tmp, ok = p.Get(redisWriteTimeout)
+	if ok {
+		opts.WriteTimeout, err = time.ParseDuration(tmp)
+		if err != nil {
+			opts.WriteTimeout = 0
+		}
+	}
+
+	opts.PoolSize = p.GetInt(redisPoolSize, 10)
+	opts.MinIdleConns = p.GetInt(redisMinIdleConns, 0)
+
+	tmp, ok = p.Get(redisMaxConnAge)
+	if ok {
+		opts.MaxConnAge, err = time.ParseDuration(tmp)
+		if err != nil {
+			opts.MaxConnAge = 0
+		}
+	}
+
+	tmp, ok = p.Get(redisPoolTimeout)
+	if ok {
+		opts.PoolTimeout, err = time.ParseDuration(tmp)
+		if err != nil {
+			opts.PoolTimeout = 0
+		}
+	}
+
+	tmp, ok = p.Get(redisIdleTimeout)
+	if ok {
+		opts.IdleTimeout, err = time.ParseDuration(tmp)
+		if err != nil {
+			opts.IdleTimeout = 0
+		}
+	}
+
+	tmp, ok = p.Get(redisIdleCheckFreq)
+	if ok {
+		opts.IdleCheckFrequency, err = time.ParseDuration(tmp)
+		if err != nil {
+			opts.IdleCheckFrequency = 0
+		}
+	}
+
+	caPath, _ := p.Get(redisTLSCA)
+	certPath, _ := p.Get(redisTLSCert)
+	keyPath, _ := p.Get(redisTLSKey)
+	insecureSkipVerify := p.GetBool(redisTLSInsecureSkipVerify, false)
+	if certPath != "" && keyPath != "" {
+		opts.TLSConfig, err = getTLS(caPath, certPath, keyPath, insecureSkipVerify)
+		if err != nil {
+			opts.TLSConfig = nil
+		}
+	}
+
+	return opts
+}
+
+func getOptionsCluster(p *properties.Properties) *goredis.ClusterOptions {
+	opts := &goredis.ClusterOptions{}
+
+	addresses, _ := p.Get(redisAddr)
+	opts.Addrs = strings.Split(addresses, ";")
+
+	opts.MaxRedirects = p.GetInt(redisMaxRedirects, 0)
+	opts.ReadOnly = p.GetBool(redisReadOnly, false)
+	opts.RouteByLatency = p.GetBool(redisRouteByLatency, false)
+	opts.RouteRandomly = p.GetBool(redisRouteRandomly, false)
+
+	opts.Password, _ = p.Get(redisPassword)
 	opts.MaxRetries = p.GetInt(redisMaxRetries, 0)
 
 	var err error

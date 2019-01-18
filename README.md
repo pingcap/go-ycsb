@@ -225,10 +225,15 @@ Common configurations:
 ### Redis
 |field|default value|description|
 |-|-|-|
+|redis.mode|single|"single" or "cluster"|
 |redis.network|tcp|"tcp" or "unix"|
-|redis.addr||Redis server address in "host:port" form|
+|redis.addr||Redis server address(es) in "host:port" form, can be semi-colon `;` separated in cluster mode|
 |redis.password||Redis server password|
 |redis.db|0|Redis server target db|
+|redis.max_redirects|8|The maximum number of retries before giving up (only for cluster mode)|
+|redis.read_only|false|Enables read-only commands on slave nodes (only for cluster mode)|
+|redis.route_by_latency|false|Allows routing read-only commands to the closest master or slave node (only for cluster mode)|
+|redis.route_randomly|false|Allows routing read-only commands to the random master or slave node (only for cluster mode)|
 |redis.max_retries||Max retries before giving up connection|
 |redis.min_retry_backoff|8ms|Minimum backoff between each retry|
 |redis.max_retry_backoff|512ms|Maximum backoff between each retry|
@@ -245,33 +250,6 @@ Common configurations:
 |redis.tls_cert||Path to cert file|
 |redis.tls_key||Path to key file|
 |redis.tls_insecure_skip_verify|false|Controls whether a client verifies the server's certificate chain and host name|
-
-### Redis Cluster
-|field|default value|description|
-|-|-|-|
-|redis_cluster.addrs||A seed list in the form of comma separated "host:port"|
-|redis_cluster.max_redirects|8|The maximum number of retries before giving up|
-|redis_cluster.read_only|false|Enables read-only commands on slave nodes|
-|redis_cluster.route_by_latency|false|Allows routing read-only commands to the closest master or slave node|
-|redis_cluster.route_randomly|false|Allows routing read-only commands to the random master or slave node|
-|redis_cluster.password||Redis server password|
-|redis_cluster.max_retries||Max retries before giving up connection|
-|redis_cluster.min_retry_backoff|8ms|Minimum backoff between each retry|
-|redis_cluster.max_retry_backoff|512ms|Maximum backoff between each retry|
-|redis_cluster.dial_timeout|5s|Dial timeout for establishing new connection|
-|redis_cluster.read_timeout|3s|Timeout for socket reads|
-|redis_cluster.write_timeout|3s|Timeout for socker writes|
-|redis_cluster.pool_size|10|Maximum number of socket connections|
-|redis_cluster.min_idle_conns|0|Minimum number of idle connections|
-|redis_cluster.max_conn_age|0|Connection age at which client closes the connection|
-|redis_cluster.pool_timeout|4s|Amount of time client waits for connections are busy before returning an error|
-|redis_cluster.idle_timeout|5m|Amount of time after which client closes idle connections. Should be less than server timeout|
-|redis_cluster.idle_check_frequency|1m|Frequency of idle checks made by idle connections reaper|
-|redis_cluster.tls_ca||Path to CA file|
-|redis_cluster.tls_cert||Path to cert file|
-|redis_cluster.tls_key||Path to key file|
-|redis_cluster.tls_insecure_skip_verify|false|Controls whether a client verifies the server's certificate chain and host name|
-
 
 ## TODO
 
