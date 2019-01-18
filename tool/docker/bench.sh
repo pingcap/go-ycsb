@@ -35,6 +35,12 @@ case ${DB} in
     mysql8)
         PROPS+=" -p mysql.host=mysql"
         SLEEPTIME=30
+        DB="mysql"
+        ;;
+    mariadb)
+        PROPS+=" -p mysql.host=mariadb"
+        SLEEPTIME=60
+        DB="mysql"
         ;;
     pg)
         PROPS+=" -p pg.host=pg"
@@ -74,11 +80,11 @@ CMD="docker-compose -f ${BENCH_DB}.yml"
 
 if [ ${TYPE} == 'load' ]; then 
     $CMD down --remove-orphans
-    rm -rf ./data/${DB}
+    rm -rf ./data/${BENCH_DB}
     $CMD up -d
     sleep ${SLEEPTIME}
 
-    $CMD run ycsb load ${DB} ${WORKLOADS} -p=workload=core ${PROPS} | tee ${LOG}/${BENCH_DB}_load.log
+    $CMD run ycsb load ${DB} ${WORKLOADS} -p workload=core ${PROPS} | tee ${LOG}/${BENCH_DB}_load.log
 
     $CMD down
 elif [ ${TYPE} == 'run' ]; then
