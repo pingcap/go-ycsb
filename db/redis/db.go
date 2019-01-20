@@ -250,83 +250,19 @@ func getOptionsSingle(p *properties.Properties) *goredis.Options {
 	opts.Password, _ = p.Get(redisPassword)
 	opts.DB = p.GetInt(redisDB, 0)
 	opts.MaxRetries = p.GetInt(redisMaxRetries, 0)
-
-	var err error
-	tmp, ok := p.Get(redisMinRetryBackoff)
-	if ok {
-		opts.MinRetryBackoff, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.MinRetryBackoff = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisMaxRetryBackoff)
-	if ok {
-		opts.MaxRetryBackoff, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.MaxRetryBackoff = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisDialTimeout)
-	if ok {
-		opts.DialTimeout, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.DialTimeout = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisReadTimeout)
-	if ok {
-		opts.ReadTimeout, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.ReadTimeout = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisWriteTimeout)
-	if ok {
-		opts.WriteTimeout, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.WriteTimeout = 0
-		}
-	}
-
+	opts.MinRetryBackoff = p.GetDuration(redisMinRetryBackoff, time.Millisecond*8)
+	opts.MaxRetryBackoff = p.GetDuration(redisMaxRetryBackoff, time.Millisecond*512)
+	opts.DialTimeout = p.GetDuration(redisDialTimeout, time.Second*5)
+	opts.ReadTimeout = p.GetDuration(redisReadTimeout, time.Second*3)
+	opts.WriteTimeout = p.GetDuration(redisWriteTimeout, opts.ReadTimeout)
 	opts.PoolSize = p.GetInt(redisPoolSize, 10)
 	opts.MinIdleConns = p.GetInt(redisMinIdleConns, 0)
+	opts.MaxConnAge = p.GetDuration(redisMaxConnAge, 0)
+	opts.PoolTimeout = p.GetDuration(redisPoolTimeout, time.Second+opts.ReadTimeout)
+	opts.IdleTimeout = p.GetDuration(redisIdleTimeout, time.Minute*5)
+	opts.IdleCheckFrequency = p.GetDuration(redisIdleCheckFreq, time.Minute)
 
-	tmp, ok = p.Get(redisMaxConnAge)
-	if ok {
-		opts.MaxConnAge, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.MaxConnAge = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisPoolTimeout)
-	if ok {
-		opts.PoolTimeout, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.PoolTimeout = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisIdleTimeout)
-	if ok {
-		opts.IdleTimeout, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.IdleTimeout = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisIdleCheckFreq)
-	if ok {
-		opts.IdleCheckFrequency, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.IdleCheckFrequency = 0
-		}
-	}
-
+	var err error
 	caPath, _ := p.Get(redisTLSCA)
 	certPath, _ := p.Get(redisTLSCert)
 	keyPath, _ := p.Get(redisTLSKey)
@@ -346,91 +282,25 @@ func getOptionsCluster(p *properties.Properties) *goredis.ClusterOptions {
 
 	addresses, _ := p.Get(redisAddr)
 	opts.Addrs = strings.Split(addresses, ";")
-
 	opts.MaxRedirects = p.GetInt(redisMaxRedirects, 0)
 	opts.ReadOnly = p.GetBool(redisReadOnly, false)
 	opts.RouteByLatency = p.GetBool(redisRouteByLatency, false)
 	opts.RouteRandomly = p.GetBool(redisRouteRandomly, false)
-
 	opts.Password, _ = p.Get(redisPassword)
 	opts.MaxRetries = p.GetInt(redisMaxRetries, 0)
-
-	var err error
-	tmp, ok := p.Get(redisMinRetryBackoff)
-	if ok {
-		opts.MinRetryBackoff, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.MinRetryBackoff = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisMaxRetryBackoff)
-	if ok {
-		opts.MaxRetryBackoff, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.MaxRetryBackoff = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisDialTimeout)
-	if ok {
-		opts.DialTimeout, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.DialTimeout = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisReadTimeout)
-	if ok {
-		opts.ReadTimeout, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.ReadTimeout = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisWriteTimeout)
-	if ok {
-		opts.WriteTimeout, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.WriteTimeout = 0
-		}
-	}
-
+	opts.MinRetryBackoff = p.GetDuration(redisMinRetryBackoff, time.Millisecond*8)
+	opts.MaxRetryBackoff = p.GetDuration(redisMaxRetryBackoff, time.Millisecond*512)
+	opts.DialTimeout = p.GetDuration(redisDialTimeout, time.Second*5)
+	opts.ReadTimeout = p.GetDuration(redisReadTimeout, time.Second*3)
+	opts.WriteTimeout = p.GetDuration(redisWriteTimeout, opts.ReadTimeout)
 	opts.PoolSize = p.GetInt(redisPoolSize, 10)
 	opts.MinIdleConns = p.GetInt(redisMinIdleConns, 0)
+	opts.MaxConnAge = p.GetDuration(redisMaxConnAge, 0)
+	opts.PoolTimeout = p.GetDuration(redisPoolTimeout, time.Second+opts.ReadTimeout)
+	opts.IdleTimeout = p.GetDuration(redisIdleTimeout, time.Minute*5)
+	opts.IdleCheckFrequency = p.GetDuration(redisIdleCheckFreq, time.Minute)
 
-	tmp, ok = p.Get(redisMaxConnAge)
-	if ok {
-		opts.MaxConnAge, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.MaxConnAge = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisPoolTimeout)
-	if ok {
-		opts.PoolTimeout, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.PoolTimeout = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisIdleTimeout)
-	if ok {
-		opts.IdleTimeout, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.IdleTimeout = 0
-		}
-	}
-
-	tmp, ok = p.Get(redisIdleCheckFreq)
-	if ok {
-		opts.IdleCheckFrequency, err = time.ParseDuration(tmp)
-		if err != nil {
-			opts.IdleCheckFrequency = 0
-		}
-	}
-
+	var err error
 	caPath, _ := p.Get(redisTLSCA)
 	certPath, _ := p.Get(redisTLSCert)
 	keyPath, _ := p.Get(redisTLSKey)
