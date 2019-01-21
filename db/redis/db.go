@@ -131,17 +131,53 @@ func (r *redis) Scan(ctx context.Context, table string, startKey string, count i
 }
 
 func (r *redis) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	data, err := json.Marshal(values)
-	if err != nil {
-		return err
-	}
-
+	var err error
 	switch r.mode {
 	case "cluster":
+		var d string
+		d, err = r.clusterCli.Get(table + "/" + key).Result()
+		if err != nil {
+			return err
+		}
+
+		curVal := map[string][]byte{}
+		err = json.Unmarshal([]byte(d), &curVal)
+		if err != nil {
+			return err
+		}
+		for k, v := range values {
+			curVal[k] = v
+		}
+		var data []byte
+		data, err = json.Marshal(curVal)
+		if err != nil {
+			return err
+		}
+
 		err = r.clusterCli.Set(table+"/"+key, string(data), 0).Err()
 	case "single":
 		fallthrough
 	default:
+		var d string
+		d, err = r.singleCli.Get(table + "/" + key).Result()
+		if err != nil {
+			return err
+		}
+
+		curVal := map[string][]byte{}
+		err = json.Unmarshal([]byte(d), &curVal)
+		if err != nil {
+			return err
+		}
+		for k, v := range values {
+			curVal[k] = v
+		}
+		var data []byte
+		data, err = json.Marshal(curVal)
+		if err != nil {
+			return err
+		}
+
 		err = r.singleCli.Set(table+"/"+key, string(data), 0).Err()
 	}
 
