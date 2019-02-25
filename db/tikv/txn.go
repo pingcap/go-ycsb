@@ -23,6 +23,7 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/pingcap/tidb/kv"
 	"github.com/pingcap/tidb/store/tikv"
+	log "github.com/sirupsen/logrus"
 )
 
 type txnDB struct {
@@ -153,43 +154,43 @@ func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count 
 }
 
 func (db *txnDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	rowKey := db.getRowKey(table, key)
+	// Suppress RunInNewTxn warning log.
+	log.SetLevel(log.ErrorLevel)
 
-	tx, err := db.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
+	f := func(tx kv.Transaction) error {
+		rowKey := db.getRowKey(table, key)
 
-	row, err := tx.Get(rowKey)
-	if kv.ErrNotExist.Equal(err) {
+		row, err := tx.Get(rowKey)
+		if kv.ErrNotExist.Equal(err) {
+			return nil
+		} else if row == nil {
+			return err
+		}
+
+		data, err := db.r.Decode(row, nil)
+		if err != nil {
+			return err
+		}
+
+		for field, value := range values {
+			data[field] = value
+		}
+
+		buf := db.bufPool.Get()
+		defer db.bufPool.Put(buf)
+
+		rowData, err := db.r.Encode(buf.Bytes(), data)
+		if err != nil {
+			return err
+		}
+
+		if err := tx.Set(rowKey, rowData); err != nil {
+			return err
+		}
+
 		return nil
-	} else if row == nil {
-		return err
 	}
-
-	data, err := db.r.Decode(row, nil)
-	if err != nil {
-		return err
-	}
-
-	for field, value := range values {
-		data[field] = value
-	}
-
-	buf := db.bufPool.Get()
-	defer db.bufPool.Put(buf)
-
-	rowData, err := db.r.Encode(buf.Bytes(), data)
-	if err != nil {
-		return err
-	}
-
-	if err := tx.Set(rowKey, rowData); err != nil {
-		return err
-	}
-
-	return tx.Commit(ctx)
+	return kv.RunInNewTxn(db.db, true, f)
 }
 
 func (db *txnDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
