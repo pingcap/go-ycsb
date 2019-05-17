@@ -5,20 +5,26 @@ import (
 	"fmt"
 
 	"github.com/magiconair/properties"
-	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/mongo"
-	"github.com/mongodb/mongo-go-driver/mongo/options"
-	"github.com/mongodb/mongo-go-driver/x/network/command"
-	"github.com/mongodb/mongo-go-driver/x/network/connstring"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/x/network/command"
+	"go.mongodb.org/mongo-driver/x/network/connstring"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
 const (
 	mongodbURI = "mongodb.uri"
 	mongodbNS  = "mongodb.ns"
+	mongodbUsr = "mongodb.user"
+	mongodbPassW = "mongodb.passw"
+	mongodbDatabase = "mongodb.dbauth"
 
-	defaultURI = "mongodb://localhost:27017/ycsb?w=1"
+	defaultURI = "mongodb://localhost:27017"
 	defaultNS  = "ycsb.ycsb"
+	defaultUsr = "root"
+	defaultPassW  = ""
+	defaultAuth = "admin"
 )
 
 type mongoDB struct {
@@ -84,6 +90,7 @@ func (m *mongoDB) Insert(ctx context.Context, table string, key string, values m
 		doc[k] = v
 	}
 	if _, err := m.coll.InsertOne(ctx, doc); err != nil {
+		fmt.Println(err)
 		return fmt.Errorf("Insert error: %s", err.Error())
 	}
 	return nil
@@ -120,6 +127,10 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	uri := p.GetString(mongodbURI, defaultURI)
 	nss := p.GetString(mongodbNS, defaultNS)
 
+	usr := p.GetString(mongodbUsr, defaultUsr)
+	passw := p.GetString(mongodbPassW, defaultPassW)
+	dbAuth := p.GetString(mongodbDatabase, defaultAuth)
+
 	if _, err := connstring.Parse(uri); err != nil {
 		return nil, err
 	}
@@ -131,13 +142,27 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cli, err := mongo.Connect(ctx, uri)
+	cred := options.Client()
+
+	cred.Auth = &options.Credential{
+		Username:   usr,
+		Password:   passw,
+		AuthSource: dbAuth,
+	}
+
+	cred.ApplyURI(uri)
+	cli, err := mongo.NewClient(cred)
+
+	err = cli.Connect(ctx)
+	// cli, err := mongo.Connect(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
 	if err := cli.Ping(ctx, nil); err != nil {
 		return nil, err
 	}
+
+	fmt.Println("Connected to MongoDB!")
 
 	m := &mongoDB{
 		cli:      cli,
@@ -151,3 +176,4 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 func init() {
 	ycsb.RegisterDBCreator("mongodb", mongodbCreator{})
 }
+
