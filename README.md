@@ -219,8 +219,11 @@ Common configurations:
 
 |field|default value|description|
 |-|-|-|
-|mongodb.uri|"mongodb://localhost:27017/ycsb?w=1"|Connection string URI format|
+|mongodb.uri|"mongodb://localhost:27017"|Connection string URI format|
 |mongodb.ns|"ycsb.ycsb"|Namespace|
+|mongodb.user|"root"|Database Username|
+|mongodb.passw|""|Database Password|
+|mongodb.dbauth|"admin"|Admin Database|
 
 ### Redis
 |field|default value|description|
