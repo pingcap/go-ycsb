@@ -19,10 +19,6 @@ import (
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/prop"
-	"github.com/pingcap/parser/mysql"
-	"github.com/pingcap/tidb/sessionctx/stmtctx"
-	"github.com/pingcap/tidb/tablecodec"
-	"github.com/pingcap/tidb/types"
 )
 
 // createFieldIndices is a helper function to create a field -> index mapping
@@ -68,15 +64,7 @@ func (r *RowCodec) Decode(row []byte, fields []string) (map[string][]byte, error
 		fields = r.fields
 	}
 
-	cols := make(map[int64]*types.FieldType, len(fields))
-	fieldType := types.NewFieldType(mysql.TypeVarchar)
-
-	for _, field := range fields {
-		i := r.fieldIndices[field]
-		cols[i] = fieldType
-	}
-
-	data, err := tablecodec.DecodeRow(row, cols, nil)
+	data, err := DecodeRow(row)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +73,7 @@ func (r *RowCodec) Decode(row []byte, fields []string) (map[string][]byte, error
 	for _, field := range fields {
 		i := r.fieldIndices[field]
 		if v, ok := data[i]; ok {
-			res[field] = v.GetBytes()
+			res[field] = v
 		}
 	}
 
@@ -94,19 +82,16 @@ func (r *RowCodec) Decode(row []byte, fields []string) (map[string][]byte, error
 
 // Encode encodes the values
 func (r *RowCodec) Encode(buf []byte, values map[string][]byte) ([]byte, error) {
-	cols := make([]types.Datum, 0, len(values))
+	cols := make([][]byte, 0, len(values))
 	colIDs := make([]int64, 0, len(values))
 
 	for k, v := range values {
 		i := r.fieldIndices[k]
-		var d types.Datum
-		d.SetBytes(v)
-
-		cols = append(cols, d)
+		cols = append(cols, v)
 		colIDs = append(colIDs, i)
 	}
 
-	rowData, err := tablecodec.EncodeRow(&stmtctx.StatementContext{}, cols, colIDs, buf, nil)
+	rowData, err := EncodeRow(cols, colIDs, buf)
 	return rowData, err
 }
 
