@@ -42,8 +42,6 @@ func (c tikvCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		return createRawDB(p)
 	case "txn":
 		return createTxnDB(p)
-	case "coprocessor":
-		return createCoprocessorDB(p)
 	default:
 		return nil, fmt.Errorf("unsupported type %s", tp)
 	}
