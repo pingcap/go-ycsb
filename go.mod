@@ -29,6 +29,7 @@ require (
 	github.com/magiconair/properties v1.8.0
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/mongodb/mongo-go-driver v0.2.0
+	github.com/pingcap/errors v0.11.1
 	github.com/pingcap/kvproto v0.0.0-20190506024016-26344dff8f48 // indirect
 	github.com/pingcap/parser v0.0.0-20190505092803-4542e963c7f1
 	github.com/pingcap/pd v0.0.0-20190505133533-6a02baad762b // indirect

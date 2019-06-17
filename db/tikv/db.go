@@ -18,8 +18,7 @@ import (
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
-	"github.com/pingcap/tidb/config"
-	tikvconfig "github.com/tikv/client-go/config"
+	"github.com/tikv/client-go/config"
 )
 
 const (
@@ -34,10 +33,7 @@ type tikvCreator struct {
 }
 
 func (c tikvCreator) Create(p *properties.Properties) (ycsb.DB, error) {
-	config.GetGlobalConfig().TiKVClient.GrpcConnectionCount = p.GetUint(tikvConnCount, 128)
-	config.GetGlobalConfig().TiKVClient.MaxBatchSize = p.GetUint(tikvBatchSize, 128)
-
-	conf := tikvconfig.Default()
+	conf := onfig.Default()
 	conf.RPC.MaxConnectionCount = p.GetUint(tikvConnCount, 128)
 	conf.RPC.Batch.MaxBatchSize = p.GetUint(tikvBatchSize, 128)
 
@@ -47,8 +43,6 @@ func (c tikvCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		return createRawDB(p, conf)
 	case "txn":
 		return createTxnDB(p, conf)
-	case "coprocessor":
-		return createCoprocessorDB(p)
 	default:
 		return nil, fmt.Errorf("unsupported type %s", tp)
 	}
