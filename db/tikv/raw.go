@@ -21,19 +21,19 @@ import (
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
-	"github.com/pingcap/tidb/config"
-	"github.com/pingcap/tidb/store/tikv"
+	"github.com/tikv/client-go/config"
+	"github.com/tikv/client-go/rawkv"
 )
 
 type rawDB struct {
-	db      *tikv.RawKVClient
+	db      *rawkv.Client
 	r       *util.RowCodec
 	bufPool *util.BufPool
 }
 
-func createRawDB(p *properties.Properties) (ycsb.DB, error) {
+func createRawDB(p *properties.Properties, conf config.Config) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	db, err := tikv.NewRawKVClient(strings.Split(pdAddr, ","), config.Security{})
+	db, err := rawkv.NewClient(strings.Split(pdAddr, ","), conf)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,8 @@ func createRawDB(p *properties.Properties) (ycsb.DB, error) {
 	return &rawDB{
 		db:      db,
 		r:       util.NewRowCodec(p),
-		bufPool: bufPool}, nil
+		bufPool: bufPool,
+	}, nil
 }
 
 func (db *rawDB) Close() error {

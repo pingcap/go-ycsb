@@ -21,23 +21,20 @@ import (
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
-	"github.com/pingcap/tidb/kv"
-	"github.com/pingcap/tidb/store/tikv"
+	"github.com/tikv/client-go/config"
+	"github.com/tikv/client-go/txnkv"
+	"github.com/tikv/client-go/txnkv/kv"
 )
 
 type txnDB struct {
-	db      kv.Storage
+	db      *txnkv.Client
 	r       *util.RowCodec
 	bufPool *util.BufPool
 }
 
-func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
+func createTxnDB(p *properties.Properties, conf config.Config) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	pdAddr = strings.TrimPrefix(pdAddr, "http://")
-
-	driver := tikv.Driver{}
-	db, err := driver.Open(fmt.Sprintf("tikv://%s?disableGC=true", pdAddr))
-
+	db, err := txnkv.NewClient(strings.Split(pdAddr, ","), conf)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +70,7 @@ func (db *txnDB) Read(ctx context.Context, table string, key string, fields []st
 	defer tx.Rollback()
 
 	row, err := tx.Get(db.getRowKey(table, key))
-	if kv.ErrNotExist.Equal(err) {
+	if kv.IsErrNotFound(err) {
 		return nil, nil
 	} else if row == nil {
 		return nil, err
@@ -96,7 +93,7 @@ func (db *txnDB) BatchRead(ctx context.Context, table string, keys []string, fie
 	rowValues := make([]map[string][]byte, len(keys))
 	for i, key := range keys {
 		value, err := tx.Get(db.getRowKey(table, key))
-		if kv.ErrNotExist.Equal(err) || value == nil {
+		if kv.IsErrNotFound(err) || value == nil {
 			rowValues[i] = nil
 		} else {
 			rowValues[i], err = db.r.Decode(value, fields)
@@ -162,7 +159,7 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 	defer tx.Rollback()
 
 	row, err := tx.Get(rowKey)
-	if kv.ErrNotExist.Equal(err) {
+	if kv.IsErrNotFound(err) {
 		return nil
 	} else if row == nil {
 		return err
