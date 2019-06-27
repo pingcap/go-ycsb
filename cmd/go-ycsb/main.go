@@ -99,10 +99,6 @@ func initialGlobal(dbName string, onProperties func()) {
 		globalProps.Set(key, strings.Join(val,","))
 	}
 
-	fmt.Println(globalProps.String())
-
-
-
 	if onProperties != nil {
 		onProperties()
 	}
