@@ -101,7 +101,7 @@ Common configurations:
 
 |field|default value|description|
 |-|-|-|
-|tikv.pd|"127.0.0.1:2379"|PD endpoints, seperated by comma|
+|tikv.pd|"127.0.0.1:2379"|PD endpoints, if need connect multiple endpoints,set pd endpoints like follow: `-p tikv.pd=127.0.0.1:2379 -p tikv.pd=127.0.0.2:2379` |
 |tikv.type|"raw"|TiKV mode, "raw", "txn", or "coprocessor"|
 |tikv.conncount|128|gRPC connection count|
 |tikv.batchsize|128|Request batch size|
@@ -212,7 +212,7 @@ Common configurations:
 
 |field|default value|description|
 |-|-|-|
-|cassandra.cluster|"127.0.0.1:9042"|Cassandra cluster|
+|cassandra.cluster|"127.0.0.1:9042"|Cassandra cluster, set multiple server endpoints like follow: `-p cassandra.cluster=127.0.0.1:9042 -p cassandra.cluster=127.0.0.2:9042`|
 |cassandra.keyspace|"test"|Keyspace|
 
 ### MongoDB

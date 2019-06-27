@@ -85,10 +85,23 @@ func initialGlobal(dbName string, onProperties func()) {
 		globalProps = properties.MustLoadFiles(propertyFiles, properties.UTF8, false)
 	}
 
+	propsMap:=map[string][]string{}
 	for _, prop := range propertyValues {
 		seps := strings.SplitN(prop, "=", 2)
-		globalProps.Set(seps[0], seps[1])
+		if propVals,exist:=propsMap[seps[0]];exist{
+			propsMap[seps[0]]=append(propVals,seps[1])
+		}else{
+			propsMap[seps[0]]=[]string{seps[1]}
+		}
 	}
+
+	for key,val:=range propsMap{
+		globalProps.Set(key, strings.Join(val,","))
+	}
+
+	fmt.Println(globalProps.String())
+
+
 
 	if onProperties != nil {
 		onProperties()
