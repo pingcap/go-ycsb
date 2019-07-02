@@ -165,3 +165,15 @@ func (db DbWrapper) BatchDelete(ctx context.Context, table string, keys []string
 	}
 	return nil
 }
+
+func (db DbWrapper) Analyze(ctx context.Context, table string) (err error) {
+	analyzeDB, ok := db.DB.(ycsb.AnalyzeDB)
+	if ok {
+		start := time.Now()
+		defer func() {
+			measure(start, "ANALYZE TABLE", err)
+		}()
+		return analyzeDB.Analyze(ctx, table)
+	}
+	return nil
+}

@@ -325,6 +325,11 @@ func (db *mysqlDB) Delete(ctx context.Context, table string, key string) error {
 	return db.execQuery(ctx, query, key)
 }
 
+func (db *mysqlDB) Analyze(ctx context.Context, table string) error {
+	_, err := db.db.Exec(fmt.Sprintf(`ANALYZE TABLE %s`, table))
+	return err
+}
+
 func init() {
 	ycsb.RegisterDBCreator("mysql", mysqlCreator{})
 	ycsb.RegisterDBCreator("tidb", mysqlCreator{})
