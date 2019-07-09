@@ -216,6 +216,12 @@ func (c *Client) Run(ctx context.Context) {
 	}
 
 	wg.Wait()
+	if !c.p.GetBool(prop.DoTransactions, true) {
+		// when loading is finished, try to analyze table if possible.
+		if analyzeDB, ok := c.db.(ycsb.AnalyzeDB); ok {
+			analyzeDB.Analyze(ctx, c.p.GetString(prop.TableName, prop.TableNameDefault))
+		}
+	}
 	measureCancel()
 	<-measureCh
 }

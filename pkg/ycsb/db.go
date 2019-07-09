@@ -95,6 +95,13 @@ type BatchDB interface {
 	BatchDelete(ctx context.Context, table string, keys []string) error
 }
 
+// AnalyzeDB is the interface for the DB that can perform an analysis on given table.
+type AnalyzeDB interface {
+	// Analyze performs a key distribution analysis for the table.
+	// table: The name of the table.
+	Analyze(ctx context.Context, table string) error
+}
+
 var dbCreators = map[string]DBCreator{}
 
 // RegisterDBCreator registers a creator for the database
