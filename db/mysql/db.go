@@ -32,13 +32,12 @@ import (
 
 // mysql properties
 const (
-	mysqlHost              = "mysql.host"
-	mysqlPort              = "mysql.port"
-	mysqlUser              = "mysql.user"
-	mysqlPassword          = "mysql.password"
-	mysqlDBName            = "mysql.db"
-	mysqlForceIndex        = "mysql.force_index"
-	mysqlForceIndexDefault = false
+	mysqlHost       = "mysql.host"
+	mysqlPort       = "mysql.port"
+	mysqlUser       = "mysql.user"
+	mysqlPassword   = "mysql.password"
+	mysqlDBName     = "mysql.db"
+	mysqlForceIndex = "mysql.force_index"
 	// TODO: support batch and auto commit
 )
 
@@ -85,8 +84,8 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	db.SetMaxOpenConns(threadCount * 2)
 
 	d.verbose = p.GetBool(prop.Verbose, prop.VerboseDefault)
-	if p.GetBool(mysqlForceIndex, mysqlForceIndexDefault) {
-		d.forceIndexKeyword = "FORCE INDEX(PRIMARY)"
+	if p.GetBool(mysqlForceIndex, false) {
+		d.forceIndexKeyword = "FORCE INDEX(`PRIMARY`)"
 	}
 	d.db = db
 
