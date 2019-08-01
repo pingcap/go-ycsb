@@ -32,11 +32,12 @@ import (
 
 // mysql properties
 const (
-	mysqlHost     = "mysql.host"
-	mysqlPort     = "mysql.port"
-	mysqlUser     = "mysql.user"
-	mysqlPassword = "mysql.password"
-	mysqlDBName   = "mysql.db"
+	mysqlHost       = "mysql.host"
+	mysqlPort       = "mysql.port"
+	mysqlUser       = "mysql.user"
+	mysqlPassword   = "mysql.password"
+	mysqlDBName     = "mysql.db"
+	mysqlForceIndex = "mysql.force_index"
 	// TODO: support batch and auto commit
 )
 
@@ -44,9 +45,10 @@ type mysqlCreator struct {
 }
 
 type mysqlDB struct {
-	p       *properties.Properties
-	db      *sql.DB
-	verbose bool
+	p                 *properties.Properties
+	db                *sql.DB
+	verbose           bool
+	forceIndexKeyword string
 
 	bufPool *util.BufPool
 }
@@ -82,6 +84,9 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	db.SetMaxOpenConns(threadCount * 2)
 
 	d.verbose = p.GetBool(prop.Verbose, prop.VerboseDefault)
+	if p.GetBool(mysqlForceIndex, true) {
+		d.forceIndexKeyword = "FORCE INDEX(`PRIMARY`)"
+	}
 	d.db = db
 
 	d.bufPool = util.NewBufPool()
@@ -217,10 +222,10 @@ func (db *mysqlDB) queryRows(ctx context.Context, query string, count int, args 
 func (db *mysqlDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
-		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = ?`, table)
+		query = fmt.Sprintf(`SELECT * FROM %s %s WHERE YCSB_KEY = ?`, table, db.forceIndexKeyword)
 	} else {
 		sort.Strings(fields)
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = ?`, strings.Join(fields, ","), table)
+		query = fmt.Sprintf(`SELECT %s FROM %s %s WHERE YCSB_KEY = ?`, strings.Join(fields, ","), table, db.forceIndexKeyword)
 	}
 
 	rows, err := db.queryRows(ctx, query, 1, key)
@@ -238,10 +243,10 @@ func (db *mysqlDB) Read(ctx context.Context, table string, key string, fields []
 func (db *mysqlDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
-		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, table)
+		query = fmt.Sprintf(`SELECT * FROM %s %s WHERE YCSB_KEY >= ? LIMIT ?`, table, db.forceIndexKeyword)
 	} else {
 		sort.Strings(fields)
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, strings.Join(fields, ","), table)
+		query = fmt.Sprintf(`SELECT %s FROM %s %s WHERE YCSB_KEY >= ? LIMIT ?`, strings.Join(fields, ","), table, db.forceIndexKeyword)
 	}
 
 	rows, err := db.queryRows(ctx, query, count, startKey, count)
