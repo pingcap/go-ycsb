@@ -84,7 +84,7 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	db.SetMaxOpenConns(threadCount * 2)
 
 	d.verbose = p.GetBool(prop.Verbose, prop.VerboseDefault)
-	if p.GetBool(mysqlForceIndex, false) {
+	if p.GetBool(mysqlForceIndex, true) {
 		d.forceIndexKeyword = "FORCE INDEX(`PRIMARY`)"
 	}
 	d.db = db
