@@ -93,7 +93,7 @@ Common configurations:
 |mysql.host|"127.0.0.1"|MySQL Host|
 |mysql.port|3306|MySQL Port|
 |mysql.user|"root"|MySQL User|
-|mysql.passowrd||MySQL Password|
+|mysql.password||MySQL Password|
 |mysql.db|"test"|MySQL Database|
 
 
