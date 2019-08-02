@@ -2,29 +2,28 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/network/command"
 	"go.mongodb.org/mongo-driver/x/network/connstring"
-	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
 const (
-	mongodbURI = "mongodb.uri"
-	mongodbNS  = "mongodb.ns"
-	mongodbUsr = "mongodb.user"
-	mongodbPassW = "mongodb.passw"
-	mongodbDatabase = "mongodb.dbauth"
+	mongodbUri       = "mongodb.uri"
+	mongodbNamespace = "mongodb.namespace"
+	mongodbAuthdb    = "mongodb.authenticationDatabase"
+	mongodbUsername  = "mongodb.username"
+	mongodbPassword  = "mongodb.password"
 
-	defaultURI = "mongodb://localhost:27017"
-	defaultNS  = "ycsb.ycsb"
-	defaultUsr = "root"
-	defaultPassW  = ""
-	defaultAuth = "admin"
+	defaultUri       = "mongodb://localhost:27017"
+	defaultNamespace = "ycsb.ycsb"
+	defaultAuthdb    = "admin"
 )
 
 type mongoDB struct {
@@ -124,12 +123,9 @@ type mongodbCreator struct {
 }
 
 func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
-	uri := p.GetString(mongodbURI, defaultURI)
-	nss := p.GetString(mongodbNS, defaultNS)
-
-	usr := p.GetString(mongodbUsr, defaultUsr)
-	passw := p.GetString(mongodbPassW, defaultPassW)
-	dbAuth := p.GetString(mongodbDatabase, defaultAuth)
+	uri := p.GetString(mongodbUri, defaultUri)
+	nss := p.GetString(mongodbNamespace, defaultNamespace)
+	authdb := p.GetString(mongodbAuthdb, defaultAuthdb)
 
 	if _, err := connstring.Parse(uri); err != nil {
 		return nil, err
@@ -142,24 +138,28 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cred := options.Client()
+	cliOpts := options.Client().ApplyURI(uri)
 
-	cred.Auth = &options.Credential{
-		Username:   usr,
-		Password:   passw,
-		AuthSource: dbAuth,
+	username, usrExist := p.Get(mongodbUsername)
+	password, pwdExist := p.Get(mongodbPassword)
+	if usrExist && pwdExist {
+		cliOpts.SetAuth(options.Credential{AuthSource: authdb, Username: username, Password: password})
+	} else if usrExist {
+		return nil, errors.New("mongodb.username is set, but mongodb.password is missing")
+	} else if pwdExist {
+		return nil, errors.New("mongodb.password is set, but mongodb.username is missing")
 	}
 
-	cred.ApplyURI(uri)
-	cli, err := mongo.NewClient(cred)
-
-	err = cli.Connect(ctx)
-	// cli, err := mongo.Connect(ctx, uri)
+	cli, err := mongo.Connect(ctx, cliOpts)
 	if err != nil {
 		return nil, err
 	}
 	if err := cli.Ping(ctx, nil); err != nil {
 		return nil, err
+	}
+	// check if auth passed
+	if _, err := cli.ListDatabaseNames(ctx, map[string]string{}); err != nil {
+		return nil, errors.New("auth failed")
 	}
 
 	fmt.Println("Connected to MongoDB!")
@@ -176,4 +176,3 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 func init() {
 	ycsb.RegisterDBCreator("mongodb", mongodbCreator{})
 }
-
