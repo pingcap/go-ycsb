@@ -60,6 +60,8 @@ const stateKey = contextKey("mysqlDB")
 type mysqlState struct {
 	// Do we need a LRU cache here?
 	stmtCache map[string]*sql.Stmt
+
+	conn *sql.Conn
 }
 
 func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
@@ -137,8 +139,14 @@ func (db *mysqlDB) Close() error {
 }
 
 func (db *mysqlDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
+	conn, err := db.db.Conn(ctx)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create db conn %v", err))
+	}
+
 	state := &mysqlState{
 		stmtCache: make(map[string]*sql.Stmt),
+		conn:      conn,
 	}
 
 	return context.WithValue(ctx, stateKey, state)
@@ -150,6 +158,7 @@ func (db *mysqlDB) CleanupThread(ctx context.Context) {
 	for _, stmt := range state.stmtCache {
 		stmt.Close()
 	}
+	state.conn.Close()
 }
 
 func (db *mysqlDB) getAndCacheStmt(ctx context.Context, query string) (*sql.Stmt, error) {
@@ -159,7 +168,14 @@ func (db *mysqlDB) getAndCacheStmt(ctx context.Context, query string) (*sql.Stmt
 		return stmt, nil
 	}
 
-	stmt, err := db.db.PrepareContext(ctx, query)
+	stmt, err := state.conn.PrepareContext(ctx, query)
+	if err == sql.ErrConnDone {
+		// Try build the connection and prepare again
+		if state.conn, err = db.db.Conn(ctx); err == nil {
+			stmt, err = state.conn.PrepareContext(ctx, query)
+		}
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +190,9 @@ func (db *mysqlDB) clearCacheIfFailed(ctx context.Context, query string, err err
 	}
 
 	state := ctx.Value(stateKey).(*mysqlState)
+	if stmt, ok := state.stmtCache[query]; ok {
+		stmt.Close()
+	}
 	delete(state.stmtCache, query)
 }
 
