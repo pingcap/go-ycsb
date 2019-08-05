@@ -51,15 +51,6 @@ type sqliteDB struct {
 	bufPool *util.BufPool
 }
 
-type contextKey string
-
-const stateKey = contextKey("sqliteDB")
-
-type sqliteState struct {
-	// Do we need a LRU cache here?
-	stmtCache map[string]*sql.Stmt
-}
-
 func (c sqliteCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	d := new(sqliteDB)
 	d.p = p
@@ -132,44 +123,11 @@ func (db *sqliteDB) Close() error {
 }
 
 func (db *sqliteDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
-	state := &sqliteState{
-		stmtCache: make(map[string]*sql.Stmt),
-	}
-
-	return context.WithValue(ctx, stateKey, state)
+	return ctx
 }
 
 func (db *sqliteDB) CleanupThread(ctx context.Context) {
-	state := ctx.Value(stateKey).(*sqliteState)
 
-	for _, stmt := range state.stmtCache {
-		stmt.Close()
-	}
-}
-
-func (db *sqliteDB) getAndCacheStmt(ctx context.Context, query string) (*sql.Stmt, error) {
-	state := ctx.Value(stateKey).(*sqliteState)
-
-	if stmt, ok := state.stmtCache[query]; ok {
-		return stmt, nil
-	}
-
-	stmt, err := db.db.PrepareContext(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-
-	state.stmtCache[query] = stmt
-	return stmt, nil
-}
-
-func (db *sqliteDB) clearCacheIfFailed(ctx context.Context, query string, err error) {
-	if err == nil {
-		return
-	}
-
-	state := ctx.Value(stateKey).(*sqliteState)
-	delete(state.stmtCache, query)
 }
 
 func (db *sqliteDB) queryRows(ctx context.Context, query string, count int, args ...interface{}) ([]map[string][]byte, error) {
@@ -177,11 +135,7 @@ func (db *sqliteDB) queryRows(ctx context.Context, query string, count int, args
 		fmt.Printf("%s %v\n", query, args)
 	}
 
-	stmt, err := db.getAndCacheStmt(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := stmt.QueryContext(ctx, args...)
+	rows, err := db.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +178,6 @@ func (db *sqliteDB) Read(ctx context.Context, table string, key string, fields [
 	}
 
 	rows, err := db.queryRows(ctx, query, 1, key)
-	db.clearCacheIfFailed(ctx, query, err)
 
 	if err != nil {
 		return nil, err
@@ -245,7 +198,6 @@ func (db *sqliteDB) Scan(ctx context.Context, table string, startKey string, cou
 	}
 
 	rows, err := db.queryRows(ctx, query, count, startKey, count)
-	db.clearCacheIfFailed(ctx, query, err)
 
 	return rows, err
 }
@@ -255,13 +207,11 @@ func (db *sqliteDB) execQuery(ctx context.Context, query string, args ...interfa
 		fmt.Printf("%s %v\n", query, args)
 	}
 
-	stmt, err := db.getAndCacheStmt(ctx, query)
+	_, err := db.db.ExecContext(ctx, query, args)
 	if err != nil {
 		return err
 	}
 
-	_, err = stmt.ExecContext(ctx, args...)
-	db.clearCacheIfFailed(ctx, query, err)
 	return err
 }
 
