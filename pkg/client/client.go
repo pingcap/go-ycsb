@@ -167,7 +167,7 @@ func NewClient(p *properties.Properties, workload ycsb.Workload, db ycsb.DB) *Cl
 // Run runs the workload to the target DB, and blocks until all workers end.
 func (c *Client) Run(ctx context.Context) {
 	var wg sync.WaitGroup
-	threadCount := c.p.GetInt(prop.ThreadCount, 100)
+	threadCount := c.p.GetInt(prop.ThreadCount, 1)
 
 	wg.Add(threadCount)
 	measureCtx, measureCancel := context.WithCancel(ctx)
