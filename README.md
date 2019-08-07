@@ -219,11 +219,11 @@ Common configurations:
 
 |field|default value|description|
 |-|-|-|
-|mongodb.uri|"mongodb://localhost:27017"|Connection string URI format|
-|mongodb.ns|"ycsb.ycsb"|Namespace|
-|mongodb.user|"root"|Database Username|
-|mongodb.passw|""|Database Password|
-|mongodb.dbauth|"admin"|Admin Database|
+|mongodb.uri|"mongodb://127.0.0.1:27017"|MongoDB URI|
+|mongodb.namespace|"ycsb.ycsb"|Namespace to use|
+|mongodb.authdb|"admin"|Authentication database|
+|mongodb.username|N/A|Username for authentication|
+|mongodb.password|N/A|Password for authentication|
 
 ### Redis
 |field|default value|description|
