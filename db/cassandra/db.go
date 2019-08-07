@@ -30,8 +30,13 @@ import (
 
 // cassandra properties
 const (
-	cassandraCluster  = "cassandra.cluster"
-	cassandraKeyspace = "cassandra.keyspace"
+	cassandraCluster     = "cassandra.cluster"
+	cassandraKeyspace    = "cassandra.keyspace"
+	cassandraConnections = "cassandra.connections"
+
+	cassandraClusterDefault         = "127.0.0.1:9042"
+	cassandraKeyspaceDefault        = "test"
+	cassandraConnectionsDefault int = 2 // refer to https://github.com/gocql/gocql/blob/master/cluster.go#L52
 )
 
 type cassandraCreator struct {
@@ -59,14 +64,13 @@ func (c cassandraCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	d := new(cassandraDB)
 	d.p = p
 
-	hosts := strings.Split(p.GetString(cassandraCluster, "127.0.0.1:9042"), ",")
+	hosts := strings.Split(p.GetString(cassandraCluster, cassandraClusterDefault), ",")
 
 	cluster := gocql.NewCluster(hosts...)
-	cluster.Keyspace = p.GetString(cassandraKeyspace, "test")
+	cluster.Keyspace = p.GetString(cassandraKeyspace, cassandraKeyspaceDefault)
 	d.keySpace = cluster.Keyspace
 
-	threadCount := int(p.GetInt64(prop.ThreadCount, prop.ThreadCountDefault))
-	cluster.NumConns = threadCount
+	cluster.NumConns = p.GetInt(cassandraConnections, cassandraConnectionsDefault)
 	cluster.Timeout = 30 * time.Second
 	cluster.Consistency = gocql.Quorum
 
