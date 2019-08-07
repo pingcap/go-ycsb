@@ -244,8 +244,10 @@ func (db *pgDB) Read(ctx context.Context, table string, key string, fields []str
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = $1`, table)
 	} else {
-		sort.Strings(fields)
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = $1`, strings.Join(fields, ","), table)
+		sorted := make([]string, len(fields))
+		copy(sorted, fields)
+		sort.Strings(sorted)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = $1`, strings.Join(sorted, ","), table)
 	}
 
 	rows, err := db.queryRows(ctx, query, 1, key)
@@ -265,8 +267,10 @@ func (db *pgDB) Scan(ctx context.Context, table string, startKey string, count i
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY >= $1 LIMIT $2`, table)
 	} else {
-		sort.Strings(fields)
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= $1 LIMIT $2`, strings.Join(fields, ","), table)
+		sorted := make([]string, len(fields))
+		copy(sorted, fields)
+		sort.Strings(sorted)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= $1 LIMIT $2`, strings.Join(sorted, ","), table)
 	}
 
 	rows, err := db.queryRows(ctx, query, count, startKey, count)

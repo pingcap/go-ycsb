@@ -173,8 +173,10 @@ func (db *sqliteDB) Read(ctx context.Context, table string, key string, fields [
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = ?`, table)
 	} else {
-		sort.Strings(fields)
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = ?`, strings.Join(fields, ","), table)
+		sorted := make([]string, len(fields))
+		copy(sorted, fields)
+		sort.Strings(sorted)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = ?`, strings.Join(sorted, ","), table)
 	}
 
 	rows, err := db.queryRows(ctx, query, 1, key)
@@ -193,8 +195,10 @@ func (db *sqliteDB) Scan(ctx context.Context, table string, startKey string, cou
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, table)
 	} else {
-		sort.Strings(fields)
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, strings.Join(fields, ","), table)
+		sorted := make([]string, len(fields))
+		copy(sorted, fields)
+		sort.Strings(sorted)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, strings.Join(sorted, ","), table)
 	}
 
 	rows, err := db.queryRows(ctx, query, count, startKey, count)
