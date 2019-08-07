@@ -302,7 +302,9 @@ func (db *pgDB) Update(ctx context.Context, table string, key string, values map
 	placeHolderIndex := 1
 	pairs := util.NewFieldPairs(values)
 	for _, p := range pairs {
-		if !firstField {
+		if firstField {
+			firstField = false
+		} else {
 			buf.WriteString(", ")
 		}
 

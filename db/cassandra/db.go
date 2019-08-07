@@ -195,7 +195,9 @@ func (db *cassandraDB) Update(ctx context.Context, table string, key string, val
 	pairs := util.NewFieldPairs(values)
 	args := make([]interface{}, 0, len(values)+1)
 	for _, p := range pairs {
-		if !firstField {
+		if firstField {
+			firstField = false
+		} else {
 			buf.WriteString(", ")
 		}
 
