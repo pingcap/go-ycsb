@@ -155,7 +155,8 @@ func (c *core) buildKeyName(keyNum int64) string {
 		keyNum = util.Hash64(keyNum)
 	}
 
-	return fmt.Sprintf("user%0[2]*[1]d", keyNum, c.zeroPadding)
+	prefix := c.p.GetString(prop.KeyPrefix, prop.KeyPrefixDefault)
+	return fmt.Sprintf("%s%0[3]*[2]d", prefix, keyNum, c.zeroPadding)
 }
 
 func (c *core) buildSingleValue(state *coreState, key string) map[string][]byte {

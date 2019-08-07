@@ -42,6 +42,10 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 		if cmd.Flags().Changed("target") {
 			globalProps.Set(prop.Target, strconv.Itoa(targetArg))
 		}
+
+		if cmd.Flags().Changed("keyprefix") {
+			globalProps.Set(prop.KeyPrefix, keyprefixArg)
+		}
 	})
 
 	fmt.Println("***************** properties *****************")
@@ -67,8 +71,9 @@ func runTransCommandFunc(cmd *cobra.Command, args []string) {
 }
 
 var (
-	threadsArg int
-	targetArg  int
+	threadsArg   int
+	targetArg    int
+	keyprefixArg string
 )
 
 func initClientCommand(m *cobra.Command) {
@@ -77,6 +82,7 @@ func initClientCommand(m *cobra.Command) {
 	m.Flags().StringVar(&tableName, "table", "", "Use the table name instead of the default \""+prop.TableNameDefault+"\"")
 	m.Flags().IntVar(&threadsArg, "threads", 1, "Execute using n threads - can also be specified as the \"threadcount\" property")
 	m.Flags().IntVar(&targetArg, "target", 0, "Attempt to do n operations per second (default: unlimited) - can also be specified as the \"target\" property")
+	m.Flags().StringVar(&keyprefixArg, "keyprefix", prop.KeyPrefixDefault, "Specify the prefix of YCSB_KEY - can also be specified as the \"keyprefix\" property")
 }
 
 func newLoadCommand() *cobra.Command {
