@@ -17,13 +17,13 @@ import (
 const (
 	mongodbUri       = "mongodb.uri"
 	mongodbNamespace = "mongodb.namespace"
-	mongodbAuthdb    = "mongodb.authenticationDatabase"
+	mongodbAuthdb    = "mongodb.authdb"
 	mongodbUsername  = "mongodb.username"
 	mongodbPassword  = "mongodb.password"
 
-	defaultUri       = "mongodb://localhost:27017"
-	defaultNamespace = "ycsb.ycsb"
-	defaultAuthdb    = "admin"
+	mongodbUriDefault       = "mongodb://127.0.0.1:27017"
+	mongodbNamespaceDefault = "ycsb.ycsb"
+	mongodbAuthdbDefault    = "admin"
 )
 
 type mongoDB struct {
@@ -123,9 +123,9 @@ type mongodbCreator struct {
 }
 
 func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
-	uri := p.GetString(mongodbUri, defaultUri)
-	nss := p.GetString(mongodbNamespace, defaultNamespace)
-	authdb := p.GetString(mongodbAuthdb, defaultAuthdb)
+	uri := p.GetString(mongodbUri, mongodbUriDefault)
+	nss := p.GetString(mongodbNamespace, mongodbNamespaceDefault)
+	authdb := p.GetString(mongodbAuthdb, mongodbAuthdbDefault)
 
 	if _, err := connstring.Parse(uri); err != nil {
 		return nil, err
