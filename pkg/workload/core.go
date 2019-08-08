@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,6 +39,9 @@ const stateKey = contextKey("core")
 
 type coreState struct {
 	r *rand.Rand
+
+	readFields  []string
+	writeFields []string
 }
 
 type operationType int64
@@ -134,8 +138,28 @@ func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 // InitThread implements the Workload InitThread interface.
 func (c *core) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	var readFields []string
+	if c.readAllFields {
+		readFields = make([]string, 0, len(c.fieldNames))
+		copy(readFields, c.fieldNames)
+	} else {
+		readFields = []string{c.fieldNames[c.fieldChooser.Next(r)]}
+	}
+	sort.Strings(readFields)
+
+	var writeFields []string
+	if c.writeAllFields {
+		writeFields = make([]string, 0, len(c.fieldNames))
+		copy(writeFields, c.fieldNames)
+	} else {
+		writeFields = []string{c.fieldNames[c.fieldChooser.Next(r)]}
+	}
+	sort.Strings(writeFields)
+
 	state := &coreState{
-		r: r,
+		r:           r,
+		readFields:  readFields,
+		writeFields: writeFields,
 	}
 	return context.WithValue(ctx, stateKey, state)
 }
@@ -158,28 +182,10 @@ func (c *core) buildKeyName(keyNum int64) string {
 	return fmt.Sprintf("user%0[2]*[1]d", keyNum, c.zeroPadding)
 }
 
-func (c *core) buildSingleValue(state *coreState, key string) map[string][]byte {
-	values := make(map[string][]byte, 1)
+func (c *core) buildValues(state *coreState, key string, fields []string) map[string][]byte {
+	values := make(map[string][]byte, len(fields))
 
-	r := state.r
-	fieldKey := c.fieldNames[c.fieldChooser.Next(r)]
-
-	var buf []byte
-	if c.dataIntegrity {
-		buf = c.buildDeterministicValue(state, key, fieldKey)
-	} else {
-		buf = c.buildRandomValue(state)
-	}
-
-	values[fieldKey] = buf
-
-	return values
-}
-
-func (c *core) buildValues(state *coreState, key string) map[string][]byte {
-	values := make(map[string][]byte, c.fieldCount)
-
-	for _, fieldKey := range c.fieldNames {
+	for _, fieldKey := range fields {
 		var buf []byte
 		if c.dataIntegrity {
 			buf = c.buildDeterministicValue(state, key, fieldKey)
@@ -190,6 +196,14 @@ func (c *core) buildValues(state *coreState, key string) map[string][]byte {
 		values[fieldKey] = buf
 	}
 	return values
+}
+
+func (c *core) buildUpdateValues(state *coreState, key string) map[string][]byte {
+	return c.buildValues(state, key, state.writeFields)
+}
+
+func (c *core) buildAllValues(state *coreState, key string) map[string][]byte {
+	return c.buildValues(state, key, c.fieldNames)
 }
 
 func (c *core) getValueBuffer(size int) []byte {
@@ -253,7 +267,7 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 	r := state.r
 	keyNum := c.keySequence.Next(r)
 	dbKey := c.buildKeyName(keyNum)
-	values := c.buildValues(state, dbKey)
+	values := c.buildAllValues(state, dbKey)
 	defer c.putValues(values)
 
 	numOfRetries := int64(0)
@@ -304,7 +318,7 @@ func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) err
 		keyNum := c.keySequence.Next(r)
 		dbKey := c.buildKeyName(keyNum)
 		keys = append(keys, dbKey)
-		values = append(values, c.buildValues(state, dbKey))
+		values = append(values, c.buildAllValues(state, dbKey))
 	}
 	defer func() {
 		for _, value := range values {
@@ -406,19 +420,10 @@ func (c *core) nextKeyNum(state *coreState) int64 {
 }
 
 func (c *core) doTransactionRead(ctx context.Context, db ycsb.DB, state *coreState) error {
-	r := state.r
 	keyNum := c.nextKeyNum(state)
 	keyName := c.buildKeyName(keyNum)
 
-	var fields []string
-	if !c.readAllFields {
-		fieldName := c.fieldNames[c.fieldChooser.Next(r)]
-		fields = append(fields, fieldName)
-	} else {
-		fields = c.fieldNames
-	}
-
-	values, err := db.Read(ctx, c.table, keyName, fields)
+	values, err := db.Read(ctx, c.table, keyName, state.readFields)
 	if err != nil {
 		return err
 	}
@@ -436,30 +441,16 @@ func (c *core) doTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, sta
 		measurement.Measure("READ_MODIFY_WRITE", time.Now().Sub(start))
 	}()
 
-	r := state.r
 	keyNum := c.nextKeyNum(state)
 	keyName := c.buildKeyName(keyNum)
 
-	var fields []string
-	if !c.readAllFields {
-		fieldName := c.fieldNames[c.fieldChooser.Next(r)]
-		fields = append(fields, fieldName)
-	} else {
-		fields = c.fieldNames
-	}
-
-	var values map[string][]byte
-	if c.writeAllFields {
-		values = c.buildValues(state, keyName)
-	} else {
-		values = c.buildSingleValue(state, keyName)
-	}
-	defer c.putValues(values)
-
-	readValues, err := db.Read(ctx, c.table, keyName, fields)
+	readValues, err := db.Read(ctx, c.table, keyName, state.readFields)
 	if err != nil {
 		return err
 	}
+
+	values := c.buildUpdateValues(state, keyName)
+	defer c.putValues(values)
 
 	if err := db.Update(ctx, c.table, keyName, values); err != nil {
 		return err
@@ -477,7 +468,7 @@ func (c *core) doTransactionInsert(ctx context.Context, db ycsb.DB, state *coreS
 	keyNum := c.transactionInsertKeySequence.Next(r)
 	defer c.transactionInsertKeySequence.Acknowledge(keyNum)
 	dbKey := c.buildKeyName(keyNum)
-	values := c.buildValues(state, dbKey)
+	values := c.buildAllValues(state, dbKey)
 	defer c.putValues(values)
 
 	return db.Insert(ctx, c.table, dbKey, values)
@@ -487,55 +478,28 @@ func (c *core) doTransactionScan(ctx context.Context, db ycsb.DB, state *coreSta
 	r := state.r
 	keyNum := c.nextKeyNum(state)
 	startKeyName := c.buildKeyName(keyNum)
-
 	scanLen := c.scanLength.Next(r)
 
-	var fields []string
-	if !c.readAllFields {
-		fieldName := c.fieldNames[c.fieldChooser.Next(r)]
-		fields = append(fields, fieldName)
-	} else {
-		fields = c.fieldNames
-	}
-
-	_, err := db.Scan(ctx, c.table, startKeyName, int(scanLen), fields)
-
+	_, err := db.Scan(ctx, c.table, startKeyName, int(scanLen), state.readFields)
 	return err
 }
 
 func (c *core) doTransactionUpdate(ctx context.Context, db ycsb.DB, state *coreState) error {
 	keyNum := c.nextKeyNum(state)
 	keyName := c.buildKeyName(keyNum)
-
-	var values map[string][]byte
-	if c.writeAllFields {
-		values = c.buildValues(state, keyName)
-	} else {
-		values = c.buildSingleValue(state, keyName)
-	}
-
+	values := c.buildUpdateValues(state, keyName)
 	defer c.putValues(values)
 
 	return db.Update(ctx, c.table, keyName, values)
 }
 
 func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycsb.BatchDB, state *coreState) error {
-	r := state.r
-	var fields []string
-
-	if !c.readAllFields {
-		fieldName := c.fieldNames[c.fieldChooser.Next(r)]
-		fields = append(fields, fieldName)
-	} else {
-		fields = c.fieldNames
-	}
-
 	keys := make([]string, batchSize)
 	for i := 0; i < batchSize; i++ {
 		keys[i] = c.buildKeyName(c.nextKeyNum(state))
 	}
 
-	_, err := db.BatchRead(ctx, c.table, keys, fields)
+	_, err := db.BatchRead(ctx, c.table, keys, state.readFields)
 	if err != nil {
 		return err
 	}
@@ -551,12 +515,7 @@ func (c *core) doBatchTransactionInsert(ctx context.Context, batchSize int, db y
 	for i := 0; i < batchSize; i++ {
 		keyNum := c.transactionInsertKeySequence.Next(r)
 		keyName := c.buildKeyName(keyNum)
-		keys[i] = keyName
-		if c.writeAllFields {
-			values[i] = c.buildValues(state, keyName)
-		} else {
-			values[i] = c.buildSingleValue(state, keyName)
-		}
+		values[i] = c.buildUpdateValues(state, keyName)
 		c.transactionInsertKeySequence.Acknowledge(keyNum)
 	}
 
@@ -576,11 +535,7 @@ func (c *core) doBatchTransactionUpdate(ctx context.Context, batchSize int, db y
 		keyNum := c.nextKeyNum(state)
 		keyName := c.buildKeyName(keyNum)
 		keys[i] = keyName
-		if c.writeAllFields {
-			values[i] = c.buildValues(state, keyName)
-		} else {
-			values[i] = c.buildSingleValue(state, keyName)
-		}
+		values[i] = c.buildUpdateValues(state, keyName)
 	}
 
 	defer func() {
@@ -630,7 +585,6 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 	if c.dataIntegrity && fieldLengthDistribution != "constant" {
 		util.Fatal("must have constant field size to check data integrity")
 	}
-
 	if p.GetString(prop.InsertOrder, prop.InsertOrderDefault) == "hashed" {
 		c.orderedInserts = false
 	} else {
