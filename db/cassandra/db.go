@@ -34,9 +34,9 @@ const (
 	cassandraKeyspace    = "cassandra.keyspace"
 	cassandraConnections = "cassandra.connections"
 
-	cassandraClusterDefault         = "127.0.0.1:9042"
-	cassandraKeyspaceDefault        = "test"
-	cassandraConnectionsDefault int = 2 // refer to https://github.com/gocql/gocql/blob/master/cluster.go#L52
+	cassandraClusterDefault     = "127.0.0.1:9042"
+	cassandraKeyspaceDefault    = "test"
+	cassandraConnectionsDefault = 2 // refer to https://github.com/gocql/gocql/blob/master/cluster.go#L52
 )
 
 type cassandraCreator struct {
