@@ -18,7 +18,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/pingcap/go-ycsb/pkg/prop"
@@ -243,7 +242,6 @@ func (db *mysqlDB) Read(ctx context.Context, table string, key string, fields []
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s %s WHERE YCSB_KEY = ?`, table, db.forceIndexKeyword)
 	} else {
-		sort.Strings(fields)
 		query = fmt.Sprintf(`SELECT %s FROM %s %s WHERE YCSB_KEY = ?`, strings.Join(fields, ","), table, db.forceIndexKeyword)
 	}
 
@@ -264,7 +262,6 @@ func (db *mysqlDB) Scan(ctx context.Context, table string, startKey string, coun
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s %s WHERE YCSB_KEY >= ? LIMIT ?`, table, db.forceIndexKeyword)
 	} else {
-		sort.Strings(fields)
 		query = fmt.Sprintf(`SELECT %s FROM %s %s WHERE YCSB_KEY >= ? LIMIT ?`, strings.Join(fields, ","), table, db.forceIndexKeyword)
 	}
 
