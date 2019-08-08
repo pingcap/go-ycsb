@@ -140,7 +140,7 @@ func (c *core) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var readFields []string
 	if c.readAllFields {
-		readFields = make([]string, 0, len(c.fieldNames))
+		readFields = make([]string, len(c.fieldNames))
 		copy(readFields, c.fieldNames)
 	} else {
 		readFields = []string{c.fieldNames[c.fieldChooser.Next(r)]}
@@ -149,12 +149,13 @@ func (c *core) InitThread(ctx context.Context, _ int, _ int) context.Context {
 
 	var writeFields []string
 	if c.writeAllFields {
-		writeFields = make([]string, 0, len(c.fieldNames))
+		writeFields = make([]string, len(c.fieldNames))
 		copy(writeFields, c.fieldNames)
 	} else {
 		writeFields = []string{c.fieldNames[c.fieldChooser.Next(r)]}
 	}
 	sort.Strings(writeFields)
+	fmt.Printf(" WWWWWWrite fieldnames: %v\n", writeFields)
 
 	state := &coreState{
 		r:           r,
