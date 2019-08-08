@@ -37,7 +37,9 @@ type contextKey string
 const stateKey = contextKey("core")
 
 type coreState struct {
-	r *rand.Rand
+	r          *rand.Rand
+	// fieldNames is a copy of core.fieldNames to be goroutine-local
+	fieldNames []string
 }
 
 type operationType int64
@@ -134,8 +136,11 @@ func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 // InitThread implements the Workload InitThread interface.
 func (c *core) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	fieldNames := make([]string, len(c.fieldNames))
+	copy(fieldNames, c.fieldNames)
 	state := &coreState{
-		r: r,
+		r:          r,
+		fieldNames: fieldNames,
 	}
 	return context.WithValue(ctx, stateKey, state)
 }
@@ -162,7 +167,7 @@ func (c *core) buildSingleValue(state *coreState, key string) map[string][]byte 
 	values := make(map[string][]byte, 1)
 
 	r := state.r
-	fieldKey := c.fieldNames[c.fieldChooser.Next(r)]
+	fieldKey := state.fieldNames[c.fieldChooser.Next(r)]
 
 	var buf []byte
 	if c.dataIntegrity {
@@ -179,7 +184,7 @@ func (c *core) buildSingleValue(state *coreState, key string) map[string][]byte 
 func (c *core) buildValues(state *coreState, key string) map[string][]byte {
 	values := make(map[string][]byte, c.fieldCount)
 
-	for _, fieldKey := range c.fieldNames {
+	for _, fieldKey := range state.fieldNames {
 		var buf []byte
 		if c.dataIntegrity {
 			buf = c.buildDeterministicValue(state, key, fieldKey)
@@ -412,10 +417,10 @@ func (c *core) doTransactionRead(ctx context.Context, db ycsb.DB, state *coreSta
 
 	var fields []string
 	if !c.readAllFields {
-		fieldName := c.fieldNames[c.fieldChooser.Next(r)]
+		fieldName := state.fieldNames[c.fieldChooser.Next(r)]
 		fields = append(fields, fieldName)
 	} else {
-		fields = c.fieldNames
+		fields = state.fieldNames
 	}
 
 	values, err := db.Read(ctx, c.table, keyName, fields)
@@ -442,10 +447,10 @@ func (c *core) doTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, sta
 
 	var fields []string
 	if !c.readAllFields {
-		fieldName := c.fieldNames[c.fieldChooser.Next(r)]
+		fieldName := state.fieldNames[c.fieldChooser.Next(r)]
 		fields = append(fields, fieldName)
 	} else {
-		fields = c.fieldNames
+		fields = state.fieldNames
 	}
 
 	var values map[string][]byte
@@ -492,10 +497,10 @@ func (c *core) doTransactionScan(ctx context.Context, db ycsb.DB, state *coreSta
 
 	var fields []string
 	if !c.readAllFields {
-		fieldName := c.fieldNames[c.fieldChooser.Next(r)]
+		fieldName := state.fieldNames[c.fieldChooser.Next(r)]
 		fields = append(fields, fieldName)
 	} else {
-		fields = c.fieldNames
+		fields = state.fieldNames
 	}
 
 	_, err := db.Scan(ctx, c.table, startKeyName, int(scanLen), fields)
@@ -524,10 +529,10 @@ func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycs
 	var fields []string
 
 	if !c.readAllFields {
-		fieldName := c.fieldNames[c.fieldChooser.Next(r)]
+		fieldName := state.fieldNames[c.fieldChooser.Next(r)]
 		fields = append(fields, fieldName)
 	} else {
-		fields = c.fieldNames
+		fields = state.fieldNames
 	}
 
 	keys := make([]string, batchSize)
