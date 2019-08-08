@@ -155,7 +155,6 @@ func (c *core) InitThread(ctx context.Context, _ int, _ int) context.Context {
 		writeFields = []string{c.fieldNames[c.fieldChooser.Next(r)]}
 	}
 	sort.Strings(writeFields)
-	fmt.Printf(" WWWWWWrite fieldnames: %v\n", writeFields)
 
 	state := &coreState{
 		r:           r,
