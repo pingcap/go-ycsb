@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/pingcap/go-ycsb/pkg/prop"
@@ -173,10 +172,7 @@ func (db *sqliteDB) Read(ctx context.Context, table string, key string, fields [
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = ?`, table)
 	} else {
-		sorted := make([]string, len(fields))
-		copy(sorted, fields)
-		sort.Strings(sorted)
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = ?`, strings.Join(sorted, ","), table)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = ?`, strings.Join(fields, ","), table)
 	}
 
 	rows, err := db.queryRows(ctx, query, 1, key)
@@ -195,10 +191,7 @@ func (db *sqliteDB) Scan(ctx context.Context, table string, startKey string, cou
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, table)
 	} else {
-		sorted := make([]string, len(fields))
-		copy(sorted, fields)
-		sort.Strings(sorted)
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, strings.Join(sorted, ","), table)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, strings.Join(fields, ","), table)
 	}
 
 	rows, err := db.queryRows(ctx, query, count, startKey, count)

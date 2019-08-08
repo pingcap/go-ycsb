@@ -21,7 +21,6 @@ import (
 	"os/user"
 	"path"
 	"regexp"
-	"sort"
 	"strings"
 
 	"cloud.google.com/go/spanner"
@@ -286,10 +285,7 @@ func (db *spannerDB) Read(ctx context.Context, table string, key string, fields 
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = @key`, table)
 	} else {
-		sorted := make([]string, len(fields))
-		copy(sorted, fields)
-		sort.Strings(sorted)
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = @key`, strings.Join(sorted, ","), table)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = @key`, strings.Join(fields, ","), table)
 	}
 
 	stmt := spanner.NewStatement(query)
@@ -311,10 +307,7 @@ func (db *spannerDB) Scan(ctx context.Context, table string, startKey string, co
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY >= @key LIMIT @limit`, table)
 	} else {
-		sorted := make([]string, len(fields))
-		copy(sorted, fields)
-		sort.Strings(sorted)
-		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= @key LIMIT @limit`, strings.Join(sorted, ","), table)
+		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= @key LIMIT @limit`, strings.Join(fields, ","), table)
 	}
 
 	stmt := spanner.NewStatement(query)
