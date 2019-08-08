@@ -103,4 +103,7 @@ const (
 
 	Silence        = "silence"
 	SilenceDefault = true
+
+	KeyPrefix        = "keyprefix"
+	KeyPrefixDefault = "user"
 )
