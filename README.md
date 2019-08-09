@@ -73,6 +73,7 @@ Available Commands:
 - Sqlite
 - MongoDB
 - Redis and Redis Cluster
+- BoltDB
 
 ## Database Configuration
 
@@ -253,6 +254,17 @@ Common configurations:
 |redis.tls_cert||Path to cert file|
 |redis.tls_key||Path to key file|
 |redis.tls_insecure_skip_verify|false|Controls whether a client verifies the server's certificate chain and host name|
+
+### BoltDB
+
+|field|default value|description|
+|-|-|-|
+|bolt.path|"/tmp/boltdb"|The database file path. If the file does not exists then it will be created automatically|
+|bolt.timeout|0|The amount of time to wait to obtain a file lock. When set to zero it will wait indefinitely. This option is only available on Darwin and Linux|
+|bolt.no_grow_sync|false|Sets DB.NoGrowSync flag before memory mapping the file|
+|bolt.read_only|false|Open the database in read-only mode|
+|bolt.mmap_flags|0|Set the DB.MmapFlags flag before memory mapping the file|
+|bolt.initial_mmap_size|0|The initial mmap size of the database in bytes. If <= 0, the initial map size is 0. If the size is smaller than the previous database, it takes no effect|
 
 ## TODO
 
