@@ -15,6 +15,7 @@ package measurement
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -50,9 +51,16 @@ func (m *measurement) measure(op string, lan time.Duration) {
 func (m *measurement) output() {
 	m.RLock()
 	defer m.RUnlock()
+	keys := make([]string, len(m.opMeasurement))
+	var i = 0
+	for k := range m.opMeasurement {
+		keys[i] = k
+		i += 1
+	}
+	sort.Strings(keys)
 
-	for op, opM := range m.opMeasurement {
-		fmt.Printf("%s - %s\n", op, opM.Summary())
+	for _, op := range keys {
+		fmt.Printf("%-6s - %s\n", op, m.opMeasurement[op].Summary())
 	}
 }
 
