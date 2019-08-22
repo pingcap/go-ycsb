@@ -73,11 +73,11 @@ func (h *histogram) Measure(latency time.Duration) {
 	atomic.AddInt64(&h.sum, n)
 	atomic.AddInt64(&h.count, 1)
 	bound := int(n / h.boundInterval)
-	h.boundCounts.Upsert(bound, 1, func(ok bool, v int64, value int64) int64 {
+	h.boundCounts.Upsert(bound, 1, func(ok bool, existedValue int64, newValue int64) int64 {
 		if ok {
-			return v + value
+			return existedValue + newValue
 		}
-		return v
+		return newValue
 	})
 
 	for {
@@ -136,8 +136,8 @@ func (h *histogram) getInfo() map[string]interface{} {
 
 	opCount := int64(0)
 	for _, bound := range bounds {
-		count, _ := h.boundCounts.Get(bound)
-		opCount += count
+		boundCount, _ := h.boundCounts.Get(bound)
+		opCount += boundCount
 		per := float64(opCount) / float64(count)
 		if per99 == 0 && per >= 0.99 {
 			per99 = (bound + 1) * 1000
