@@ -42,6 +42,9 @@ recordcount=1000000
 # The number of operations to use during the run phase.
 operationcount=3000000
 
+# The number of thread.
+threadcount=500 
+
 # The number of insertions to do, if different from recordcount.
 # Used with insertstart to grow an existing table.
 #insertcount=
