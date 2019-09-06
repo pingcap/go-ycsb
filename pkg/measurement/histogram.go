@@ -40,6 +40,8 @@ type histogram struct {
 const (
 	HistogramBuckets        = "histogram.buckets"
 	HistogramBucketsDefault = 1000
+	ShardCount              = "cmap.shardCount"
+	ShardCountDefault       = 32
 	ELAPSED                 = "ELAPSED"
 	COUNT                   = "COUNT"
 	QPS                     = "QPS"
@@ -60,7 +62,7 @@ func (h *histogram) Info() ycsb.MeasurementInfo {
 func newHistogram(p *properties.Properties) *histogram {
 	h := new(histogram)
 	h.startTime = time.Now()
-	h.boundCounts = util.New()
+	h.boundCounts = util.New(p.GetInt(ShardCount, ShardCountDefault))
 	h.boundInterval = p.GetInt64(HistogramBuckets, HistogramBucketsDefault)
 	h.min = math.MaxInt64
 	h.max = math.MinInt64

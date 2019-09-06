@@ -8,13 +8,14 @@ import (
 /*
 	This module is modified from github.com/orcaman/concurrent-map.
 	MIT license.
- */
-
-var SHARD_COUNT = 32
+*/
 
 // A "thread" safe map of type int:int64.
 // To avoid lock bottlenecks this map is dived to several (SHARD_COUNT) map shards.
-type ConcurrentMap []*ConcurrentMapShared
+type ConcurrentMap struct {
+	shards     []*ConcurrentMapShared
+	shardCount int
+}
 
 // A "thread" safe int to int64 map.
 type ConcurrentMapShared struct {
@@ -23,25 +24,24 @@ type ConcurrentMapShared struct {
 }
 
 // Creates a new concurrent map.
-func New() ConcurrentMap {
-	m := make(ConcurrentMap, SHARD_COUNT)
-	for i := 0; i < SHARD_COUNT; i++ {
-		m[i] = &ConcurrentMapShared{items: make(map[int]int64)}
+func New(shardCount int) ConcurrentMap {
+	m := new(ConcurrentMap)
+	m.shardCount = shardCount
+	m.shards = make([]*ConcurrentMapShared, shardCount)
+	for i := 0; i < shardCount; i++ {
+		m.shards[i] = &ConcurrentMapShared{items: make(map[int]int64)}
 	}
-	return m
+	return *m
 }
 
 // GetShard returns shard under given key
 func (m ConcurrentMap) GetShard(key int) *ConcurrentMapShared {
-	return m[uint(fnv32(key))%uint(SHARD_COUNT)]
+	return m.shards[uint(m.fnv32(key))%uint(m.shardCount)]
 }
 
 func (m ConcurrentMap) MSet(data map[int]int64) {
 	for key, value := range data {
-		shard := m.GetShard(key)
-		shard.Lock()
-		shard.items[key] = value
-		shard.Unlock()
+		m.Set(key, value)
 	}
 }
 
@@ -98,8 +98,8 @@ func (m ConcurrentMap) Get(key int) (int64, bool) {
 // Count returns the number of elements within the map.
 func (m ConcurrentMap) Count() int {
 	count := 0
-	for i := 0; i < SHARD_COUNT; i++ {
-		shard := m[i]
+	for i := 0; i < m.shardCount; i++ {
+		shard := m.shards[i]
 		shard.RLock()
 		count += len(shard.items)
 		shard.RUnlock()
@@ -196,11 +196,11 @@ func (m ConcurrentMap) IterBuffered() <-chan Tuple {
 // It returns once the size of each buffered channel is determined,
 // before all the channels are populated using goroutines.
 func snapshot(m ConcurrentMap) (chans []chan Tuple) {
-	chans = make([]chan Tuple, SHARD_COUNT)
+	chans = make([]chan Tuple, m.shardCount)
 	wg := sync.WaitGroup{}
-	wg.Add(SHARD_COUNT)
+	wg.Add(m.shardCount)
 	// Foreach shard.
-	for index, shard := range m {
+	for index, shard := range m.shards {
 		go func(index int, shard *ConcurrentMapShared) {
 			// Foreach key, value pair.
 			shard.RLock()
@@ -254,8 +254,8 @@ type IterCb func(key int, v int64)
 // Callback based iterator, cheapest way to read
 // all elements in a map.
 func (m ConcurrentMap) IterCb(fn IterCb) {
-	for idx := range m {
-		shard := (m)[idx]
+	for idx := range m.shards {
+		shard := m.shards[idx]
 		shard.RLock()
 		for key, value := range shard.items {
 			fn(key, value)
@@ -271,8 +271,8 @@ func (m ConcurrentMap) Keys() []int {
 	go func() {
 		// Foreach shard.
 		wg := sync.WaitGroup{}
-		wg.Add(SHARD_COUNT)
-		for _, shard := range m {
+		wg.Add(m.shardCount)
+		for _, shard := range m.shards {
 			go func(shard *ConcurrentMapShared) {
 				// Foreach key, value pair.
 				shard.RLock()
@@ -307,13 +307,13 @@ func (m ConcurrentMap) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tmp)
 }
 
-func fnv32(key int) uint32 {
+func (m ConcurrentMap) fnv32(key int) uint32 {
 	key = (key + 0x7ed55d16) + (key << 12)
 	key = (key ^ 0xc761c23c) ^ (key >> 19)
 	key = (key + 0x165667b1) + (key << 5)
 	key = (key + 0xd3a2646c) ^ (key << 9)
 	key = (key + 0xfd7046c5) + (key << 3)
 	key = (key ^ 0xb55a4f09) ^ (key >> 16)
-	key = key % SHARD_COUNT
+	key = key % m.shardCount
 	return uint32(key)
 }
