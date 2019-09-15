@@ -22,83 +22,48 @@ import (
 	"time"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
 type histogram struct {
-	upperBounds []int
-	counts      []int64
-	count       int64
-	sum         int64
-	min         int64
-	max         int64
-	startTime   time.Time
+	boundCounts   util.ConcurrentMap
+	boundInterval int64
+	count         int64
+	sum           int64
+	min           int64
+	max           int64
+	startTime     time.Time
 }
 
 // Metric name.
 const (
-	COUNT   = "COUNT"
-	QPS     = "QPS"
-	AVG     = "AVG"
-	MIN     = "MIN"
-	MAX     = "MAX"
-	PER95TH = "PER95TH"
-	PER99TH = "PER99TH"
+	HistogramBuckets        = "histogram.buckets"
+	HistogramBucketsDefault = 1000
+	ShardCount              = "cmap.shardCount"
+	ShardCountDefault       = 32
+	ELAPSED                 = "ELAPSED"
+	COUNT                   = "COUNT"
+	QPS                     = "QPS"
+	AVG                     = "AVG"
+	MIN                     = "MIN"
+	MAX                     = "MAX"
+	PER99TH                 = "PER99TH"
+	PER999TH                = "PER999TH"
+	PER9999TH               = "PER9999TH"
 )
 
 func (h *histogram) Info() ycsb.MeasurementInfo {
-	// copy from Summary()
-	min := atomic.LoadInt64(&h.min)
-	max := atomic.LoadInt64(&h.max)
-	sum := atomic.LoadInt64(&h.sum)
-	count := atomic.LoadInt64(&h.count)
-
-	counts := make([]int64, len(h.counts))
-	for i := 0; i < len(h.upperBounds); i++ {
-		counts[i] = atomic.LoadInt64(&h.counts[i])
-	}
-
-	avg := int64(float64(sum) / float64(count))
-	per95 := int(0)
-	per99 := int(0)
-
-	opCount := int64(0)
-	for i := 0; i < len(counts); i++ {
-		opCount += counts[i]
-		per := float64(opCount) / float64(count)
-		if per95 == 0 && per >= 0.95 {
-			per95 = h.upperBounds[i]
-		}
-
-		if per99 == 0 && per >= 0.99 {
-			per99 = h.upperBounds[i]
-		}
-	}
-
-	elapsed := time.Now().Sub(h.startTime).Seconds()
-	qps := float64(count) / elapsed
-	res := make(map[string]interface{})
-	res[COUNT] = count
-	res[QPS] = qps
-	res[AVG] = avg
-	res[MIN] = min
-	res[MAX] = max
-	res[PER95TH] = per95
-	res[PER99TH] = per99
-
+	res := h.getInfo()
+	delete(res, ELAPSED)
 	return newHistogramInfo(res)
 }
 
-func newHistogram(_ *properties.Properties) *histogram {
+func newHistogram(p *properties.Properties) *histogram {
 	h := new(histogram)
 	h.startTime = time.Now()
-	// TODO: support defining buckets from properties
-	// bucket unit is 1ms
-	h.upperBounds = make([]int, 1024)
-	for i := 0; i < len(h.upperBounds); i++ {
-		h.upperBounds[i] = (i + 1) * 1000
-	}
-	h.counts = make([]int64, len(h.upperBounds))
+	h.boundCounts = util.New(p.GetInt(ShardCount, ShardCountDefault))
+	h.boundInterval = p.GetInt64(HistogramBuckets, HistogramBucketsDefault)
 	h.min = math.MaxInt64
 	h.max = math.MinInt64
 	return h
@@ -109,11 +74,13 @@ func (h *histogram) Measure(latency time.Duration) {
 
 	atomic.AddInt64(&h.sum, n)
 	atomic.AddInt64(&h.count, 1)
-
-	i := sort.SearchInts(h.upperBounds, int(n))
-	if i < len(h.counts) {
-		atomic.AddInt64(&h.counts[i], 1)
-	}
+	bound := int(n / h.boundInterval)
+	h.boundCounts.Upsert(bound, 1, func(ok bool, existedValue int64, newValue int64) int64 {
+		if ok {
+			return existedValue + newValue
+		}
+		return newValue
+	})
 
 	for {
 		oldMin := atomic.LoadInt64(&h.min)
@@ -139,47 +106,68 @@ func (h *histogram) Measure(latency time.Duration) {
 }
 
 func (h *histogram) Summary() string {
+	res := h.getInfo()
+
+	buf := new(bytes.Buffer)
+	buf.WriteString(fmt.Sprintf("Takes(s): %.1f, ", res[ELAPSED]))
+	buf.WriteString(fmt.Sprintf("Count: %d, ", res[COUNT]))
+	buf.WriteString(fmt.Sprintf("OPS: %.1f, ", res[QPS]))
+	buf.WriteString(fmt.Sprintf("Avg(us): %d, ", res[AVG]))
+	buf.WriteString(fmt.Sprintf("Min(us): %d, ", res[MIN]))
+	buf.WriteString(fmt.Sprintf("Max(us): %d, ", res[MAX]))
+	buf.WriteString(fmt.Sprintf("99th(us): %d, ", res[PER99TH]))
+	buf.WriteString(fmt.Sprintf("99.9th(us): %d, ", res[PER999TH]))
+	buf.WriteString(fmt.Sprintf("99.99th(us): %d", res[PER9999TH]))
+
+	return buf.String()
+}
+
+func (h *histogram) getInfo() map[string]interface{} {
 	min := atomic.LoadInt64(&h.min)
 	max := atomic.LoadInt64(&h.max)
 	sum := atomic.LoadInt64(&h.sum)
 	count := atomic.LoadInt64(&h.count)
 
-	counts := make([]int64, len(h.counts))
-	for i := 0; i < len(h.upperBounds); i++ {
-		counts[i] = atomic.LoadInt64(&h.counts[i])
-	}
+	bounds := h.boundCounts.Keys()
+	sort.Ints(bounds)
 
 	avg := int64(float64(sum) / float64(count))
-	per95 := int(0)
-	per99 := int(0)
+	per99 := 0
+	per999 := 0
+	per9999 := 0
 
 	opCount := int64(0)
-	for i := 0; i < len(counts); i++ {
-		opCount += counts[i]
+	for _, bound := range bounds {
+		boundCount, _ := h.boundCounts.Get(bound)
+		opCount += boundCount
 		per := float64(opCount) / float64(count)
-		if per95 == 0 && per >= 0.95 {
-			per95 = h.upperBounds[i]
+		if per99 == 0 && per >= 0.99 {
+			per99 = (bound + 1) * 1000
 		}
 
-		if per99 == 0 && per >= 0.99 {
-			per99 = h.upperBounds[i]
+		if per999 == 0 && per >= 0.999 {
+			per999 = (bound + 1) * 1000
+		}
+
+		if per9999 == 0 && per >= 0.9999 {
+			per9999 = (bound + 1) * 1000
 		}
 	}
 
 	elapsed := time.Now().Sub(h.startTime).Seconds()
 	qps := float64(count) / elapsed
+	res := make(map[string]interface{})
+	res[ELAPSED] = elapsed
+	res[COUNT] = count
+	res[QPS] = qps
+	res[AVG] = avg
+	res[MIN] = min
+	res[MAX] = max
+	res[PER99TH] = per99
+	res[PER999TH] = per999
+	res[PER9999TH] = per9999
 
-	buf := new(bytes.Buffer)
-	buf.WriteString(fmt.Sprintf("Takes(s): %.1f, ", elapsed))
-	buf.WriteString(fmt.Sprintf("Count: %d, ", count))
-	buf.WriteString(fmt.Sprintf("OPS: %.1f, ", qps))
-	buf.WriteString(fmt.Sprintf("Avg(us): %d, ", avg))
-	buf.WriteString(fmt.Sprintf("Min(us): %d, ", min))
-	buf.WriteString(fmt.Sprintf("Max(us): %d, ", max))
-	buf.WriteString(fmt.Sprintf("95th(us): %d, ", per95))
-	buf.WriteString(fmt.Sprintf("99th(us): %d", per99))
-
-	return buf.String()
+	return res
 }
 
 type histogramInfo struct {
