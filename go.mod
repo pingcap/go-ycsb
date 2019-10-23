@@ -26,7 +26,6 @@ require (
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gocql/gocql v0.0.0-20181124151448-70385f88b28b
 	github.com/gogo/protobuf v1.2.0 // indirect
-	github.com/google/btree v1.0.0 // indirect
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/google/pprof v0.0.0-20190908185732-236ed259b199 // indirect
 	github.com/googleapis/gax-go v2.0.0+incompatible // indirect
@@ -72,3 +71,5 @@ require (
 replace github.com/apache/thrift => github.com/apache/thrift v0.0.0-20171203172758-327ebb6c2b6d
 
 replace github.com/tecbot/gorocksdb => github.com/DorianZheng/gorocksdb v0.0.0-20180811132858-ab9bf2cc4b67
+
+go 1.13

@@ -32,6 +32,7 @@ package generator
 
 import (
 	"math/rand"
+	//"fmt"
 
 	"github.com/pingcap/go-ycsb/pkg/util"
 )
@@ -44,6 +45,7 @@ type ScrambledZipfian struct {
 	min       int64
 	max       int64
 	itemCount int64
+	testnu    int64
 }
 
 // NewScrambledZipfian creates a ScrambledZipfian generator.
@@ -53,11 +55,11 @@ func NewScrambledZipfian(min int64, max int64, zipfianConstant float64) *Scrambl
 		usedZipfianConstant = float64(0.99)
 		itemCount           = int64(10000000000)
 	)
-
 	s := new(ScrambledZipfian)
 	s.min = min
 	s.max = max
 	s.itemCount = max - min + 1
+	s.testnu = 0
 	if zipfianConstant == usedZipfianConstant {
 		s.gen = NewZipfian(0, itemCount, zipfianConstant, zetan)
 	} else {
@@ -69,7 +71,8 @@ func NewScrambledZipfian(min int64, max int64, zipfianConstant float64) *Scrambl
 // Next implements the Generator Next interface.
 func (s *ScrambledZipfian) Next(r *rand.Rand) int64 {
 	n := s.gen.Next(r)
-
+	//s.testnu++
+	//fmt.Println(s.testnu,util.Hash64(s.testnu))
 	n = s.min + util.Hash64(n)%s.itemCount
 	s.SetLastValue(n)
 	return n

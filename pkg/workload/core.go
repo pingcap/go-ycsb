@@ -667,6 +667,8 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 		percentile := p.GetFloat64(prop.ExponentialPercentile, prop.ExponentialPercentileDefault)
 		frac := p.GetFloat64(prop.ExponentialFrac, prop.ExponentialFracDefault)
 		c.keyChooser = generator.NewExponential(percentile, float64(c.recordCount)*frac)
+	case "normaldisb":
+		c.keyChooser = generator.NewNormalDisb(insertStart, insertStart + insertCount -1)
 	default:
 		util.Fatalf("unknown request distribution %s", requestDistrib)
 	}
