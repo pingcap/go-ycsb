@@ -17,9 +17,10 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"os"
+	//"os"
 	"sync"
 	"time"
+    "math"
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
@@ -64,16 +65,16 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 		}
 	}
 
-	if totalOpCount < int64(threadCount) {
-		fmt.Printf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
-			prop.OperationCount,
-			prop.InsertCount,
-			prop.RecordCount,
-			totalOpCount,
-			threadCount)
-
-		os.Exit(-1)
-	}
+	//if totalOpCount < int64(threadCount) {
+	//	fmt.Printf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
+	//		prop.OperationCount,
+	//		prop.InsertCount,
+	//		prop.RecordCount,
+	//		totalOpCount,
+	//		threadCount)
+//
+//		os.Exit(-1)
+//	}
 
 	w.opCount = totalOpCount / int64(threadCount)
 
@@ -114,22 +115,31 @@ func (w *worker) run(ctx context.Context) {
 	}
 
 	startTime := time.Now()
+	u := w.p.GetFloat64(prop.ExpectedValue,prop.ExpectedValueDefault)
+	a := w.p.GetFloat64(prop.StandardDeviation,prop.StandardDeviationDefault)
+	t := w.p.GetFloat64(prop.TimeDelay,prop.TimeDelayDefault)
 
 	for w.opCount == 0 || w.opsDone < w.opCount {
 		var err error
 		opsCount := 1
 		if w.doTransactions {
 			if w.doBatch {
+				//fmt.Println("doBatchTransaction\n")
 				err = w.workload.DoBatchTransaction(ctx, w.batchSize, w.workDB)
 				opsCount = w.batchSize
 			} else {
+				//fmt.Println("doTransaction\n")
 				err = w.workload.DoTransaction(ctx, w.workDB)
 			}
+			t6:=time.Now().Minute()
+            v := 1 / (math.Sqrt(2*math.Pi) * a) * math.Pow(math.E, (-math.Pow((float64(t6) - u), 2)/(2*math.Pow(a, 2))))
+            time.Sleep(time.Duration(1/v*t))
 		} else {
 			if w.doBatch {
 				err = w.workload.DoBatchInsert(ctx, w.batchSize, w.workDB)
 				opsCount = w.batchSize
 			} else {
+				//fmt.Println("")
 				err = w.workload.DoInsert(ctx, w.workDB)
 			}
 		}

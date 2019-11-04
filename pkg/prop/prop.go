@@ -106,4 +106,11 @@ const (
 
 	KeyPrefix        = "keyprefix"
 	KeyPrefixDefault = "user"
+
+	ExpectedValue = "expectedvalue"
+	ExpectedValueDefault = float64(30)
+	StandardDeviation = "standarddeviation"
+	StandardDeviationDefault = float64(10)
+	TimeDelay = "timedelay"
+	TimeDelayDefault = float64(100000)	
 )
