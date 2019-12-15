@@ -48,6 +48,7 @@ const (
 	AVG                     = "AVG"
 	MIN                     = "MIN"
 	MAX                     = "MAX"
+	PER95TH                 = "PER95TH"
 	PER99TH                 = "PER99TH"
 	PER999TH                = "PER999TH"
 	PER9999TH               = "PER9999TH"
@@ -115,6 +116,7 @@ func (h *histogram) Summary() string {
 	buf.WriteString(fmt.Sprintf("Avg(us): %d, ", res[AVG]))
 	buf.WriteString(fmt.Sprintf("Min(us): %d, ", res[MIN]))
 	buf.WriteString(fmt.Sprintf("Max(us): %d, ", res[MAX]))
+	buf.WriteString(fmt.Sprintf("95th(us): %d, ", res[PER95TH]))
 	buf.WriteString(fmt.Sprintf("99th(us): %d, ", res[PER99TH]))
 	buf.WriteString(fmt.Sprintf("99.9th(us): %d, ", res[PER999TH]))
 	buf.WriteString(fmt.Sprintf("99.99th(us): %d", res[PER9999TH]))
@@ -132,6 +134,7 @@ func (h *histogram) getInfo() map[string]interface{} {
 	sort.Ints(bounds)
 
 	avg := int64(float64(sum) / float64(count))
+	per95 := 0
 	per99 := 0
 	per999 := 0
 	per9999 := 0
@@ -141,6 +144,10 @@ func (h *histogram) getInfo() map[string]interface{} {
 		boundCount, _ := h.boundCounts.Get(bound)
 		opCount += boundCount
 		per := float64(opCount) / float64(count)
+		if per95 == 0 && per >= 0.95 {
+			per95 = (bound + 1) * 1000
+		}
+
 		if per99 == 0 && per >= 0.99 {
 			per99 = (bound + 1) * 1000
 		}
@@ -163,6 +170,7 @@ func (h *histogram) getInfo() map[string]interface{} {
 	res[AVG] = avg
 	res[MIN] = min
 	res[MAX] = max
+	res[PER95TH] = per95
 	res[PER99TH] = per99
 	res[PER999TH] = per999
 	res[PER9999TH] = per9999
