@@ -37,7 +37,7 @@ type contextKey string
 const stateKey = contextKey("core")
 
 type coreState struct {
-	r          *rand.Rand
+	r *rand.Rand
 	// fieldNames is a copy of core.fieldNames to be goroutine-local
 	fieldNames []string
 }
@@ -229,7 +229,7 @@ func (c *core) buildDeterministicValue(state *coreState, key string, fieldKey st
 	b := bytes.NewBuffer(buf[0:0])
 	b.WriteString(key)
 	b.WriteByte(':')
-	b.WriteString(fieldKey)
+	b.WriteString(strings.ToLower(fieldKey))
 	for int64(b.Len()) < size {
 		b.WriteByte(':')
 		n := util.BytesHash64(b.Bytes())
