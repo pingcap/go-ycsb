@@ -10,7 +10,7 @@ RUN apt-get update \
                 git \
                 net-tools 
 
-Run cd / \
+RUN cd / \
     && wget https://www.foundationdb.org/downloads/6.0.15/ubuntu/installers/foundationdb-clients_6.0.15-1_amd64.deb \
     && dpkg -i foundationdb-clients_6.0.15-1_amd64.deb
 
