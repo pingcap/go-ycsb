@@ -44,7 +44,7 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3 // indirect
-	github.com/tecbot/gorocksdb v0.0.0-20181010114359-8752a9433481
+	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
 	github.com/tidwall/pretty v1.0.0 // indirect
 	github.com/tikv/client-go v0.0.0-20190421092910-44b82dcc9f4a
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
