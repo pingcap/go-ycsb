@@ -48,7 +48,6 @@ const (
 	rocksdbUseDirectReads                  = "rocksdb.use_direct_reads"
 	rocksdbUseFsync                        = "rocksdb.use_fsync"
 	rocksdbWriteBufferSize                 = "rocksdb.write_buffer_size"
-	rocksdbMaxBackgroundJobs               = "rocksdb.max_background_jobs"
 	rocksdbMaxWriteBufferNumber            = "rocksdb.max_write_buffer_number"
 	// TableOptions/BlockBasedTable
 	rocksdbBlockSize                        = "rocksdb.block_size"
@@ -60,7 +59,6 @@ const (
 	rocksdbBlockRestartInterval             = "rocksdb.block_restart_interval"
 	rocksdbFilterPolicy                     = "rocksdb.filter_policy"
 	rocksdbIndexType                        = "rocksdb.index_type"
-	rocksdbBlockAlign                       = "rocksdb.block_align"
 	// TODO: add more configurations
 )
 
@@ -115,7 +113,6 @@ func getTableOptions(p *properties.Properties) *gorocksdb.BlockBasedTableOptions
 	tblOpts.SetPinL0FilterAndIndexBlocksInCache(p.GetBool(rocksdbPinL0FilterAndIndexBlocksInCache, false))
 	tblOpts.SetWholeKeyFiltering(p.GetBool(rocksdbWholeKeyFiltering, true))
 	tblOpts.SetBlockRestartInterval(p.GetInt(rocksdbBlockRestartInterval, 16))
-	tblOpts.SetBlockAlign(p.GetBool(rocksdbBlockAlign, false))
 
 	if b := p.GetString(rocksdbFilterPolicy, ""); len(b) > 0 {
 		if b == "rocksdb.BuiltinBloomFilter" {
@@ -158,7 +155,6 @@ func getOptions(p *properties.Properties) *gorocksdb.Options {
 	opts.SetUseFsync(p.GetBool(rocksdbUseFsync, false))
 	opts.SetWriteBufferSize(p.GetInt(rocksdbWriteBufferSize, 64<<20))
 	opts.SetMaxWriteBufferNumber(p.GetInt(rocksdbMaxWriteBufferNumber, 2))
-	opts.SetMaxBackgroundJobs(p.GetInt(rocksdbMaxBackgroundJobs, 2))
 
 	opts.SetBlockBasedTableFactory(getTableOptions(p))
 
