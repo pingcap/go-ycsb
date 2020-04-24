@@ -205,7 +205,8 @@ timeseries.granularity=1000
 # htrace.htraced.receiver.address=example.com:9075
 # htrace.htraced.error.log.period.ms=10000
 
-
+# NormalDataInTime = "normal_data_in_time"
+# NormalDataInTimeDefault = false
 # ExpectedValue = "expectedvalue"
 # ExpectedValueDefault = float64(10)
 # StandardDeviation = "standarddeviation"
@@ -215,7 +216,8 @@ timeseries.granularity=1000
 # TimePeriod = "timeperiod"
 # TimePeriodDefault = int(20)
 
-expectedvalue = 20
+normal_data_in_time = true
+expectedvalue = 10
 standarddeviation = 3
 timedelay = 10000
-timeperiod = 40
+timeperiod = 20

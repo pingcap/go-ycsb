@@ -17,6 +17,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
+
 	//"os"
 	"sync"
 	"time"
@@ -64,17 +66,19 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 			totalOpCount = p.GetInt64(prop.RecordCount, 0)
 		}
 	}
+	//Keep data running
+	if !p.GetBool(prop.NormalDataInTime, prop.NormalDataInTimeDefault) {
+		if totalOpCount < int64(threadCount) {
+			fmt.Printf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
+				prop.OperationCount,
+				prop.InsertCount,
+				prop.RecordCount,
+				totalOpCount,
+				threadCount)
 
-	//if totalOpCount < int64(threadCount) {
-	//	fmt.Printf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
-	//		prop.OperationCount,
-	//		prop.InsertCount,
-	//		prop.RecordCount,
-	//		totalOpCount,
-	//		threadCount)
-
-	//	os.Exit(-1)
-	//}
+			os.Exit(-1)
+		}
+	}
 
 	w.opCount = totalOpCount / int64(threadCount)
 
@@ -115,9 +119,9 @@ func (w *worker) run(ctx context.Context,loadStartTime time.Time) {
 	}
 
 	startTime := time.Now()
-	u := w.p.GetFloat64(prop.ExpectedValue,prop.ExpectedValueDefault)
-	a := w.p.GetFloat64(prop.StandardDeviation,prop.StandardDeviationDefault)
-	deplay := w.p.GetFloat64(prop.TimeDelay,prop.TimeDelayDefault)
+	mean := w.p.GetFloat64(prop.ExpectedValue,prop.ExpectedValueDefault)
+	std := w.p.GetFloat64(prop.StandardDeviation,prop.StandardDeviationDefault)
+	delay := w.p.GetFloat64(prop.TimeDelay,prop.TimeDelayDefault)
 	period := w.p.GetInt(prop.TimePeriod,prop.TimePeriodDefault)
 
 	for w.opCount == 0 || w.opsDone < w.opCount {
@@ -139,14 +143,16 @@ func (w *worker) run(ctx context.Context,loadStartTime time.Time) {
 			}
 		}
 
-		//timeNow := time.Now().Minute()%period
-		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%period
-		v := 1 / (math.Sqrt(2*math.Pi) * a) * math.Pow(math.E, (-math.Pow((float64(timeNow) - u), 2)/(2*math.Pow(a, 2))))
-		tmp := 1/v*deplay
-		if tmp > 3 * math.Pow(10.0,10) {
-			tmp = 3 * math.Pow(10.0,10)
+		//Control delay makes data normal distribution in time dimension
+		if w.p.GetBool(prop.NormalDataInTime, prop.NormalDataInTimeDefault) {
+			timeNow := int(time.Now().Sub(loadStartTime).Minutes())%period
+			v := 1 / (math.Sqrt(2*math.Pi) * std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - mean), 2)/(2*math.Pow(std, 2))))
+			tmp := 1/v*delay
+			if tmp > 3 * math.Pow(10.0,10) {
+				tmp = 3 * math.Pow(10.0,10)
+			}
+			time.Sleep(time.Duration(tmp))
 		}
-		time.Sleep(time.Duration(tmp))
 
 		if err != nil && !w.p.GetBool(prop.Silence, prop.SilenceDefault) {
 			fmt.Printf("operation err: %v\n", err)

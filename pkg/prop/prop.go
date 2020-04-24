@@ -107,12 +107,15 @@ const (
 	KeyPrefix        = "keyprefix"
 	KeyPrefixDefault = "user"
 
+	NormalDataInTime       = "normal_data_in_time"
+	NormalDataInTimeDefault = false
 	ExpectedValue = "expectedvalue"
-	ExpectedValueDefault = float64(30)
+	ExpectedValueDefault = float64(10)
 	StandardDeviation = "standarddeviation"
-	StandardDeviationDefault = float64(10)
+	StandardDeviationDefault = float64(2)
 	TimeDelay = "timedelay"
 	TimeDelayDefault = float64(100000)
 	TimePeriod = "timeperiod"
 	TimePeriodDefault = int(20)
+
 )
