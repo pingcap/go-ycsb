@@ -17,9 +17,10 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"os"
+	//"os"
 	"sync"
 	"time"
+	"math"
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
@@ -64,16 +65,16 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 		}
 	}
 
-	if totalOpCount < int64(threadCount) {
-		fmt.Printf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
-			prop.OperationCount,
-			prop.InsertCount,
-			prop.RecordCount,
-			totalOpCount,
-			threadCount)
+	//if totalOpCount < int64(threadCount) {
+	//	fmt.Printf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
+	//		prop.OperationCount,
+	//		prop.InsertCount,
+	//		prop.RecordCount,
+	//		totalOpCount,
+	//		threadCount)
 
-		os.Exit(-1)
-	}
+	//	os.Exit(-1)
+	//}
 
 	w.opCount = totalOpCount / int64(threadCount)
 
@@ -107,13 +108,17 @@ func (w *worker) throttle(ctx context.Context, startTime time.Time) {
 	}
 }
 
-func (w *worker) run(ctx context.Context) {
+func (w *worker) run(ctx context.Context,loadStartTime time.Time) {
 	// spread the thread operation out so they don't all hit the DB at the same time
 	if w.targetOpsPerMs > 0.0 && w.targetOpsPerMs <= 1.0 {
 		time.Sleep(time.Duration(rand.Int63n(w.targetOpsTickNs)))
 	}
 
 	startTime := time.Now()
+	u := w.p.GetFloat64(prop.ExpectedValue,prop.ExpectedValueDefault)
+	a := w.p.GetFloat64(prop.StandardDeviation,prop.StandardDeviationDefault)
+	deplay := w.p.GetFloat64(prop.TimeDelay,prop.TimeDelayDefault)
+	period := w.p.GetInt(prop.TimePeriod,prop.TimePeriodDefault)
 
 	for w.opCount == 0 || w.opsDone < w.opCount {
 		var err error
@@ -133,6 +138,15 @@ func (w *worker) run(ctx context.Context) {
 				err = w.workload.DoInsert(ctx, w.workDB)
 			}
 		}
+
+		//timeNow := time.Now().Minute()%period
+		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%period
+		v := 1 / (math.Sqrt(2*math.Pi) * a) * math.Pow(math.E, (-math.Pow((float64(timeNow) - u), 2)/(2*math.Pow(a, 2))))
+		tmp := 1/v*deplay
+		if tmp > 3 * math.Pow(10.0,10) {
+			tmp = 3 * math.Pow(10.0,10)
+		}
+		time.Sleep(time.Duration(tmp))
 
 		if err != nil && !w.p.GetBool(prop.Silence, prop.SilenceDefault) {
 			fmt.Printf("operation err: %v\n", err)
@@ -165,7 +179,7 @@ func NewClient(p *properties.Properties, workload ycsb.Workload, db ycsb.DB) *Cl
 }
 
 // Run runs the workload to the target DB, and blocks until all workers end.
-func (c *Client) Run(ctx context.Context) {
+func (c *Client) Run(ctx context.Context, loadStartTime time.Time) {
 	var wg sync.WaitGroup
 	threadCount := c.p.GetInt(prop.ThreadCount, 1)
 
@@ -209,7 +223,7 @@ func (c *Client) Run(ctx context.Context) {
 			w := newWorker(c.p, threadId, threadCount, c.workload, c.db)
 			ctx := c.workload.InitThread(ctx, threadId, threadCount)
 			ctx = c.db.InitThread(ctx, threadId, threadCount)
-			w.run(ctx)
+			w.run(ctx,loadStartTime)
 			c.db.CleanupThread(ctx)
 			c.workload.CleanupThread(ctx)
 		}(i)
