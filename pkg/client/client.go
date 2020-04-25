@@ -17,12 +17,12 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"math"
 	"os"
 
 	//"os"
 	"sync"
 	"time"
-	"math"
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
@@ -66,18 +66,16 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 			totalOpCount = p.GetInt64(prop.RecordCount, 0)
 		}
 	}
-	//Keep data running
-	if !p.GetBool(prop.NormalDataInTime, prop.NormalDataInTimeDefault) {
-		if totalOpCount < int64(threadCount) {
-			fmt.Printf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
-				prop.OperationCount,
-				prop.InsertCount,
-				prop.RecordCount,
-				totalOpCount,
-				threadCount)
 
-			os.Exit(-1)
-		}
+	if totalOpCount < int64(threadCount) {
+		fmt.Printf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
+			prop.OperationCount,
+			prop.InsertCount,
+			prop.RecordCount,
+			totalOpCount,
+			threadCount)
+
+		os.Exit(-1)
 	}
 
 	w.opCount = totalOpCount / int64(threadCount)
