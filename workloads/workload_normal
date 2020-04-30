@@ -40,7 +40,7 @@ recordcount=50000000
 # There is no default setting for operationcount but it is
 # required to be set.
 # The number of operations to use during the run phase.
-operationcount=0
+operationcount=1000000000000
 
 # The number of thread.
 threadcount=200
@@ -215,9 +215,12 @@ timeseries.granularity=1000
 # TimeDelayDefault = float64(100000)	
 # TimePeriod = "timeperiod"
 # TimePeriodDefault = int(20)
+#TimeDistribution = "timedistribution"
+#TimeDistributionDefault = "none"
 
 normal_data_in_time = true
 expectedvalue = 10
 standarddeviation = 3
-timedelay = 10000
+timedelay = 100000
 timeperiod = 20
+timedistribution = step

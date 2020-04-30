@@ -16,8 +16,8 @@ package client
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"math"
+	"math/rand"
 	"os"
 
 	//"os"
@@ -42,6 +42,11 @@ type worker struct {
 	threadID        int
 	targetOpsTickNs int64
 	opsDone         int64
+
+	mean            float64
+	std             float64
+	delay           int64
+	period          int
 }
 
 func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db ycsb.DB) *worker {
@@ -55,6 +60,11 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 	w.threadID = threadID
 	w.workload = workload
 	w.workDB = db
+
+	w.mean = w.p.GetFloat64(prop.ExpectedValue,prop.ExpectedValueDefault)
+	w.std = w.p.GetFloat64(prop.StandardDeviation,prop.StandardDeviationDefault)
+	w.delay = w.p.GetInt64(prop.TimeDelay,prop.TimeDelayDefault)
+	w.period = w.p.GetInt(prop.TimePeriod,prop.TimePeriodDefault)
 
 	var totalOpCount int64
 	if w.doTransactions {
@@ -110,6 +120,35 @@ func (w *worker) throttle(ctx context.Context, startTime time.Time) {
 	}
 }
 
+func (w *worker) ctlPeriod(loadStartTime time.Time) {
+	distributionName :=  w.p.GetString(prop.TimeDistribution,"none")
+	switch distributionName {
+	case "normal":
+		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
+		v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
+		tmp := 1/v*float64(w.delay)
+		if tmp > 3 * math.Pow(10.0,10) {
+			tmp = 3 * math.Pow(10.0,10)
+		}
+		time.Sleep(time.Duration(tmp))
+	case "reverse_normal":
+		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
+		v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
+		tmp := v*float64(w.delay)
+		if tmp > 3 * math.Pow(10.0,10) {
+			tmp = 3 * math.Pow(10.0,10)
+		}
+		time.Sleep(time.Duration(tmp))
+	case "step":
+		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
+		v := 3 - int(0.5 + float64(timeNow * 3.0 /w.period))
+		tmp := int64(v)*w.delay
+		time.Sleep(time.Duration(tmp))
+	default:
+		fmt.Printf("distribtion_name err: ")
+	}
+}
+
 func (w *worker) run(ctx context.Context,loadStartTime time.Time) {
 	// spread the thread operation out so they don't all hit the DB at the same time
 	if w.targetOpsPerMs > 0.0 && w.targetOpsPerMs <= 1.0 {
@@ -117,10 +156,6 @@ func (w *worker) run(ctx context.Context,loadStartTime time.Time) {
 	}
 
 	startTime := time.Now()
-	mean := w.p.GetFloat64(prop.ExpectedValue,prop.ExpectedValueDefault)
-	std := w.p.GetFloat64(prop.StandardDeviation,prop.StandardDeviationDefault)
-	delay := w.p.GetFloat64(prop.TimeDelay,prop.TimeDelayDefault)
-	period := w.p.GetInt(prop.TimePeriod,prop.TimePeriodDefault)
 
 	for w.opCount == 0 || w.opsDone < w.opCount {
 		var err error
@@ -143,13 +178,7 @@ func (w *worker) run(ctx context.Context,loadStartTime time.Time) {
 
 		//Control delay makes data normal distribution in time dimension
 		if w.p.GetBool(prop.NormalDataInTime, prop.NormalDataInTimeDefault) {
-			timeNow := int(time.Now().Sub(loadStartTime).Minutes())%period
-			v := 1 / (math.Sqrt(2*math.Pi) * std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - mean), 2)/(2*math.Pow(std, 2))))
-			tmp := 1/v*delay
-			if tmp > 3 * math.Pow(10.0,10) {
-				tmp = 3 * math.Pow(10.0,10)
-			}
-			time.Sleep(time.Duration(tmp))
+			w.ctlPeriod(loadStartTime)
 		}
 
 		if err != nil && !w.p.GetBool(prop.Silence, prop.SilenceDefault) {
