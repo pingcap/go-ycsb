@@ -28,6 +28,7 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
+	"github.com/pkg/errors"
 )
 
 type worker struct {
@@ -120,7 +121,7 @@ func (w *worker) throttle(ctx context.Context, startTime time.Time) {
 	}
 }
 
-func (w *worker) ctlPeriod(loadStartTime time.Time) {
+func (w *worker) ctlPeriod(loadStartTime time.Time) error {
 	distributionName :=  w.p.GetString(prop.TimeDistribution,"none")
 	switch distributionName {
 	case "normal":
@@ -139,11 +140,6 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) {
 			tmp = 3 * math.Pow(10.0,10)
 		}
 		time.Sleep(time.Duration(tmp))
-	case "step":
-		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-		v := 3 - int(0.5 + float64(timeNow * 3.0 /w.period))
-		tmp := int64(v)*w.delay
-		time.Sleep(time.Duration(tmp))
 	case "noise_normal":
 		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
 		v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
@@ -152,19 +148,33 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) {
 			tmp = 3 * math.Pow(10.0,10)
 		}
 		getrandnum(timeNow)
-		noise := tmp/3*randnum
+		noise := tmp*randnum*2
+		time.Sleep(time.Duration(tmp+noise))
+	case "step":
+		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
+		v := 3 - int(0.5 + float64(timeNow * 3.0 /w.period))
+		tmp := int64(v)*w.delay
+		time.Sleep(time.Duration(tmp))
+	case "noise_step":
+		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
+		v := 3 - int(0.5 + float64(timeNow * 3.0 /w.period))
+		tmp := float64(v)*float64(w.delay)
+		getrandnum(timeNow)
+		noise := tmp*randnum*2
 		time.Sleep(time.Duration(tmp+noise))
 	default:
 		fmt.Printf("distribtion_name err: ")
+		return errors.Errorf("distribtion_name err: ")
 	}
+	return nil
 }
 
 var oldtime int = -1
 var randnum float64 = 0
 func getrandnum(newtime int){
 	if newtime!=oldtime {
-		randnum = rand.Float64()-0.5
-		oldtime = newtime //not locked, not necessary
+		randnum = rand.Float64()-0.5 //not locked, not necessary
+		oldtime = newtime
 	}
 }
 
@@ -197,7 +207,10 @@ func (w *worker) run(ctx context.Context,loadStartTime time.Time) {
 
 		//Control delay makes data normal distribution in time dimension
 		if w.p.GetBool(prop.NormalDataInTime, prop.NormalDataInTimeDefault) {
-			w.ctlPeriod(loadStartTime)
+			err := w.ctlPeriod(loadStartTime)
+			if err != nil {
+				return
+			}
 		}
 
 		if err != nil && !w.p.GetBool(prop.Silence, prop.SilenceDefault) {
