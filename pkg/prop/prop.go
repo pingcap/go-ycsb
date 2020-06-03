@@ -117,6 +117,8 @@ const (
 	TimeDelayDefault = int64(100000)
 	TimePeriod = "timeperiod"
 	TimePeriodDefault = int(20)
+	NoiseRatio = "noiseratio"
+	NoiseRatioDefault = float64(0)
 	TimeDistribution = "timedistribution"
 	//TimeDistributionDefault = "none"
 )

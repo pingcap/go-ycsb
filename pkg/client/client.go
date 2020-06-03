@@ -48,6 +48,7 @@ type worker struct {
 	std             float64
 	delay           int64
 	period          int
+	noiseRatio      float64
 }
 
 func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db ycsb.DB) *worker {
@@ -66,6 +67,7 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 	w.std = w.p.GetFloat64(prop.StandardDeviation,prop.StandardDeviationDefault)
 	w.delay = w.p.GetInt64(prop.TimeDelay,prop.TimeDelayDefault)
 	w.period = w.p.GetInt(prop.TimePeriod,prop.TimePeriodDefault)
+	w.noiseRatio = w.p.GetFloat64(prop.NoiseRatio,prop.NoiseRatioDefault)
 
 	var totalOpCount int64
 	if w.doTransactions {
@@ -147,8 +149,8 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) error {
 		if tmp > 3 * math.Pow(10.0,10) {
 			tmp = 3 * math.Pow(10.0,10)
 		}
-		getrandnum(timeNow)
-		noise := tmp*randnum*2
+		getnoiseRange(timeNow,w.noiseRatio)
+		noise := tmp*noiseRange
 		time.Sleep(time.Duration(tmp+noise))
 	case "step":
 		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
@@ -159,8 +161,8 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) error {
 		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
 		v := 3 - int(0.5 + float64(timeNow * 3.0 /w.period))
 		tmp := float64(v)*float64(w.delay)
-		getrandnum(timeNow)
-		noise := tmp*randnum*2
+		getnoiseRange(timeNow,w.noiseRatio)
+		noise := tmp*noiseRange
 		time.Sleep(time.Duration(tmp+noise))
 	default:
 		fmt.Printf("distribtion_name err: ")
@@ -170,10 +172,20 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) error {
 }
 
 var oldtime int = -1
-var randnum float64 = 0
-func getrandnum(newtime int){
+var noiseRange float64 = 0
+//if radio is y，noiserange is randfloat64 in [-y/(1+y),y/(1-y)]
+func getnoiseRange(newtime int,ratio float64){
+	//not locked, not necessary
 	if newtime!=oldtime {
-		randnum = rand.Float64()-0.5 //not locked, not necessary
+		if ratio == 1{
+			//[-1/2,2]
+			noiseRange = float64(rand.Int63n(5) -1)/2
+		} else if ratio == 0{
+			noiseRange = 0
+		} else {
+			//[-y/(1+y),y/(1-y)]
+			noiseRange = float64(rand.Int63n(int64(10000*2*ratio)) -int64(10000*ratio*(1-ratio)))/(10000*(1-ratio*ratio))
+		}
 		oldtime = newtime
 	}
 }
