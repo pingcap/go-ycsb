@@ -151,10 +151,20 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) {
 		if tmp > 3 * math.Pow(10.0,10) {
 			tmp = 3 * math.Pow(10.0,10)
 		}
-		noise := tmp*(rand.Float64()-0.5)/4
+		getrandnum(timeNow)
+		noise := tmp/3*randnum
 		time.Sleep(time.Duration(tmp+noise))
 	default:
 		fmt.Printf("distribtion_name err: ")
+	}
+}
+
+var oldtime int = -1
+var randnum float64 = 0
+func getrandnum(newtime int){
+	if newtime!=oldtime {
+		randnum = rand.Float64()-0.5
+		oldtime = newtime //not locked, not necessary
 	}
 }
 
