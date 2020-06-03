@@ -144,6 +144,15 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) {
 		v := 3 - int(0.5 + float64(timeNow * 3.0 /w.period))
 		tmp := int64(v)*w.delay
 		time.Sleep(time.Duration(tmp))
+	case "noise_normal":
+		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
+		v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
+		tmp := 1/v*float64(w.delay)
+		if tmp > 3 * math.Pow(10.0,10) {
+			tmp = 3 * math.Pow(10.0,10)
+		}
+		noise := tmp*(rand.Float64()-0.5)/4
+		time.Sleep(time.Duration(tmp+noise))
 	default:
 		fmt.Printf("distribtion_name err: ")
 	}
