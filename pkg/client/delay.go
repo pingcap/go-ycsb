@@ -13,13 +13,16 @@ func getnoiseRange(newtime int,ratio float64){
 	//not locked, not necessary
 	if newtime!=oldtime {
 		if ratio >= 1{
-			//[-1/2,2]
+			//[-1/2,4]
 			noiseRange = float64(rand.Int63n(5) -1)/2
 		} else if ratio <= 0{
 			noiseRange = 0
 		} else {
 			//[-y/(1+y),y/(1-y)]
 			noiseRange = float64(rand.Int63n(int64(10000*2*ratio)) -int64(10000*ratio*(1-ratio)))/(10000*(1-ratio*ratio))
+			if noiseRange > 4{
+				noiseRange = 4
+			}
 		}
 		oldtime = newtime
 	}
