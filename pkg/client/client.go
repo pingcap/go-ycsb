@@ -16,7 +16,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 
@@ -63,11 +62,7 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 	w.workload = workload
 	w.workDB = db
 
-	w.mean = w.p.GetFloat64(prop.ExpectedValue,prop.ExpectedValueDefault)
-	w.std = w.p.GetFloat64(prop.StandardDeviation,prop.StandardDeviationDefault)
-	w.delay = w.p.GetInt64(prop.TimeDelay,prop.TimeDelayDefault)
-	w.period = w.p.GetInt(prop.TimePeriod,prop.TimePeriodDefault)
-	w.noiseRatio = w.p.GetFloat64(prop.NoiseRatio,prop.NoiseRatioDefault)
+	w.initPeriodProp()
 
 	var totalOpCount int64
 	if w.doTransactions {
@@ -123,71 +118,32 @@ func (w *worker) throttle(ctx context.Context, startTime time.Time) {
 	}
 }
 
+func (w *worker) initPeriodProp()  {
+	w.mean = w.p.GetFloat64(prop.ExpectedValue,prop.ExpectedValueDefault)
+	w.std = w.p.GetFloat64(prop.StandardDeviation,prop.StandardDeviationDefault)
+	w.delay = w.p.GetInt64(prop.TimeDelay,prop.TimeDelayDefault)
+	w.period = w.p.GetInt(prop.TimePeriod,prop.TimePeriodDefault)
+	w.noiseRatio = w.p.GetFloat64(prop.NoiseRatio,prop.NoiseRatioDefault)
+}
+
 func (w *worker) ctlPeriod(loadStartTime time.Time) error {
 	distributionName :=  w.p.GetString(prop.TimeDistribution,"none")
 	switch distributionName {
 	case "normal":
-		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-		v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
-		tmp := 1/v*float64(w.delay)
-		if tmp > 3 * math.Pow(10.0,10) {
-			tmp = 3 * math.Pow(10.0,10)
-		}
-		time.Sleep(time.Duration(tmp))
+		w.Normal(loadStartTime)
 	case "reverse_normal":
-		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-		v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
-		tmp := v*float64(w.delay)
-		if tmp > 3 * math.Pow(10.0,10) {
-			tmp = 3 * math.Pow(10.0,10)
-		}
-		time.Sleep(time.Duration(tmp))
+		w.Reverse_normal(loadStartTime)
 	case "noise_normal":
-		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-		v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
-		tmp := 1/v*float64(w.delay)
-		if tmp > 3 * math.Pow(10.0,10) {
-			tmp = 3 * math.Pow(10.0,10)
-		}
-		getnoiseRange(timeNow,w.noiseRatio)
-		noise := tmp*noiseRange
-		time.Sleep(time.Duration(tmp+noise))
+		w.Noise_normal(loadStartTime)
 	case "step":
-		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-		v := 3 - int(0.5 + float64(timeNow * 3.0 /w.period))
-		tmp := int64(v)*w.delay
-		time.Sleep(time.Duration(tmp))
+		w.Step(loadStartTime)
 	case "noise_step":
-		timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-		v := 3 - int(0.5 + float64(timeNow * 3.0 /w.period))
-		tmp := float64(v)*float64(w.delay)
-		getnoiseRange(timeNow,w.noiseRatio)
-		noise := tmp*noiseRange
-		time.Sleep(time.Duration(tmp+noise))
+		w.Noise_step(loadStartTime)
 	default:
 		fmt.Printf("distribtion_name err: ")
 		return errors.Errorf("distribtion_name err: ")
 	}
 	return nil
-}
-
-var oldtime int = -1
-var noiseRange float64 = 0
-//if radio is y，noiserange is randfloat64 in [-y/(1+y),y/(1-y)]
-func getnoiseRange(newtime int,ratio float64){
-	//not locked, not necessary
-	if newtime!=oldtime {
-		if ratio == 1{
-			//[-1/2,2]
-			noiseRange = float64(rand.Int63n(5) -1)/2
-		} else if ratio == 0{
-			noiseRange = 0
-		} else {
-			//[-y/(1+y),y/(1-y)]
-			noiseRange = float64(rand.Int63n(int64(10000*2*ratio)) -int64(10000*ratio*(1-ratio)))/(10000*(1-ratio*ratio))
-		}
-		oldtime = newtime
-	}
 }
 
 func (w *worker) run(ctx context.Context,loadStartTime time.Time) {
@@ -217,8 +173,8 @@ func (w *worker) run(ctx context.Context,loadStartTime time.Time) {
 			}
 		}
 
-		//Control delay makes data normal distribution in time dimension
-		if w.p.GetBool(prop.NormalDataInTime, prop.NormalDataInTimeDefault) {
+		//Control delay makes data periodic distribution in time dimension
+		if w.p.GetBool(prop.PeriodInTime, prop.PeriodInTimeDefault) {
 			err := w.ctlPeriod(loadStartTime)
 			if err != nil {
 				return

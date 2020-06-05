@@ -93,12 +93,12 @@ hotspotdatafraction=0.2
 hotspotopnfraction=0.8
 
 # The name of the database table to run queries against
-table=table3
+table=table1
 
 
 
-# NormalDataInTime = "normal_data_in_time"
-# NormalDataInTimeDefault = false
+# PeriodInTime = "period_in_time"
+# PeriodInTimeDefault = false
 # ExpectedValue = "expectedvalue"
 # ExpectedValueDefault = float64(10)
 # StandardDeviation = "standarddeviation"
@@ -112,7 +112,7 @@ table=table3
 # TimeDistribution = "timedistribution"
 # TimeDistributionDefault = "none"
 
-normal_data_in_time = true
+period_in_time = true
 expectedvalue = 30
 standarddeviation = 5
 timedelay = 40000

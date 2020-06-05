@@ -107,8 +107,8 @@ const (
 	KeyPrefix        = "keyprefix"
 	KeyPrefixDefault = "user"
 
-	NormalDataInTime       = "normal_data_in_time"
-	NormalDataInTimeDefault = false
+	PeriodInTime       = "period_in_time"
+	PeriodInTimeDefault = false
 	ExpectedValue = "expectedvalue"
 	ExpectedValueDefault = float64(10)
 	StandardDeviation = "standarddeviation"
