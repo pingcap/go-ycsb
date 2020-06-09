@@ -29,6 +29,7 @@ func getnoiseRange(newtime int,ratio float64){
 }
 
 func (w *worker) Normal(loadStartTime time.Time)  {
+	w.delay = int64(float64(w.threadCount) * float64(time.Second) / (float64(w.expectedOps) * math.Sqrt(2*math.Pi) * w.std))
 	timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
 	v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
 	tmp := 1/v*float64(w.delay)
@@ -38,17 +39,8 @@ func (w *worker) Normal(loadStartTime time.Time)  {
 	time.Sleep(time.Duration(tmp))
 }
 
-func (w *worker) Reverse_normal(loadStartTime time.Time)  {
-	timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-	v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
-	tmp := v*float64(w.delay)
-	if tmp > 3 * math.Pow(10.0,10) {
-		tmp = 3 * math.Pow(10.0,10)
-	}
-	time.Sleep(time.Duration(tmp))
-}
-
 func (w *worker) Noise_normal(loadStartTime time.Time)  {
+	w.delay = int64(float64(w.threadCount) * float64(time.Second) / (float64(w.expectedOps) * math.Sqrt(2*math.Pi) * w.std))
 	timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
 	v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
 	tmp := 1/v*float64(w.delay)
@@ -61,15 +53,17 @@ func (w *worker) Noise_normal(loadStartTime time.Time)  {
 }
 
 func (w *worker) Step(loadStartTime time.Time)  {
+	w.delay = int64(float64(w.threadCount) * float64(time.Second) / float64(w.expectedOps))
 	timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-	v := 3 - int(0.5 + float64(timeNow * 3.0 /w.period))
+	v := 3 - int(float64(timeNow * 3.0 /w.period))
 	tmp := int64(v)*w.delay
 	time.Sleep(time.Duration(tmp))
 }
 
 func (w *worker) Noise_step(loadStartTime time.Time)  {
+	w.delay = int64(float64(w.threadCount) * float64(time.Second) / float64(w.expectedOps))
 	timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-	v := 3 - int(0.5 + float64(timeNow * 3.0 /w.period))
+	v := 3 - int(float64(timeNow * 3.0 /w.period))
 	tmp := float64(v)*float64(w.delay)
 	getnoiseRange(timeNow,w.noiseRatio)
 	noise := tmp*noiseRange

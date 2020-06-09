@@ -109,12 +109,12 @@ const (
 
 	PeriodInTime       = "period_in_time"
 	PeriodInTimeDefault = false
-	ExpectedValue = "expectedvalue"
-	ExpectedValueDefault = float64(10)
+	MeanValue = "meanvalue"
+	MeanValueDefault = float64(10)
 	StandardDeviation = "standarddeviation"
 	StandardDeviationDefault = float64(2)
-	TimeDelay = "timedelay"
-	TimeDelayDefault = int64(100000)
+    ExpectedOps = "expected_ops"
+    ExpectedOpsDefault = int64(10000)
 	TimePeriod = "timeperiod"
 	TimePeriodDefault = int(20)
 	NoiseRatio = "noiseratio"

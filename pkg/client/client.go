@@ -41,11 +41,13 @@ type worker struct {
 	targetOpsTickNs int64
 	opsDone         int64
 
+	threadCount     int
 	mean            float64
 	std             float64
-	delay           int64
+	expectedOps     int64
 	period          int
 	noiseRatio      float64
+	delay           int64
 }
 
 func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db ycsb.DB) *worker {
@@ -117,11 +119,13 @@ func (w *worker) throttle(ctx context.Context, startTime time.Time) {
 }
 
 func (w *worker) initPeriodProp()  {
-	w.mean = w.p.GetFloat64(prop.ExpectedValue,prop.ExpectedValueDefault)
+	w.threadCount = w.p.GetInt(prop.ThreadCount, 1)
+	w.mean = w.p.GetFloat64(prop.MeanValue,prop.MeanValueDefault)
 	w.std = w.p.GetFloat64(prop.StandardDeviation,prop.StandardDeviationDefault)
-	w.delay = w.p.GetInt64(prop.TimeDelay,prop.TimeDelayDefault)
+	w.expectedOps = w.p.GetInt64(prop.ExpectedOps,prop.ExpectedOpsDefault)
 	w.period = w.p.GetInt(prop.TimePeriod,prop.TimePeriodDefault)
 	w.noiseRatio = w.p.GetFloat64(prop.NoiseRatio,prop.NoiseRatioDefault)
+	w.delay = 0
 }
 
 func (w *worker) ctlPeriod(loadStartTime time.Time) error {
@@ -129,8 +133,6 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) error {
 	switch distributionName {
 	case "normal":
 		w.Normal(loadStartTime)
-	case "reverse_normal":
-		w.Reverse_normal(loadStartTime)
 	case "noise_normal":
 		w.Noise_normal(loadStartTime)
 	case "step":
