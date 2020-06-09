@@ -113,12 +113,12 @@ const (
 	MeanValueDefault = float64(10)
 	StandardDeviation = "standarddeviation"
 	StandardDeviationDefault = float64(2)
-    ExpectedOps = "expected_ops"
-    ExpectedOpsDefault = int64(10000)
+	ExpectedOps = "expected_ops"
+	ExpectedOpsDefault = int64(10000)
 	TimePeriod = "timeperiod"
 	TimePeriodDefault = int(20)
 	NoiseRatio = "noiseratio"
 	NoiseRatioDefault = float64(0)
 	TimeDistribution = "timedistribution"
-	//TimeDistributionDefault = "none"
+	TimeDistributionDefault = "none"
 )

@@ -129,7 +129,7 @@ func (w *worker) initPeriodProp()  {
 }
 
 func (w *worker) ctlPeriod(loadStartTime time.Time) error {
-	distributionName :=  w.p.GetString(prop.TimeDistribution,"none")
+	distributionName :=  w.p.GetString(prop.TimeDistribution,prop.TimeDistributionDefault)
 	switch distributionName {
 	case "normal":
 		w.Normal(loadStartTime)
