@@ -8,17 +8,17 @@ import (
 
 var oldtime int = -1
 var noiseRange float64 = 0
-//if radio is y，noiserange is randfloat64 in [-y/(1+y),y/(1-y)]
+// If radio is y，noiseRange is rand float64 in [-y/(1+y),y/(1-y)]
 func getnoiseRange(newtime int,ratio float64){
-	//not locked, not necessary
+	// Not locked, not necessary
 	if newtime!=oldtime {
 		if ratio >= 1{
-			//[-1/2,4]
+			// [-1/2,4]
 			noiseRange = float64(rand.Int63n(5) -1)/2
 		} else if ratio <= 0{
 			noiseRange = 0
 		} else {
-			//[-y/(1+y),y/(1-y)]
+			// [-y/(1+y),y/(1-y)]
 			noiseRange = float64(rand.Int63n(int64(10000*2*ratio)) -int64(10000*ratio*(1-ratio)))/(10000*(1-ratio*ratio))
 			if noiseRange > 4{
 				noiseRange = 4

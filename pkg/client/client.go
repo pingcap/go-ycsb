@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-
-	//"os"
 	"sync"
 	"time"
 
@@ -173,7 +171,7 @@ func (w *worker) run(ctx context.Context,loadStartTime time.Time) {
 			}
 		}
 
-		//Control delay makes data periodic distribution in time dimension
+		// Control delay makes data periodic distribution in the time dimension
 		if w.p.GetBool(prop.PeriodInTime, prop.PeriodInTimeDefault) {
 			err := w.ctlPeriod(loadStartTime)
 			if err != nil {
