@@ -41,13 +41,13 @@ type worker struct {
 	targetOpsTickNs int64
 	opsDone         int64
 
-	threadCount     int
-	mean            float64
-	std             float64
-	expectedOps     int64
-	period          int
-	noiseRatio      float64
-	delay           int64
+	threadCount int
+	mean        float64
+	std         float64
+	expectedOps int64
+	period      int
+	noiseRatio  float64
+	delay       int64
 }
 
 func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db ycsb.DB) *worker {
@@ -118,18 +118,18 @@ func (w *worker) throttle(ctx context.Context, startTime time.Time) {
 	}
 }
 
-func (w *worker) initPeriodProp()  {
+func (w *worker) initPeriodProp() {
 	w.threadCount = w.p.GetInt(prop.ThreadCount, 1)
-	w.mean = w.p.GetFloat64(prop.MeanValue,prop.MeanValueDefault)
-	w.std = w.p.GetFloat64(prop.StandardDeviation,prop.StandardDeviationDefault)
-	w.expectedOps = w.p.GetInt64(prop.ExpectedOps,prop.ExpectedOpsDefault)
-	w.period = w.p.GetInt(prop.TimePeriod,prop.TimePeriodDefault)
-	w.noiseRatio = w.p.GetFloat64(prop.NoiseRatio,prop.NoiseRatioDefault)
+	w.mean = w.p.GetFloat64(prop.MeanValue, prop.MeanValueDefault)
+	w.std = w.p.GetFloat64(prop.StandardDeviation, prop.StandardDeviationDefault)
+	w.expectedOps = w.p.GetInt64(prop.ExpectedOps, prop.ExpectedOpsDefault)
+	w.period = w.p.GetInt(prop.TimePeriod, prop.TimePeriodDefault)
+	w.noiseRatio = w.p.GetFloat64(prop.NoiseRatio, prop.NoiseRatioDefault)
 	w.delay = 0
 }
 
 func (w *worker) ctlPeriod(loadStartTime time.Time) error {
-	distributionName :=  w.p.GetString(prop.TimeDistribution,prop.TimeDistributionDefault)
+	distributionName := w.p.GetString(prop.TimeDistribution, prop.TimeDistributionDefault)
 	switch distributionName {
 	case "normal":
 		w.Normal(loadStartTime)
@@ -139,6 +139,8 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) error {
 		w.Step(loadStartTime)
 	case "noise_step":
 		w.Noise_step(loadStartTime)
+	case "meituan":
+		w.Meituan(loadStartTime)
 	default:
 		fmt.Printf("distribution_name err: ")
 		return errors.Errorf("distribution_name err: ")
@@ -146,7 +148,7 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) error {
 	return nil
 }
 
-func (w *worker) run(ctx context.Context,loadStartTime time.Time) {
+func (w *worker) run(ctx context.Context, loadStartTime time.Time) {
 	// spread the thread operation out so they don't all hit the DB at the same time
 	if w.targetOpsPerMs > 0.0 && w.targetOpsPerMs <= 1.0 {
 		time.Sleep(time.Duration(rand.Int63n(w.targetOpsTickNs)))
@@ -256,7 +258,7 @@ func (c *Client) Run(ctx context.Context, loadStartTime time.Time) {
 			w := newWorker(c.p, threadId, threadCount, c.workload, c.db)
 			ctx := c.workload.InitThread(ctx, threadId, threadCount)
 			ctx = c.db.InitThread(ctx, threadId, threadCount)
-			w.run(ctx,loadStartTime)
+			w.run(ctx, loadStartTime)
 			c.db.CleanupThread(ctx)
 			c.workload.CleanupThread(ctx)
 		}(i)

@@ -8,19 +8,20 @@ import (
 
 var oldtime int = -1
 var noiseRange float64 = 0
+
 // If radio is y，noiseRange is rand float64 in [-y/(1+y),y/(1-y)]
-func getnoiseRange(newtime int,ratio float64){
+func getnoiseRange(newtime int, ratio float64) {
 	// Not locked, not necessary
-	if newtime!=oldtime {
-		if ratio >= 1{
+	if newtime != oldtime {
+		if ratio >= 1 {
 			// [-1/2,4]
-			noiseRange = float64(rand.Int63n(5) -1)/2
-		} else if ratio <= 0{
+			noiseRange = float64(rand.Int63n(5)-1) / 2
+		} else if ratio <= 0 {
 			noiseRange = 0
 		} else {
 			// [-y/(1+y),y/(1-y)]
-			noiseRange = float64(rand.Int63n(int64(10000*2*ratio)) -int64(10000*ratio*(1-ratio)))/(10000*(1-ratio*ratio))
-			if noiseRange > 4{
+			noiseRange = float64(rand.Int63n(int64(10000*2*ratio))-int64(10000*ratio*(1-ratio))) / (10000 * (1 - ratio*ratio))
+			if noiseRange > 4 {
 				noiseRange = 4
 			}
 		}
@@ -28,44 +29,44 @@ func getnoiseRange(newtime int,ratio float64){
 	}
 }
 
-func (w *worker) Normal(loadStartTime time.Time)  {
+func (w *worker) Normal(loadStartTime time.Time) {
 	w.delay = int64(float64(w.threadCount) * float64(time.Second) / (float64(w.expectedOps) * math.Sqrt(2*math.Pi) * w.std))
-	timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-	v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
-	tmp := 1/v*float64(w.delay)
-	if tmp > 3 * math.Pow(10.0,10) {
-		tmp = 3 * math.Pow(10.0,10)
+	timeNow := int(time.Now().Sub(loadStartTime).Minutes()) % w.period
+	v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow)-w.mean), 2)/(2*math.Pow(w.std, 2))))
+	tmp := 1 / v * float64(w.delay)
+	if tmp > 3*math.Pow(10.0, 10) {
+		tmp = 3 * math.Pow(10.0, 10)
 	}
 	time.Sleep(time.Duration(tmp))
 }
 
-func (w *worker) Noise_normal(loadStartTime time.Time)  {
+func (w *worker) Noise_normal(loadStartTime time.Time) {
 	w.delay = int64(float64(w.threadCount) * float64(time.Second) / (float64(w.expectedOps) * math.Sqrt(2*math.Pi) * w.std))
-	timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-	v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow) - w.mean), 2)/(2*math.Pow(w.std, 2))))
-	tmp := 1/v*float64(w.delay)
-	if tmp > 3 * math.Pow(10.0,10) {
-		tmp = 3 * math.Pow(10.0,10)
+	timeNow := int(time.Now().Sub(loadStartTime).Minutes()) % w.period
+	v := 1 / (math.Sqrt(2*math.Pi) * w.std) * math.Pow(math.E, (-math.Pow((float64(timeNow)-w.mean), 2)/(2*math.Pow(w.std, 2))))
+	tmp := 1 / v * float64(w.delay)
+	if tmp > 3*math.Pow(10.0, 10) {
+		tmp = 3 * math.Pow(10.0, 10)
 	}
-	getnoiseRange(timeNow,w.noiseRatio)
-	noise := tmp*noiseRange
-	time.Sleep(time.Duration(tmp+noise))
+	getnoiseRange(timeNow, w.noiseRatio)
+	noise := tmp * noiseRange
+	time.Sleep(time.Duration(tmp + noise))
 }
 
-func (w *worker) Step(loadStartTime time.Time)  {
+func (w *worker) Step(loadStartTime time.Time) {
 	w.delay = int64(float64(w.threadCount) * float64(time.Second) / float64(w.expectedOps))
-	timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-	v := 3 - int(float64(timeNow * 3.0 /w.period))
-	tmp := int64(v)*w.delay
+	timeNow := int(time.Now().Sub(loadStartTime).Minutes()) % w.period
+	v := 3 - int(float64(timeNow*3.0/w.period))
+	tmp := int64(v) * w.delay
 	time.Sleep(time.Duration(tmp))
 }
 
-func (w *worker) Noise_step(loadStartTime time.Time)  {
+func (w *worker) Noise_step(loadStartTime time.Time) {
 	w.delay = int64(float64(w.threadCount) * float64(time.Second) / float64(w.expectedOps))
-	timeNow := int(time.Now().Sub(loadStartTime).Minutes())%w.period
-	v := 3 - int(float64(timeNow * 3.0 /w.period))
-	tmp := float64(v)*float64(w.delay)
-	getnoiseRange(timeNow,w.noiseRatio)
-	noise := tmp*noiseRange
-	time.Sleep(time.Duration(tmp+noise))
+	timeNow := int(time.Now().Sub(loadStartTime).Minutes()) % w.period
+	v := 3 - int(float64(timeNow*3.0/w.period))
+	tmp := float64(v) * float64(w.delay)
+	getnoiseRange(timeNow, w.noiseRatio)
+	noise := tmp * noiseRange
+	time.Sleep(time.Duration(tmp + noise))
 }
