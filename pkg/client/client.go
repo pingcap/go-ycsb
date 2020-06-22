@@ -140,8 +140,8 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) error {
 	case "noise_step":
 		w.Noise_step(loadStartTime)
 	default:
-		fmt.Printf("distribtion_name err: ")
-		return errors.Errorf("distribtion_name err: ")
+		fmt.Printf("distribution_name err: ")
+		return errors.Errorf("distribution_name err: ")
 	}
 	return nil
 }
