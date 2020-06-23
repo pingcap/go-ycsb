@@ -83,3 +83,27 @@ func (w *worker) Noise_step(loadStartTime time.Time) {
 	noise := tmp * noiseRange
 	time.Sleep(time.Duration(tmp + noise))
 }
+
+func (w *worker) Meituan(loadStartTime time.Time) {
+	timeNow := int(time.Now().Sub(loadStartTime).Minutes()) % w.period
+	x := 24.0 * float64(timeNow) / float64(w.period) //Simulate 24 hours a day
+	var y float64 = 0
+	switch {
+	case x <= 10:
+		y = (12.0*x - x*x) / 36.0
+	case x <= 14:
+		y = 0.5
+	case x <= 24:
+		y = (36.0 - (x-18.0)*(x-18.0)) / 45.0
+	default:
+		y = 1
+	}
+	Q := y * float64(w.expectedOps)
+	if Q < float64(w.threadCount) {
+		Q = float64(w.threadCount)
+	}
+	w.delay = int64(float64(w.threadCount) * float64(time.Second) / Q)
+	getnoiseRange(timeNow, w.noiseRatio)
+	noise := int64(float64(w.delay) * noiseRange)
+	time.Sleep(time.Duration(w.delay + noise))
+}
