@@ -89,12 +89,18 @@ func (w *worker) Meituan(loadStartTime time.Time) {
 	x := 24.0 * float64(timeNow) / float64(w.period) //Simulate 24 hours a day
 	var y float64 = 0
 	switch {
-	case x <= 10:
-		y = (12.0*x - x*x) / 36.0
-	case x <= 14:
-		y = 0.5
+	case x <= 2:
+		y = 0
+	case x <= 6:
+		y = (x - 2.0) / 4
+	case x <= 8:
+		y = 2.8 - 0.3*x
+	case x <= 16:
+		y = 0.4
+	case x <= 18:
+		y = 0.2*x - 2.8
 	case x <= 24:
-		y = (36.0 - (x-18.0)*(x-18.0)) / 45.0
+		y = 3.2 - 0.8*x/6.0
 	default:
 		y = 1
 	}
