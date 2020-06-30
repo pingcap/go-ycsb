@@ -166,20 +166,19 @@ func (w *worker) run(ctx context.Context, loadStartTime time.Time) {
 			} else {
 				err = w.workload.DoTransaction(ctx, w.workDB)
 			}
+			// Control delay makes data periodic distribution in the time dimension
+			if w.p.GetBool(prop.PeriodInTime, prop.PeriodInTimeDefault) {
+				err := w.ctlPeriod(loadStartTime)
+				if err != nil {
+					return
+				}
+			}
 		} else {
 			if w.doBatch {
 				err = w.workload.DoBatchInsert(ctx, w.batchSize, w.workDB)
 				opsCount = w.batchSize
 			} else {
 				err = w.workload.DoInsert(ctx, w.workDB)
-			}
-		}
-
-		// Control delay makes data periodic distribution in the time dimension
-		if w.p.GetBool(prop.PeriodInTime, prop.PeriodInTimeDefault) {
-			err := w.ctlPeriod(loadStartTime)
-			if err != nil {
-				return
 			}
 		}
 
