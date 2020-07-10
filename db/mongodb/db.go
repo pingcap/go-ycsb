@@ -20,17 +20,18 @@ import (
 )
 
 const (
-	mongodbUrl      = "mongodb.url"
-	mongodbAuthdb   = "mongodb.authdb"
-	mongodbUsername = "mongodb.username"
-	mongodbPassword = "mongodb.password"
+	mongodbUri           = "mongodb.uri"
+	mongodbTLSSkipVerify = "mongodb.tlsSkipVerify"
+	mongodbTLSCAFile     = "mongodb.tlsCaFile"
+	mongodbNamespace     = "mongodb.namespace"
+	mongodbAuthdb        = "mongodb.authdb"
+	mongodbUsername      = "mongodb.username"
+	mongodbPassword      = "mongodb.password"
 
-	// see https://github.com/brianfrankcooper/YCSB/tree/master/mongodb#mongodb-configuration-parameters
-	mongodbUrlDefault      = "mongodb://127.0.0.1:27017/ycsb?w=1"
-	mongodbDatabaseDefault = "ycsb"
-	mongodbAuthdbDefault   = "admin"
-	mongodbTLSSkipVerify   = "mongodb.tls_skip_verify"
-	mongodbTLSCAFile       = "mongodb.tls_ca_file"
+	mongodbUriDefault       = "mongodb://127.0.0.1:27017"
+	mongodbDatabaseDefault  = "ycsb"
+	mongodbNamespaceDefault = "ycsb.ycsb"
+	mongodbAuthdbDefault    = "admin"
 )
 
 type mongoDB struct {
@@ -127,7 +128,7 @@ func (m *mongoDB) Delete(ctx context.Context, table string, key string) error {
 type mongodbCreator struct{}
 
 func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
-	uri := p.GetString(mongodbUrl, mongodbUrlDefault)
+	uri := p.GetString(mongodbUri, mongodbUriDefault)
 	authdb := p.GetString(mongodbAuthdb, mongodbAuthdbDefault)
 	tlsSkipVerify := p.GetBool(mongodbTLSSkipVerify, false)
 	caFile := p.GetString(mongodbTLSCAFile, "")
@@ -141,30 +142,28 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	defer cancel()
 
 	cliOpts := options.Client().ApplyURI(uri)
-	if cliOpts.TLSConfig != nil {
-		if len(connString.Hosts) > 0 {
-			servername := strings.Split(connString.Hosts[0], ":")[0]
-			log.Printf("using server name for tls: %s\n", servername)
-			cliOpts.TLSConfig.ServerName = servername
+	if len(connString.Hosts) > 0 {
+		servername := strings.Split(connString.Hosts[0], ":")[0]
+		fmt.Printf("using server name for tls: %s\n", servername)
+		cliOpts.TLSConfig.ServerName = servername
+	}
+	if tlsSkipVerify {
+		fmt.Println("skipping tls cert validation")
+		cliOpts.TLSConfig.InsecureSkipVerify = true
+	}
+
+	if caFile != "" {
+		// Load CA cert
+		caCert, err := ioutil.ReadFile(caFile)
+		if err != nil {
+			log.Fatal(err)
 		}
-		if tlsSkipVerify {
-			log.Println("skipping tls cert validation")
-			cliOpts.TLSConfig.InsecureSkipVerify = true
+		caCertPool := x509.NewCertPool()
+		if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
+			log.Fatalf("certifacte %s could not be parsed", caFile)
 		}
 
-		if caFile != "" {
-			// Load CA cert
-			caCert, err := ioutil.ReadFile(caFile)
-			if err != nil {
-				log.Fatal(err)
-			}
-			caCertPool := x509.NewCertPool()
-			if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
-				log.Fatalf("certifacte %s could not be parsed", caFile)
-			}
-
-			cliOpts.TLSConfig.RootCAs = caCertPool
-		}
+		cliOpts.TLSConfig.RootCAs = caCertPool
 	}
 
 	username, usrExist := p.Get(mongodbUsername)
