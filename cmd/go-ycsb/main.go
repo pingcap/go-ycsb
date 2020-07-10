@@ -15,6 +15,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -93,6 +94,9 @@ func initialGlobal(dbName string, onProperties func()) {
 
 	for _, prop := range propertyValues {
 		seps := strings.SplitN(prop, "=", 2)
+		if len(seps) != 2 {
+			log.Fatalf("bad property: `%s`, expected format `name=value`", prop)
+		}
 		globalProps.Set(seps[0], seps[1])
 	}
 
