@@ -1,4 +1,4 @@
-# go-ycsb 
+# go-ycsb
 
 go-ycsb is a Go port of [YCSB](https://github.com/brianfrankcooper/YCSB). It fully supports all YCSB generators and the Core workload so we can do the basic CRUD benchmarks with Go.
 
@@ -22,7 +22,7 @@ Notice:
 + To use FoundationDB, you must install [client](https://www.foundationdb.org/download/) library at first, now the supported version is 6.2.11.
 + To use RocksDB, you must follow [INSTALL](https://github.com/facebook/rocksdb/blob/master/INSTALL.md) to install RocksDB at first.
 
-## Usage 
+## Usage
 
 Mostly, we can start from the offical document [Running-a-Workload](https://github.com/brianfrankcooper/YCSB/wiki/Running-a-Workload).
 
@@ -62,7 +62,7 @@ Available Commands:
 
 - MySQL / TiDB
 - TiKV
-- FoundationDB 
+- FoundationDB
 - Aerospike
 - Badger
 - Cassandra / ScyllaDB
@@ -193,7 +193,7 @@ Common configurations:
 |rocksdb.index_type|kBinarySearch|Sets the index type used for this table. __kBinarySearch__: A space efficient index block that is optimized for binary-search-based index. __kHashSearch__: The hash index, if enabled, will do the hash lookup when `Options.prefix_extractor` is provided. __kTwoLevelIndexSearch__: A two-level index implementation. Both levels are binary search indexes|
 |rocksdb.block_align|false|Enable/Disable align data blocks on lesser of page size and block size|
 
-### Spanner 
+### Spanner
 
 |field|default value|description|
 |-|-|-|
@@ -209,7 +209,7 @@ Common configurations:
 |sqlite.journalmode|"DELETE"|Journal mode: DELETE, TRUNCSTE, PERSIST, MEMORY, WAL, OFF|
 |sqlite.cache|"Shared"|Cache: shared, private|
 
-### Cassandra 
+### Cassandra
 
 |field|default value|description|
 |-|-|-|
@@ -222,6 +222,8 @@ Common configurations:
 |field|default value|description|
 |-|-|-|
 |mongodb.uri|"mongodb://127.0.0.1:27017"|MongoDB URI|
+|mongodb.tls_skip_verify|false|Enable/disable server ca certificate verification|
+|mongodb.tls_ca_file|""|Path to mongodb server ca certificate file|
 |mongodb.namespace|"ycsb.ycsb"|Namespace to use|
 |mongodb.authdb|"admin"|Authentication database|
 |mongodb.username|N/A|Username for authentication|

@@ -2,8 +2,12 @@ package mongodb
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"strings"
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
@@ -15,11 +19,13 @@ import (
 )
 
 const (
-	mongodbUri       = "mongodb.uri"
-	mongodbNamespace = "mongodb.namespace"
-	mongodbAuthdb    = "mongodb.authdb"
-	mongodbUsername  = "mongodb.username"
-	mongodbPassword  = "mongodb.password"
+	mongodbUri           = "mongodb.uri"
+	mongodbTLSSkipVerify = "mongodb.tls_skip_verify"
+	mongodbTLSCAFile     = "mongodb.tls_ca_file"
+	mongodbNamespace     = "mongodb.namespace"
+	mongodbAuthdb        = "mongodb.authdb"
+	mongodbUsername      = "mongodb.username"
+	mongodbPassword      = "mongodb.password"
 
 	mongodbUriDefault       = "mongodb://127.0.0.1:27017"
 	mongodbNamespaceDefault = "ycsb.ycsb"
@@ -126,8 +132,11 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	uri := p.GetString(mongodbUri, mongodbUriDefault)
 	nss := p.GetString(mongodbNamespace, mongodbNamespaceDefault)
 	authdb := p.GetString(mongodbAuthdb, mongodbAuthdbDefault)
+	tlsSkipVerify := p.GetBool(mongodbTLSSkipVerify, false)
+	caFile := p.GetString(mongodbTLSCAFile, "")
 
-	if _, err := connstring.Parse(uri); err != nil {
+	connString, err := connstring.Parse(uri)
+	if err != nil {
 		return nil, err
 	}
 	ns := command.ParseNamespace(nss)
@@ -139,6 +148,27 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	defer cancel()
 
 	cliOpts := options.Client().ApplyURI(uri)
+	if len(connString.Hosts) > 0 {
+		servername := strings.Split(connString.Hosts[0], ":")[0]
+		log.Printf("using server name for tls: %s\n", servername)
+		cliOpts.TLSConfig.ServerName = servername
+	}
+	if tlsSkipVerify {
+		log.Println("skipping tls cert validation")
+		cliOpts.TLSConfig.InsecureSkipVerify = true
+	}
+
+	if caFile != "" {
+		// Load CA cert
+		caCert, err := ioutil.ReadFile(caFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+
+		cliOpts.TLSConfig.RootCAs = caCertPool
+	}
 
 	username, usrExist := p.Get(mongodbUsername)
 	password, pwdExist := p.Get(mongodbPassword)
