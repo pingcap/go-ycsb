@@ -36,7 +36,8 @@ const (
 	pgUser     = "pg.user"
 	pgPassword = "pg.password"
 	pgDBName   = "pg.db"
-	pdSSLMode  = "pg.sslmode"
+	pgSSLMode  = "pg.sslmode"
+	pgURI      = "pg.uri"
 	// TODO: support batch and auto commit
 )
 
@@ -73,9 +74,15 @@ func (c pgCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	user := p.GetString(pgUser, "root")
 	password := p.GetString(pgPassword, "")
 	dbName := p.GetString(pgDBName, "test")
-	sslMode := p.GetString(pdSSLMode, "disable")
+	sslMode := p.GetString(pgSSLMode, "disable")
+	uri := p.GetString(pgURI, "")
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s", user, password, host, port, dbName, sslMode)
+
+	if uri != "" {
+		dsn = uri
+	}
+
 	var err error
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
