@@ -52,7 +52,7 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 
 	c := client.NewClient(globalProps, globalWorkload, globalDB)
 	start := time.Now()
-	c.Run(globalContext)
+	c.Run(globalContext,start)
 
 	fmt.Printf("Run finished, takes %s\n", time.Now().Sub(start))
 	measurement.Output()
