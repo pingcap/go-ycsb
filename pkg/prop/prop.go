@@ -115,6 +115,8 @@ const (
 	StandardDeviationDefault = float64(2)
 	ExpectedOps              = "expected_ops"
 	ExpectedOpsDefault       = int64(10000)
+	RealDelay                = "real_delay"
+	RealDelayDefault         = int64(0)
 	TimePeriod               = "timeperiod"
 	TimePeriodDefault        = int(20)
 	NoiseRatio               = "noiseratio"

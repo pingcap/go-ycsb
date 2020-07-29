@@ -35,7 +35,7 @@ workload=core
 # The number of records in the table to be inserted in
 # the load phase or the number of records already in the 
 # table before the run phase.
-recordcount=100000000
+recordcount=10000000
 
 # There is no default setting for operationcount but it is
 # required to be set.
@@ -43,7 +43,7 @@ recordcount=100000000
 operationcount=1000000000000
 
 # The number of thread.
-threadcount=100
+threadcount=50
 
 # The number of fields in a record
 fieldcount=2
@@ -55,7 +55,7 @@ fieldlength=600
 readallfields=true
 
 # Should write all fields on update
-writeallfields=false
+writeallfields=true
 
 
 # What proportion of operations are reads
@@ -71,7 +71,7 @@ insertproportion=0
 readmodifywriteproportion=0
 
 # What proportion of operations are scans
-scanproportion=0.01
+scanproportion=0
 
 # On a single scan, the maximum number of records to access
 maxscanlength=100
@@ -82,8 +82,8 @@ scanlengthdistribution=uniform
 
 
 # The distribution of requests across the keyspace
-requestdistribution=zipfian
-#requestdistribution=uniform
+#requestdistribution=zipfian
+requestdistribution=uniform
 #requestdistribution=latest
 
 # Percentage of data items that constitute the hot set
@@ -105,6 +105,8 @@ table=table1
 # StandardDeviationDefault = float64(2)
 # ExpectedOps = "expected_ops"
 # ExpectedOpsDefault = int64(10000)
+# RealDelay = "real_delay"
+# RealDelayDefault = int64(0)
 # TimePeriod = "timeperiod"
 # TimePeriodDefault = int(20)
 # NoiseRatio = "noiseratio"
@@ -113,9 +115,10 @@ table=table1
 # TimeDistributionDefault = "none"
 
 period_in_time = true
-meanvalue = 30
+meanvalue = 15
 standarddeviation = 5
 expected_ops = 40000
-timeperiod = 60
-noiseratio = 0.5
+real_delay = 3000
+timeperiod = 30
+noiseratio = 0.1
 timedistribution = noise_normal

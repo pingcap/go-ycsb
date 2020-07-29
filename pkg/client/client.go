@@ -45,6 +45,7 @@ type worker struct {
 	mean        float64
 	std         float64
 	expectedOps int64
+	realDelay   int64
 	period      int
 	noiseRatio  float64
 	delay       int64
@@ -123,6 +124,7 @@ func (w *worker) initPeriodProp() {
 	w.mean = w.p.GetFloat64(prop.MeanValue, prop.MeanValueDefault)
 	w.std = w.p.GetFloat64(prop.StandardDeviation, prop.StandardDeviationDefault)
 	w.expectedOps = w.p.GetInt64(prop.ExpectedOps, prop.ExpectedOpsDefault)
+	w.realDelay = w.p.GetInt64(prop.RealDelay, prop.RealDelayDefault) * 1000
 	w.period = w.p.GetInt(prop.TimePeriod, prop.TimePeriodDefault)
 	w.noiseRatio = w.p.GetFloat64(prop.NoiseRatio, prop.NoiseRatioDefault)
 	w.delay = 0

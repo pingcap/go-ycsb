@@ -50,6 +50,10 @@ func (w *worker) Normal(loadStartTime time.Time) {
 	if tmp > 3*math.Pow(10.0, 10) {
 		tmp = 3 * math.Pow(10.0, 10)
 	}
+	tmp = tmp - float64(w.realDelay)
+	if tmp <= 0 {
+		return
+	}
 	time.Sleep(time.Duration(tmp))
 }
 
@@ -61,6 +65,10 @@ func (w *worker) Noise_normal(loadStartTime time.Time) {
 	if tmp > 3*math.Pow(10.0, 10) {
 		tmp = 3 * math.Pow(10.0, 10)
 	}
+	tmp = tmp - float64(w.realDelay)
+	if tmp <= 0 {
+		return
+	}
 	getnoiseRange(timeNow, w.noiseRatio)
 	noise := tmp * noiseRange
 	time.Sleep(time.Duration(tmp + noise))
@@ -71,6 +79,10 @@ func (w *worker) Step(loadStartTime time.Time) {
 	timeNow := int(time.Now().Sub(loadStartTime).Minutes()) % w.period
 	v := 3 - int(float64(timeNow*3.0/w.period))
 	tmp := int64(v) * w.delay
+	tmp = tmp - w.realDelay
+	if tmp <= 0 {
+		return
+	}
 	time.Sleep(time.Duration(tmp))
 }
 
@@ -79,6 +91,10 @@ func (w *worker) Noise_step(loadStartTime time.Time) {
 	timeNow := int(time.Now().Sub(loadStartTime).Minutes()) % w.period
 	v := 3 - int(float64(timeNow*3.0/w.period))
 	tmp := float64(v) * float64(w.delay)
+	tmp = tmp - float64(w.realDelay)
+	if tmp <= 0 {
+		return
+	}
 	getnoiseRange(timeNow, w.noiseRatio)
 	noise := tmp * noiseRange
 	time.Sleep(time.Duration(tmp + noise))
@@ -109,6 +125,10 @@ func (w *worker) Meituan(loadStartTime time.Time) {
 		Q = float64(w.threadCount)
 	}
 	w.delay = int64(float64(w.threadCount) * float64(time.Second) / Q)
+	w.delay = w.delay - w.realDelay
+	if w.delay <= 0 {
+		return
+	}
 	getnoiseRange(timeNow, w.noiseRatio)
 	noise := int64(float64(w.delay) * noiseRange)
 	time.Sleep(time.Duration(w.delay + noise))
