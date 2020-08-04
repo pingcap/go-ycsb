@@ -60,6 +60,8 @@ const (
 	ReadProportionDefault            = float64(0.95)
 	UpdateProportion                 = "updateproportion"
 	UpdateProportionDefault          = float64(0.05)
+	DeleteProportion                 = "deleteproportion"
+	DeleteProportionDefault          = float64(0.0)
 	InsertProportion                 = "insertproportion"
 	InsertProportionDefault          = float64(0.0)
 	ScanProportion                   = "scanproportion"

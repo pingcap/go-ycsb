@@ -106,6 +106,7 @@ func getFieldLengthGenerator(p *properties.Properties) ycsb.Generator {
 func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 	readProportion := p.GetFloat64(prop.ReadProportion, prop.ReadProportionDefault)
 	updateProportion := p.GetFloat64(prop.UpdateProportion, prop.UpdateProportionDefault)
+	deleteProportion := p.GetFloat64(prop.DeleteProportion, prop.DeleteProportionDefault)
 	insertProportion := p.GetFloat64(prop.InsertProportion, prop.InsertProportionDefault)
 	scanProportion := p.GetFloat64(prop.ScanProportion, prop.ScanProportionDefault)
 	readModifyWriteProportion := p.GetFloat64(prop.ReadModifyWriteProportion, prop.ReadModifyWriteProportionDefault)
@@ -117,6 +118,10 @@ func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 
 	if updateProportion > 0 {
 		operationChooser.Add(updateProportion, int64(update))
+	}
+
+	if deleteProportion > 0 {
+		operationChooser.Add(deleteProportion, int64(update))
 	}
 
 	if insertProportion > 0 {
