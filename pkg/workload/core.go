@@ -47,6 +47,7 @@ type operationType int64
 const (
 	read operationType = iota + 1
 	update
+	delete
 	insert
 	scan
 	readModifyWrite
@@ -361,6 +362,8 @@ func (c *core) DoTransaction(ctx context.Context, db ycsb.DB) error {
 		return c.doTransactionRead(ctx, db, state)
 	case update:
 		return c.doTransactionUpdate(ctx, db, state)
+	case delete:
+		return c.doTransactionDelete(ctx, db, state)
 	case insert:
 		return c.doTransactionInsert(ctx, db, state)
 	case scan:
@@ -523,6 +526,13 @@ func (c *core) doTransactionUpdate(ctx context.Context, db ycsb.DB, state *coreS
 	defer c.putValues(values)
 
 	return db.Update(ctx, c.table, keyName, values)
+}
+
+func (c *core) doTransactionDelete(ctx context.Context, db ycsb.DB, state *coreState) error {
+	keyNum := c.nextKeyNum(state)
+	keyName := c.buildKeyName(keyNum)
+
+	return db.Delete(ctx, c.table, keyName)
 }
 
 func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycsb.BatchDB, state *coreState) error {
