@@ -25,6 +25,7 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
+	"github.com/pkg/errors"
 )
 
 type worker struct {
@@ -39,6 +40,15 @@ type worker struct {
 	threadID        int
 	targetOpsTickNs int64
 	opsDone         int64
+
+	threadCount int
+	mean        float64
+	std         float64
+	expectedOps int64
+	realDelay   int64
+	period      int
+	noiseRatio  float64
+	delay       int64
 }
 
 func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db ycsb.DB) *worker {
@@ -52,6 +62,8 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 	w.threadID = threadID
 	w.workload = workload
 	w.workDB = db
+
+	w.initPeriodProp()
 
 	var totalOpCount int64
 	if w.doTransactions {
@@ -107,7 +119,40 @@ func (w *worker) throttle(ctx context.Context, startTime time.Time) {
 	}
 }
 
-func (w *worker) run(ctx context.Context) {
+func (w *worker) initPeriodProp() {
+	w.threadCount = w.p.GetInt(prop.ThreadCount, 1)
+	w.mean = w.p.GetFloat64(prop.MeanValue, prop.MeanValueDefault)
+	w.std = w.p.GetFloat64(prop.StandardDeviation, prop.StandardDeviationDefault)
+	w.expectedOps = w.p.GetInt64(prop.ExpectedOps, prop.ExpectedOpsDefault)
+	w.realDelay = w.p.GetInt64(prop.RealDelay, prop.RealDelayDefault) * 1000
+	w.period = w.p.GetInt(prop.TimePeriod, prop.TimePeriodDefault)
+	w.noiseRatio = w.p.GetFloat64(prop.NoiseRatio, prop.NoiseRatioDefault)
+	w.delay = 0
+}
+
+func (w *worker) ctlPeriod(loadStartTime time.Time) error {
+	distributionName := w.p.GetString(prop.TimeDistribution, prop.TimeDistributionDefault)
+	switch distributionName {
+	case "normal":
+		w.Normal(loadStartTime)
+	case "noise_normal":
+		w.Noise_normal(loadStartTime)
+	case "step":
+		w.Step(loadStartTime)
+	case "noise_step":
+		w.Noise_step(loadStartTime)
+	case "meituanread":
+		w.MeituanRead(loadStartTime)
+	case "meituanupdate":
+		w.MeituanUpdate(loadStartTime)
+	default:
+		fmt.Printf("distribution_name err: ")
+		return errors.Errorf("distribution_name err: ")
+	}
+	return nil
+}
+
+func (w *worker) run(ctx context.Context, loadStartTime time.Time) {
 	// spread the thread operation out so they don't all hit the DB at the same time
 	if w.targetOpsPerMs > 0.0 && w.targetOpsPerMs <= 1.0 {
 		time.Sleep(time.Duration(rand.Int63n(w.targetOpsTickNs)))
@@ -124,6 +169,13 @@ func (w *worker) run(ctx context.Context) {
 				opsCount = w.batchSize
 			} else {
 				err = w.workload.DoTransaction(ctx, w.workDB)
+			}
+			// Control delay makes data periodic distribution in the time dimension
+			if w.p.GetBool(prop.PeriodInTime, prop.PeriodInTimeDefault) {
+				err := w.ctlPeriod(loadStartTime)
+				if err != nil {
+					return
+				}
 			}
 		} else {
 			if w.doBatch {
@@ -165,7 +217,7 @@ func NewClient(p *properties.Properties, workload ycsb.Workload, db ycsb.DB) *Cl
 }
 
 // Run runs the workload to the target DB, and blocks until all workers end.
-func (c *Client) Run(ctx context.Context) {
+func (c *Client) Run(ctx context.Context, loadStartTime time.Time) {
 	var wg sync.WaitGroup
 	threadCount := c.p.GetInt(prop.ThreadCount, 1)
 
@@ -209,7 +261,7 @@ func (c *Client) Run(ctx context.Context) {
 			w := newWorker(c.p, threadId, threadCount, c.workload, c.db)
 			ctx := c.workload.InitThread(ctx, threadId, threadCount)
 			ctx = c.db.InitThread(ctx, threadId, threadCount)
-			w.run(ctx)
+			w.run(ctx, loadStartTime)
 			c.db.CleanupThread(ctx)
 			c.workload.CleanupThread(ctx)
 		}(i)

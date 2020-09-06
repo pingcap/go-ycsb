@@ -60,6 +60,8 @@ const (
 	ReadProportionDefault            = float64(0.95)
 	UpdateProportion                 = "updateproportion"
 	UpdateProportionDefault          = float64(0.05)
+	DeleteProportion                 = "deleteproportion"
+	DeleteProportionDefault          = float64(0.0)
 	InsertProportion                 = "insertproportion"
 	InsertProportionDefault          = float64(0.0)
 	ScanProportion                   = "scanproportion"
@@ -106,4 +108,21 @@ const (
 
 	KeyPrefix        = "keyprefix"
 	KeyPrefixDefault = "user"
+
+	PeriodInTime             = "period_in_time"
+	PeriodInTimeDefault      = false
+	MeanValue                = "meanvalue"
+	MeanValueDefault         = float64(10)
+	StandardDeviation        = "standarddeviation"
+	StandardDeviationDefault = float64(2)
+	ExpectedOps              = "expected_ops"
+	ExpectedOpsDefault       = int64(10000)
+	RealDelay                = "real_delay"
+	RealDelayDefault         = int64(0)
+	TimePeriod               = "timeperiod"
+	TimePeriodDefault        = int(20)
+	NoiseRatio               = "noiseratio"
+	NoiseRatioDefault        = float64(0)
+	TimeDistribution         = "timedistribution"
+	TimeDistributionDefault  = "none"
 )

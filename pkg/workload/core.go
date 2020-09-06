@@ -47,6 +47,7 @@ type operationType int64
 const (
 	read operationType = iota + 1
 	update
+	delete
 	insert
 	scan
 	readModifyWrite
@@ -105,6 +106,7 @@ func getFieldLengthGenerator(p *properties.Properties) ycsb.Generator {
 func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 	readProportion := p.GetFloat64(prop.ReadProportion, prop.ReadProportionDefault)
 	updateProportion := p.GetFloat64(prop.UpdateProportion, prop.UpdateProportionDefault)
+	deleteProportion := p.GetFloat64(prop.DeleteProportion, prop.DeleteProportionDefault)
 	insertProportion := p.GetFloat64(prop.InsertProportion, prop.InsertProportionDefault)
 	scanProportion := p.GetFloat64(prop.ScanProportion, prop.ScanProportionDefault)
 	readModifyWriteProportion := p.GetFloat64(prop.ReadModifyWriteProportion, prop.ReadModifyWriteProportionDefault)
@@ -116,6 +118,10 @@ func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 
 	if updateProportion > 0 {
 		operationChooser.Add(updateProportion, int64(update))
+	}
+
+	if deleteProportion > 0 {
+		operationChooser.Add(deleteProportion, int64(update))
 	}
 
 	if insertProportion > 0 {
@@ -361,6 +367,8 @@ func (c *core) DoTransaction(ctx context.Context, db ycsb.DB) error {
 		return c.doTransactionRead(ctx, db, state)
 	case update:
 		return c.doTransactionUpdate(ctx, db, state)
+	case delete:
+		return c.doTransactionDelete(ctx, db, state)
 	case insert:
 		return c.doTransactionInsert(ctx, db, state)
 	case scan:
@@ -523,6 +531,13 @@ func (c *core) doTransactionUpdate(ctx context.Context, db ycsb.DB, state *coreS
 	defer c.putValues(values)
 
 	return db.Update(ctx, c.table, keyName, values)
+}
+
+func (c *core) doTransactionDelete(ctx context.Context, db ycsb.DB, state *coreState) error {
+	keyNum := c.nextKeyNum(state)
+	keyName := c.buildKeyName(keyNum)
+
+	return db.Delete(ctx, c.table, keyName)
 }
 
 func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycsb.BatchDB, state *coreState) error {
