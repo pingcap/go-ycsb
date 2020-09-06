@@ -141,8 +141,10 @@ func (w *worker) ctlPeriod(loadStartTime time.Time) error {
 		w.Step(loadStartTime)
 	case "noise_step":
 		w.Noise_step(loadStartTime)
-	case "meituan":
-		w.Meituan(loadStartTime)
+	case "meituanread":
+		w.MeituanRead(loadStartTime)
+	case "meituanupdate":
+		w.MeituanUpdate(loadStartTime)
 	default:
 		fmt.Printf("distribution_name err: ")
 		return errors.Errorf("distribution_name err: ")

@@ -1,0 +1,124 @@
+# Copyright (c) 2012-2016 YCSB contributors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you
+# may not use this file except in compliance with the License. You
+# may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# permissions and limitations under the License. See accompanying
+# LICENSE file.
+
+# Yahoo! Cloud System Benchmark
+# Workload Template: Default Values
+#
+# File contains all properties that can be set to define a
+# YCSB session. All properties are set to their default
+# value if one exists. If not, the property is commented
+# out. When a property has a finite number of settings,
+# the default is enabled and the alternates are shown in
+# comments below it.
+# 
+# Use of most explained through comments in Client.java or 
+# CoreWorkload.java or on the YCSB wiki page:
+# https://github.com/brianfrankcooper/YCSB/wiki/Core-Properties
+
+# The name of the workload class to use
+workload=core
+
+# There is no default setting for recordcount but it is
+# required to be set.
+# The number of records in the table to be inserted in
+# the load phase or the number of records already in the 
+# table before the run phase.
+recordcount=10000000
+
+# There is no default setting for operationcount but it is
+# required to be set.
+# The number of operations to use during the run phase.
+operationcount=1000000000000
+
+# The number of thread.
+threadcount=16
+
+# The number of fields in a record
+fieldcount=2
+
+# The size of each field (in bytes)
+fieldlength=600
+
+# Should read all fields
+readallfields=true
+
+# Should write all fields on update
+writeallfields=true
+
+
+# What proportion of operations are reads
+readproportion=0
+
+# What proportion of operations are updates
+updateproportion=1
+
+# What proportion of operations are inserts
+insertproportion=0
+
+# What proportion of operations read then modify a record
+readmodifywriteproportion=0
+
+# What proportion of operations are scans
+scanproportion=0
+
+# On a single scan, the maximum number of records to access
+maxscanlength=100
+
+# The distribution used to choose the number of records to access on a scan
+scanlengthdistribution=uniform
+#scanlengthdistribution=zipfian
+
+
+# The distribution of requests across the keyspace
+#requestdistribution=zipfian
+requestdistribution=uniform
+#requestdistribution=latest
+
+# Percentage of data items that constitute the hot set
+hotspotdatafraction=0.2
+
+# Percentage of operations that access the hot set
+hotspotopnfraction=0.8
+
+# The name of the database table to run queries against
+table=table1
+
+
+
+# PeriodInTime = "period_in_time"
+# PeriodInTimeDefault = false
+# MeanValue = "meanvalue"
+# MeanValueDefault = float64(10)
+# StandardDeviation = "standarddeviation"
+# StandardDeviationDefault = float64(2)
+# ExpectedOps = "expected_ops"
+# ExpectedOpsDefault = int64(10000)
+# RealDelay = "real_delay"
+# RealDelayDefault = int64(0)
+# TimePeriod = "timeperiod"
+# TimePeriodDefault = int(20)
+# NoiseRatio = "noiseratio"
+# NoiseRatioDefault = float64(0)
+# TimeDistribution = "timedistribution"
+# TimeDistributionDefault = "none"
+
+period_in_time = true
+#meanvalue = 15
+#standarddeviation = 5
+expected_ops = 4000
+#real_delay = 3000
+timeperiod = 30
+noiseratio = 0.1
+timedistribution = meituanupdate
