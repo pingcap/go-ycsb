@@ -16,12 +16,16 @@ package spanner
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"github.com/pingcap/go-ycsb/pkg/workload/corev2"
 	"os"
 	"os/user"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -55,6 +59,7 @@ type contextKey string
 const stateKey = contextKey("spannerDB")
 
 type spannerState struct {
+	Fields map[string]string
 }
 
 func (c spannerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
@@ -238,6 +243,11 @@ func (db *spannerDB) Close() error {
 
 func (db *spannerDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	state := &spannerState{}
+	if corev2State, ok := ctx.Value("corev2").(*corev2.CoreV2State); ok {
+		state.Fields = corev2State.Fields
+	} else {
+		state.Fields = make(map[string]string)
+	}
 
 	return context.WithValue(ctx, stateKey, state)
 }
@@ -329,7 +339,7 @@ func (db *spannerDB) Scan(ctx context.Context, table string, startKey string, co
 	return rows, err
 }
 
-func createMutations(key string, mutations map[string][]byte) ([]string, []interface{}) {
+func createMutations(key string, mutations map[string][]byte, fields map[string]string) ([]string, []interface{}, error) {
 	keys := make([]string, 0, 1+len(mutations))
 	values := make([]interface{}, 0, 1+len(mutations))
 	keys = append(keys, "YCSB_KEY")
@@ -337,26 +347,58 @@ func createMutations(key string, mutations map[string][]byte) ([]string, []inter
 
 	for key, value := range mutations {
 		keys = append(keys, key)
-		values = append(values, util.String(value))
+		if _, ok := fields[key]; !ok {
+			values = append(values, util.String(value))
+		} else {
+			fieldType := strings.ToLower(fields[key])
+			if fieldType == "int64" {
+				int64Val, err := strconv.Atoi(string(value))
+				if err != nil {
+					return nil, nil, err
+				}
+				values = append(values, int64Val)
+			} else if fieldType == "bool" {
+				if strings.ToLower(string(value)) == "true" {
+					values = append(values, true)
+				} else if strings.ToLower(string(value)) == "false" {
+					values = append(values, false)
+				} else {
+					return nil, nil, errors.New(fmt.Sprintf("Invalid value: %s for bool type", value))
+				}
+			} else if fieldType == "timestamp" {
+				t, err := time.Parse("2006-01-02 15:04:05.000000", string(value))
+				if err != nil {
+					return nil, nil, err
+				}
+				values = append(values, t)
+			} else {
+				values = append(values, util.String(value))
+			}
+		}
 	}
 
-	return keys, values
+	return keys, values, nil
 }
 
 func (db *spannerDB) Update(ctx context.Context, table string, key string, mutations map[string][]byte) error {
-	keys, values := createMutations(key, mutations)
+	state := ctx.Value(stateKey).(*spannerState)
+	keys, values, err := createMutations(key, mutations, state.Fields)
+	if err != nil {
+		return err
+	}
 	m := spanner.Update(table, keys, values)
-	_, err := db.client.Apply(ctx, []*spanner.Mutation{m})
+	_, err = db.client.Apply(ctx, []*spanner.Mutation{m})
 	return err
 }
 
 func (db *spannerDB) Insert(ctx context.Context, table string, key string, mutations map[string][]byte) error {
-	keys, values := createMutations(key, mutations)
-	m := spanner.InsertOrUpdate(table, keys, values)
-	_, err := db.client.Apply(ctx, []*spanner.Mutation{m})
+	state := ctx.Value(stateKey).(*spannerState)
+	keys, values, err := createMutations(key, mutations, state.Fields)
 	if err != nil {
-		util.Fatalf("Spanner apply error: %v\n", err)
+		return err
 	}
+	m := spanner.InsertOrUpdate(table, keys, values)
+	_, err = db.client.Apply(ctx, []*spanner.Mutation{m})
 	return err
 }
 

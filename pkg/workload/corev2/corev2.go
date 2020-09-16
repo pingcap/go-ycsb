@@ -30,11 +30,9 @@ const (
 	minTimeUnixNano = 1000000000
 )
 
-type coreState struct {
+type CoreV2State struct {
 	*workload.CoreState
-	//r *rand.Rand
-	// fields is a copy of corev2.fields to be groutine-local
-	fields map[string]string
+	Fields map[string]string
 }
 
 type corev2 struct {
@@ -48,8 +46,8 @@ func (c *corev2) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	for name, _ := range c.fields {
 		fieldNames = append(fieldNames, name)
 	}
-	state := &coreState{
-		fields: c.fields,
+	state := &CoreV2State{
+		Fields: c.fields,
 		CoreState: &workload.CoreState{
 			R: r,
 			FieldNames: fieldNames,
@@ -96,30 +94,30 @@ func isTimestampType(fieldType string) bool {
 	return false
 }
 
-func (c *corev2) buildRandomString(state *coreState, size int) []byte {
+func (c *corev2) buildRandomString(state *CoreV2State, size int) []byte {
 	r := state.R
 	buf := c.GetValueBuffer(size)
 	util.RandBytes(r, buf)
 	return buf
 }
 
-func (c *corev2) buildRandomInt64(state *coreState) []byte {
+func (c *corev2) buildRandomInt64(state *CoreV2State) []byte {
 	return []byte(strconv.FormatInt(state.R.Int63(), 10))
 }
 
-func (c *corev2) buildRandomBool(state *coreState) []byte {
+func (c *corev2) buildRandomBool(state *CoreV2State) []byte {
 	choices := []string{"true", "false"}
 	return []byte(choices[state.R.Intn(2)])
 }
 
-func (c *corev2) buildRandomTimestamp(state *coreState) []byte {
+func (c *corev2) buildRandomTimestamp(state *CoreV2State) []byte {
 	randomUnixNano := state.R.Int63n(maxTimeUnixNano - minTimeUnixNano) + minTimeUnixNano
 	return []byte(time.Unix(0, randomUnixNano).Format("2006-01-02 15:04:05.000000"))
 }
 
-func (c *corev2) buildValues(state *coreState) (map[string][]byte, error) {
+func (c *corev2) buildValues(state *CoreV2State) (map[string][]byte, error) {
 	values := make(map[string][]byte, c.FieldCount)
-	for fieldKey, fieldType := range state.fields {
+	for fieldKey, fieldType := range state.Fields {
 		if isStringType(fieldType) {
 			re := regexp.MustCompile("[0-9]+")
 			size := re.Find([]byte(fieldType))
@@ -141,14 +139,8 @@ func (c *corev2) buildValues(state *coreState) (map[string][]byte, error) {
 	return values, nil
 }
 
-//func (c *corev2) putValues(values map[string][]byte) {
-//	for _, value := range values {
-//		c.ValuePool.Put(value)
-//	}
-//}
-
 func (c *corev2) DoInsert(ctx context.Context, db ycsb.DB) error {
-	state := ctx.Value(stateKey).(*coreState)
+	state := ctx.Value(stateKey).(*CoreV2State)
 	r := state.R
 	keyNum := c.KeySequence.Next(r)
 	dbKey := c.BuildKeyName(keyNum)
@@ -192,7 +184,7 @@ func (c *corev2) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) e
 	if !ok {
 		return fmt.Errorf("the %T doesn't implement the batchDB interface", db)
 	}
-	state := ctx.Value(stateKey).(*coreState)
+	state := ctx.Value(stateKey).(*CoreV2State)
 	r := state.R
 	var keys []string
 	var values []map[string][]byte
@@ -238,7 +230,7 @@ func (c *corev2) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) e
 }
 
 func (c *corev2) DoTransaction(ctx context.Context, db ycsb.DB) error {
-	state := ctx.Value(stateKey).(*coreState)
+	state := ctx.Value(stateKey).(*CoreV2State)
 	r := state.R
 
 	operation := workload.OperationType(c.OperationChooser.Next(r))
@@ -256,7 +248,7 @@ func (c *corev2) DoTransaction(ctx context.Context, db ycsb.DB) error {
 	}
 }
 
-func (c *corev2) DoTransactionUpdate(ctx context.Context, db ycsb.DB, state *coreState) error {
+func (c *corev2) DoTransactionUpdate(ctx context.Context, db ycsb.DB, state *CoreV2State) error {
 	keyNum := c.NextKeyNum(state.CoreState)
 	keyName := c.BuildKeyName(keyNum)
 	var values map[string][]byte
@@ -284,7 +276,7 @@ func (c *corev2) putStrings(values map[string][]byte) {
 	c.PutValues(strs)
 }
 
-func (c *corev2) DoTransactionInsert(ctx context.Context, db ycsb.DB, state *coreState) error {
+func (c *corev2) DoTransactionInsert(ctx context.Context, db ycsb.DB, state *CoreV2State) error {
 	keyNum := c.TransactionInsertKeySequence.Next(state.R)
 	defer c.TransactionInsertKeySequence.Acknowledge(keyNum)
 	keyName := c.BuildKeyName(keyNum)
@@ -296,7 +288,7 @@ func (c *corev2) DoTransactionInsert(ctx context.Context, db ycsb.DB, state *cor
 	return db.Insert(ctx, c.Table, keyName, values)
 }
 
-func (c *corev2) DoTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, state *coreState) error {
+func (c *corev2) DoTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, state *CoreV2State) error {
 	start := time.Now()
 	defer measurement.Measure("READ_MODIFY_WRITE", time.Now().Sub(start))
 	keyNum := c.NextKeyNum(state.CoreState)
@@ -325,7 +317,7 @@ func (c *corev2) DoTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, s
 	return err
 }
 
-func (c *corev2) buildSingleValue(state *coreState) (map[string][]byte, error) {
+func (c *corev2) buildSingleValue(state *CoreV2State) (map[string][]byte, error) {
 	values := make(map[string][]byte)
 	r := state.R
 	fieldName := state.FieldNames[c.FieldChooser.Next(r)]
@@ -339,7 +331,7 @@ func (c *corev2) buildSingleValue(state *coreState) (map[string][]byte, error) {
 	return values, nil
 }
 
-func (c *corev2) buildRandomValue(state *coreState, fieldType string) ([]byte, error) {
+func (c *corev2) buildRandomValue(state *CoreV2State, fieldType string) ([]byte, error) {
 	if isStringType(fieldType) {
 		re := regexp.MustCompile("[0-9]+")
 		size := re.Find([]byte(fieldType))
@@ -364,7 +356,7 @@ func (c *corev2) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.
 	if !ok {
 		return fmt.Errorf("the %T doesn't implement the batchDB interface", db)
 	}
-	state := ctx.Value(stateKey).(*coreState)
+	state := ctx.Value(stateKey).(*CoreV2State)
 	operation := workload.OperationType(c.OperationChooser.Next(state.R))
 	switch operation {
 	case workload.Read:
@@ -380,7 +372,7 @@ func (c *corev2) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.
 	}
 }
 
-func (c *corev2) DoBatchTransactionInsert(ctx context.Context, batchSize int, db ycsb.BatchDB, state *coreState) error {
+func (c *corev2) DoBatchTransactionInsert(ctx context.Context, batchSize int, db ycsb.BatchDB, state *CoreV2State) error {
 	keys := make([]string, batchSize)
 	values := make([]map[string][]byte, batchSize)
 	var err error
@@ -407,7 +399,7 @@ func (c *corev2) DoBatchTransactionInsert(ctx context.Context, batchSize int, db
 	return db.BatchInsert(ctx, c.Table, keys, values)
 }
 
-func (c *corev2) DoBatchTransactionUpdate(ctx context.Context, batchSize int, db ycsb.BatchDB, state *coreState) error {
+func (c *corev2) DoBatchTransactionUpdate(ctx context.Context, batchSize int, db ycsb.BatchDB, state *CoreV2State) error {
 	keys := make([]string, batchSize)
 	values := make([]map[string][]byte, batchSize)
 	var err error
