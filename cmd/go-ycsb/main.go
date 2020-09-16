@@ -34,6 +34,7 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	_ "github.com/pingcap/go-ycsb/pkg/workload"
+	_ "github.com/pingcap/go-ycsb/pkg/workload/corev2"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/spf13/cobra"
 
@@ -111,7 +112,9 @@ func initialGlobal(dbName string, onProperties func()) {
 
 	workloadName := globalProps.GetString(prop.Workload, "core")
 	workloadCreator := ycsb.GetWorkloadCreator(workloadName)
-
+	if workloadCreator == nil {
+		util.Fatal("Got workloadCreator nil for workload name: %s", workloadName)
+	}
 	var err error
 	if globalWorkload, err = workloadCreator.Create(globalProps); err != nil {
 		util.Fatalf("create workload %s failed %v", workloadName, err)

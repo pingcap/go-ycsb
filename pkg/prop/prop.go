@@ -99,11 +99,14 @@ const (
 	Verbose         = "verbose"
 	VerboseDefault  = false
 	DropData        = "dropdata"
-	DropDataDefault = false
+	DropDataDefault = true
 
 	Silence        = "silence"
 	SilenceDefault = true
 
 	KeyPrefix        = "keyprefix"
 	KeyPrefixDefault = "user"
+
+	Fields = "fields"
+	FieldsDefault = ""
 )

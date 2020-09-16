@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -110,13 +111,26 @@ func (db *mysqlDB) createTable() error {
 
 	fieldCount := db.p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
 	fieldLength := db.p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
+	fields := db.p.GetString(prop.Fields, prop.FieldsDefault)
 
 	buf := new(bytes.Buffer)
 	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(64) PRIMARY KEY", tableName)
 	buf.WriteString(s)
-
-	for i := int64(0); i < fieldCount; i++ {
-		buf.WriteString(fmt.Sprintf(", FIELD%d VARCHAR(%d)", i, fieldLength))
+	if fields == "" {
+		for i := int64(0); i < fieldCount; i++ {
+			buf.WriteString(fmt.Sprintf(", FIELD%d VARCHAR(%d)", i, fieldLength))
+		}
+	} else {
+		fieldsDef := strings.Split(fields, ",")
+		for _, fieldDef := range fieldsDef {
+			def := strings.Split(fieldDef, " ")
+			if len(def) != 2 {
+				return errors.New(fmt.Sprintf("Field definition must include name and type. Got: %s", fieldDef))
+			}
+			fieldName := def[0]
+			fieldType := def[1]
+			buf.WriteString(fmt.Sprintf(", %s %s", fieldName, fieldType))
+		}
 	}
 
 	buf.WriteString(");")
