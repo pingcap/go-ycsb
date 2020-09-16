@@ -314,13 +314,24 @@ func (db *mysqlDB) Update(ctx context.Context, table string, key string, values 
 
 		buf.WriteString(p.Field)
 		buf.WriteString(`= ?`)
-		args = append(args, p.Value)
+		args = appendArgs(args, p.Value)
 	}
 	buf.WriteString(" WHERE YCSB_KEY = ?")
 
 	args = append(args, key)
 
 	return db.execQuery(ctx, buf.String(), args...)
+}
+
+func appendArgs(args []interface{}, value []byte) []interface{} {
+	if string(value) == "true" {
+		args = append(args, true)
+	} else if string(value) == "false" {
+		args = append(args, false)
+	} else {
+		args = append(args, value)
+	}
+	return args
 }
 
 func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -336,7 +347,7 @@ func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values 
 
 	pairs := util.NewFieldPairs(values)
 	for _, p := range pairs {
-		args = append(args, p.Value)
+		args = appendArgs(args, p.Value)
 		buf.WriteString(" ,")
 		buf.WriteString(p.Field)
 	}

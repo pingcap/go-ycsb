@@ -24,8 +24,10 @@ type contextKey string
 const stateKey = contextKey("corev2")
 
 const (
-	minTimestamp = "1970-01-01T00:00:01.000000"
-	maxTimestamp = "2038-01-19T03:14:07.999999"
+	// maxTimestamp = "2038-01-19T03:14:07.999999Z"
+	maxTimeUnixNano = 2147483647999999000
+	// minTimestamp = "1970-01-01T00:00:01.000000Z"
+	minTimeUnixNano = 1000000000
 )
 
 type coreState struct {
@@ -34,34 +36,6 @@ type coreState struct {
 	// fields is a copy of corev2.fields to be groutine-local
 	fields map[string]string
 }
-
-// Core v2 supports different types of fields and customized table schema.
-//type corev2 struct {
-//	p *properties.Properties
-//
-//	table      string
-//	fieldCount int64
-//	fields     map[string]string
-//
-//	fieldLengthGenerator ycsb.Generator
-//	readAllFields        bool
-//	writeAllFields       bool
-//	dataIntegrity        bool
-//
-//	keySequence                  ycsb.Generator
-//	operationChooser             *generator.Discrete
-//	keyChooser                   ycsb.Generator
-//	fieldChooser                 ycsb.Generator
-//	transactionInsertKeySequence *generator.AcknowledgedCounter
-//	scanLength                   ycsb.Generator
-//	orderedInserts               bool
-//	recordCount                  int64
-//	zeroPadding                  int64
-//	insertionRetryLimit          int64
-//	insertionRetryInterval       int64
-//
-//	stringPool sync.Pool
-//}
 
 type corev2 struct {
 	workload.Core
@@ -134,14 +108,12 @@ func (c *corev2) buildRandomInt64(state *coreState) []byte {
 }
 
 func (c *corev2) buildRandomBool(state *coreState) []byte {
-	choices := []string{"1", "0", "true", "false"}
-	return []byte(choices[state.R.Intn(4)])
+	choices := []string{"true", "false"}
+	return []byte(choices[state.R.Intn(2)])
 }
 
 func (c *corev2) buildRandomTimestamp(state *coreState) []byte {
-	minTime, _ := time.Parse(time.RFC3339Nano, minTimestamp)
-	maxTime, _ := time.Parse(time.RFC3339Nano, maxTimestamp)
-	randomUnixNano := state.R.Int63n(maxTime.UnixNano() - minTime.UnixNano()) + minTime.UnixNano()
+	randomUnixNano := state.R.Int63n(maxTimeUnixNano - minTimeUnixNano) + minTimeUnixNano
 	return []byte(time.Unix(0, randomUnixNano).Format("2006-01-02 15:04:05.000000"))
 }
 
@@ -294,8 +266,9 @@ func (c *corev2) DoTransactionUpdate(ctx context.Context, db ycsb.DB, state *cor
 			return err
 		}
 	} else {
-		values, err = c.buildSingleValue(state)
-		return err
+		if values, err = c.buildSingleValue(state); err != nil {
+			return err
+		}
 	}
 	c.putStrings(values)
 	return db.Update(ctx, c.Table, keyName, values)
@@ -349,7 +322,7 @@ func (c *corev2) DoTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, s
 		return err
 	}
 	err = db.Update(ctx, c.Table, keyName, values)
-	return nil
+	return err
 }
 
 func (c *corev2) buildSingleValue(state *coreState) (map[string][]byte, error) {
