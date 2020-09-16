@@ -99,7 +99,7 @@ const (
 	Verbose         = "verbose"
 	VerboseDefault  = false
 	DropData        = "dropdata"
-	DropDataDefault = true
+	DropDataDefault = false
 
 	Silence        = "silence"
 	SilenceDefault = true

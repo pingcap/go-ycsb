@@ -25,7 +25,7 @@
 recordcount=1000
 operationcount=1000
 workload=corev2
-fields=f_1 varchar(32)
+fields=name varchar(45),message varchar(90),strikerUserCharacterId varchar(36),myStrikerUserCharacterId varchar(36),coin bigint,rank bigint,exp bigint,staminaModifiedAt timestamp,hotSpotStamina bigint,hotSpotStaminaModifiedAt timestamp,characterCapacity bigint,extendedCharacterCapacity bigint,drewTutorialGacha bool,isTutorialEnd bool,medalId bigint,noun1TitleId bigint,conjunctionTitleId bigint,noun2TitleId bigint,karma bigint,lointAt timestamp,lastLoginBonusAt timestamp
 
 readallfields=true
 

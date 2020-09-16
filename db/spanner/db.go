@@ -163,6 +163,7 @@ func (db *spannerDB) createTable(ctx context.Context, adminClient *database.Data
 	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
 	fieldCount := db.p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
 	fieldLength := db.p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
+	fields := db.p.GetString(prop.Fields, prop.FieldsDefault)
 
 	existed, err := db.tableExisted(ctx, tableName)
 	if err != nil {
@@ -194,8 +195,17 @@ func (db *spannerDB) createTable(ctx context.Context, adminClient *database.Data
 	s := fmt.Sprintf("CREATE TABLE  %s (YCSB_KEY STRING(%d)", tableName, fieldLength)
 	buf.WriteString(s)
 
-	for i := int64(0); i < fieldCount; i++ {
-		buf.WriteString(fmt.Sprintf(", FIELD%d STRING(%d)", i, fieldLength))
+	if fields == "" {
+		for i := int64(0); i < fieldCount; i++ {
+			buf.WriteString(fmt.Sprintf(", FIELD%d STRING(%d)", i, fieldLength))
+		}
+	} else {
+		var genFields []byte
+		genFields, err := util.GenerateFields(fields)
+		if err != nil {
+			return err
+		}
+		buf.Write(genFields)
 	}
 
 	buf.WriteString(") PRIMARY KEY (YCSB_KEY)")
@@ -344,6 +354,9 @@ func (db *spannerDB) Insert(ctx context.Context, table string, key string, mutat
 	keys, values := createMutations(key, mutations)
 	m := spanner.InsertOrUpdate(table, keys, values)
 	_, err := db.client.Apply(ctx, []*spanner.Mutation{m})
+	if err != nil {
+		util.Fatalf("Spanner apply error: %v\n", err)
+	}
 	return err
 }
 

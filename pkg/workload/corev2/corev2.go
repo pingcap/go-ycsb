@@ -90,7 +90,9 @@ func (c *corev2) Close() error { return nil }
 
 func isStringType(fieldType string) bool {
 	fieldType = strings.ToLower(fieldType)
-	if strings.Contains(fieldType, "char") || strings.Contains(fieldType, "text") {
+	if strings.Contains(fieldType, "char") ||
+		strings.Contains(fieldType, "text") ||
+		strings.Contains(fieldType, "string") {
 		return true
 	}
 	return false
@@ -106,7 +108,7 @@ func isBoolType(fieldType string) bool {
 
 func isInt64Type(fieldType string) bool {
 	fieldType = strings.ToLower(fieldType)
-	if fieldType == "bigint" {
+	if fieldType == "bigint" || fieldType == "int64" {
 		return true
 	}
 	return false

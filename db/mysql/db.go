@@ -17,7 +17,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -121,16 +120,12 @@ func (db *mysqlDB) createTable() error {
 			buf.WriteString(fmt.Sprintf(", FIELD%d VARCHAR(%d)", i, fieldLength))
 		}
 	} else {
-		fieldsDef := strings.Split(fields, ",")
-		for _, fieldDef := range fieldsDef {
-			def := strings.Split(fieldDef, " ")
-			if len(def) != 2 {
-				return errors.New(fmt.Sprintf("Field definition must include name and type. Got: %s", fieldDef))
-			}
-			fieldName := def[0]
-			fieldType := def[1]
-			buf.WriteString(fmt.Sprintf(", %s %s", fieldName, fieldType))
+		var genFields []byte
+		genFields, err := util.GenerateFields(fields)
+		if err != nil {
+			return err
 		}
+		buf.Write(genFields)
 	}
 
 	buf.WriteString(");")
