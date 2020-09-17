@@ -427,11 +427,6 @@ func (c *corev2) DoBatchTransactionUpdate(ctx context.Context, batchSize int, db
 	return db.BatchUpdate(ctx, c.Table, keys, values)
 }
 
-//func (c *corev2) BuildKeyName(keyNum int64) string {
-//	u := uuid.UUID{}
-//	uuid.NewSHA1()
-//}
-//
 type corev2Creator struct {}
 
 func (corev2Creator) Create(p *properties.Properties) (ycsb.Workload, error) {
