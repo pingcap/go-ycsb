@@ -109,4 +109,6 @@ const (
 
 	Fields = "fields"
 	FieldsDefault = ""
+	UUIDPrimaryKey = "uuidprimarykey"
+	UUIDPrimaryKeyDefault = true
 )

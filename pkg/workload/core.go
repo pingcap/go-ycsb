@@ -16,7 +16,9 @@ package workload
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
+	"github.com/google/uuid"
 	"math"
 	"math/rand"
 	"strconv"
@@ -158,6 +160,12 @@ func (c *Core) Close() error {
 func (c *Core) BuildKeyName(keyNum int64) string {
 	if !c.OrderedInserts {
 		keyNum = util.Hash64(keyNum)
+	}
+
+	if c.P.GetBool(prop.UUIDPrimaryKey, prop.UUIDPrimaryKeyDefault) {
+		var buf = make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, uint64(keyNum))
+		return uuid.NewSHA1(uuid.UUID{}, buf).String()
 	}
 
 	prefix := c.P.GetString(prop.KeyPrefix, prop.KeyPrefixDefault)
