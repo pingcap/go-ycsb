@@ -22,10 +22,10 @@
 #   Default data size: 1 KB records (10 fields, 100 bytes each, plus key)
 #   Request distribution: zipfian
 
-recordcount=1000
-operationcount=1000
+recordcount=1
+operationcount=1
 workload=corev2
-fields=name string(45),message string(90),strikerUserCharacterId string(36),myStrikerUserCharacterId string(36)
+fields=name string(45),f_bool bool,f_timestamp timestamp,f_int64 int64
 
 readallfields=true
 

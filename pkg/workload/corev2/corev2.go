@@ -21,7 +21,7 @@ import (
 
 type contextKey string
 
-const stateKey = contextKey("corev2")
+const CoreV2StateKey = contextKey("corev2")
 
 const (
 	// maxTimestamp = "2038-01-19T03:14:07.999999Z"
@@ -53,7 +53,7 @@ func (c *corev2) InitThread(ctx context.Context, _ int, _ int) context.Context {
 			FieldNames: fieldNames,
 		},
 	}
-	return context.WithValue(ctx, stateKey, state)
+	return context.WithValue(ctx, CoreV2StateKey, state)
 }
 
 func (c *corev2) CleanupThread(_ context.Context) {}
@@ -140,7 +140,7 @@ func (c *corev2) buildValues(state *CoreV2State) (map[string][]byte, error) {
 }
 
 func (c *corev2) DoInsert(ctx context.Context, db ycsb.DB) error {
-	state := ctx.Value(stateKey).(*CoreV2State)
+	state := ctx.Value(CoreV2StateKey).(*CoreV2State)
 	r := state.R
 	keyNum := c.KeySequence.Next(r)
 	dbKey := c.BuildKeyName(keyNum)
@@ -184,7 +184,7 @@ func (c *corev2) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) e
 	if !ok {
 		return fmt.Errorf("the %T doesn't implement the batchDB interface", db)
 	}
-	state := ctx.Value(stateKey).(*CoreV2State)
+	state := ctx.Value(CoreV2StateKey).(*CoreV2State)
 	r := state.R
 	var keys []string
 	var values []map[string][]byte
@@ -230,7 +230,7 @@ func (c *corev2) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) e
 }
 
 func (c *corev2) DoTransaction(ctx context.Context, db ycsb.DB) error {
-	state := ctx.Value(stateKey).(*CoreV2State)
+	state := ctx.Value(CoreV2StateKey).(*CoreV2State)
 	r := state.R
 
 	operation := workload.OperationType(c.OperationChooser.Next(r))
@@ -356,7 +356,7 @@ func (c *corev2) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.
 	if !ok {
 		return fmt.Errorf("the %T doesn't implement the batchDB interface", db)
 	}
-	state := ctx.Value(stateKey).(*CoreV2State)
+	state := ctx.Value(CoreV2StateKey).(*CoreV2State)
 	operation := workload.OperationType(c.OperationChooser.Next(state.R))
 	switch operation {
 	case workload.Read:

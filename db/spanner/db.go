@@ -60,6 +60,7 @@ const stateKey = contextKey("spannerDB")
 
 type spannerState struct {
 	Fields map[string]string
+	FieldNames []string
 }
 
 func (c spannerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
@@ -243,8 +244,9 @@ func (db *spannerDB) Close() error {
 
 func (db *spannerDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	state := &spannerState{}
-	if corev2State, ok := ctx.Value("corev2").(*corev2.CoreV2State); ok {
+	if corev2State, ok := ctx.Value(corev2.CoreV2StateKey).(*corev2.CoreV2State); ok {
 		state.Fields = corev2State.Fields
+		state.FieldNames = corev2State.FieldNames
 	} else {
 		state.Fields = make(map[string]string)
 	}
@@ -260,6 +262,9 @@ func (db *spannerDB) queryRows(ctx context.Context, stmt spanner.Statement, coun
 	if db.verbose {
 		fmt.Printf("%s %v\n", stmt.SQL, stmt.Params)
 	}
+	state := ctx.Value(stateKey).(*spannerState)
+	fields := state.Fields
+	fieldNames := state.FieldNames
 
 	iter := db.client.Single().Query(ctx, stmt)
 	defer iter.Stop()
@@ -278,19 +283,56 @@ func (db *spannerDB) queryRows(ctx context.Context, stmt spanner.Statement, coun
 		rowSize := row.Size()
 		m := make(map[string][]byte, rowSize)
 		dest := make([]interface{}, rowSize)
-		for i := 0; i < rowSize; i++ {
-			v := new(spanner.NullString)
-			dest[i] = v
-		}
-
-		if err := row.Columns(dest...); err != nil {
-			return nil, err
-		}
-
-		for i := 0; i < rowSize; i++ {
-			v := dest[i].(*spanner.NullString)
-			if v.Valid {
-				m[row.ColumnName(i)] = util.Slice(v.StringVal)
+		if len(fields) == 0 {
+			for i := 0; i < rowSize; i++ {
+				v := new(spanner.NullString)
+				dest[i] = v
+			}
+			if err := row.Columns(dest...); err != nil {
+				return nil, err
+			}
+			for i := 0; i < rowSize; i++ {
+				v := dest[i].(*spanner.NullString)
+				if v.Valid {
+					m[row.ColumnName(i)] = util.Slice(v.StringVal)
+				}
+			}
+		} else {
+			for i, fieldName := range fieldNames {
+				if fields[fieldName] == "string" {
+					v := new(spanner.NullString)
+					dest[i] = v
+				} else if fields[fieldName] == "bool" {
+					v := new(spanner.NullBool)
+					dest[i] = v
+				} else if fields[fieldName] == "timestamp" {
+					v := new(spanner.NullTime)
+					dest[i] = v
+				} else if fields[fieldName] == "int64" {
+					v := new(spanner.NullInt64)
+					dest[i] = v
+				}
+			}
+			if err := row.Columns(dest...); err != nil {
+				return nil, err
+			}
+			for i := 0; i < rowSize; i++ {
+				m[row.ColumnName(i)] = nil
+				if fields[row.ColumnName(i)] == "string" {
+					v := dest[i].(*spanner.NullString)
+					m[row.ColumnName(i)] = util.Slice(v.String())
+				} else if fields[row.ColumnName(i)] == "bool" {
+					v := dest[i].(*spanner.NullBool)
+					m[row.ColumnName(i)] = util.Slice(v.String())
+				} else if fields[row.ColumnName(i)] == "timestamp" {
+					v := dest[i].(*spanner.NullTime)
+					m[row.ColumnName(i)] = util.Slice(v.String())
+				} else if fields[row.ColumnName(i)] == "int64" {
+					v, ok := dest[i].(*spanner.NullInt64)
+					if ok {
+						m[row.ColumnName(i)] = util.Slice(v.String())
+					}
+				}
 			}
 		}
 
