@@ -251,6 +251,7 @@ func (db *spannerDB) InitThread(ctx context.Context, _ int, _ int) context.Conte
 		state.Fields = make(map[string]string)
 	}
 
+	ctx = context.WithValue(ctx, "UseShortConn", db.p.GetBool(prop.UseShortConn, prop.UseShortConnDefault))
 	return context.WithValue(ctx, stateKey, state)
 }
 
