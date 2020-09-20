@@ -111,4 +111,6 @@ const (
 	FieldsDefault = ""
 	UUIDPrimaryKey = "uuidprimarykey"
 	UUIDPrimaryKeyDefault = true
+	UseShortConn = "useshortconn"
+	UseShortConnDefault = false
 )
