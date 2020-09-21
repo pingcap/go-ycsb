@@ -62,6 +62,8 @@ github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f h1:lBNOc5arjvs8E5mO2tbp
 github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
 github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200920112217-155099577e1e h1:fZDhzfNtNASh7gBSeE2JQKB1mFHobjhkRbid7rsbK3M=
 github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200920112217-155099577e1e/go.mod h1:TzTaF9l2ZY2CIetNvVpUu6ZQy8YEOtzB6ICa5EwYjL0=
+github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200921034843-1f3d5e79384d h1:KGcBqb8lGrMOzNqCYNky7pivWHshxPnAGLS9ClItmlY=
+github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200921034843-1f3d5e79384d/go.mod h1:TzTaF9l2ZY2CIetNvVpUu6ZQy8YEOtzB6ICa5EwYjL0=
 github.com/cznic/mathutil v0.0.0-20181122101859-297441e03548 h1:iwZdTE0PVqJCos1vaoKsclOGD3ADKpshg3SRtYBbwso=
 github.com/cznic/mathutil v0.0.0-20181122101859-297441e03548/go.mod h1:e6NPNENfs9mPDVNRekM7lKScauxd5kXTr1Mfyig6TDM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
