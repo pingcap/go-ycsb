@@ -75,3 +75,5 @@ replace github.com/apache/thrift => github.com/apache/thrift v0.0.0-201712031727
 replace cloud.google.com/go/spanner => github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200921034843-1f3d5e79384d
 
 go 1.13
+
+replace golang.org/x/oauth2 => github.com/cyliu0/oauth2 v0.0.0-20200927074342-7b01fdc58ef3
