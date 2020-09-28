@@ -113,6 +113,7 @@ func (db *mysqlDB) getDB() (*sql.DB, error) {
 			return nil, err
 		}
 		myDB.SetMaxOpenConns(1)
+		myDB.SetMaxIdleConns(0)
 		return myDB, nil
 	}
 	return db.db, nil

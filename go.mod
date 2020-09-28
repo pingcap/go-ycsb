@@ -72,7 +72,7 @@ require (
 
 replace github.com/apache/thrift => github.com/apache/thrift v0.0.0-20171203172758-327ebb6c2b6d
 
-replace cloud.google.com/go/spanner => github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200927084153-8e041008e276
+replace cloud.google.com/go/spanner => github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200928075735-2c090c150a61
 
 go 1.13
 

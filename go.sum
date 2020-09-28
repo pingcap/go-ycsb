@@ -66,6 +66,8 @@ github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200921034843-1f3d5e79384d h
 github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200921034843-1f3d5e79384d/go.mod h1:TzTaF9l2ZY2CIetNvVpUu6ZQy8YEOtzB6ICa5EwYjL0=
 github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200927084153-8e041008e276 h1:GNWbLFCareAHH64R1Wi0dLj1d7JnCiB/O5Ktmjb8QWw=
 github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200927084153-8e041008e276/go.mod h1:TzTaF9l2ZY2CIetNvVpUu6ZQy8YEOtzB6ICa5EwYjL0=
+github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200928075735-2c090c150a61 h1:1sT3R8AePkzfv2JBgwL2wQ1KyG+4SfBrX/+KEKnbyTs=
+github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200928075735-2c090c150a61/go.mod h1:TzTaF9l2ZY2CIetNvVpUu6ZQy8YEOtzB6ICa5EwYjL0=
 github.com/cyliu0/oauth2 v0.0.0-20200927074342-7b01fdc58ef3 h1:03uAKjM2LC7+RCWi66QqAyfbNTwXyWI3xLvl68TH5Gg=
 github.com/cyliu0/oauth2 v0.0.0-20200927074342-7b01fdc58ef3/go.mod h1:gOpvHmFTYa4IltrdGE7lF6nIHvwfUNPOp7c8zoXwtLw=
 github.com/cznic/mathutil v0.0.0-20181122101859-297441e03548 h1:iwZdTE0PVqJCos1vaoKsclOGD3ADKpshg3SRtYBbwso=
