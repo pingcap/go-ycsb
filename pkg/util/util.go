@@ -15,9 +15,11 @@ package util
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -71,4 +73,19 @@ func (b *BufPool) Get() *bytes.Buffer {
 // Put returns a buffer.
 func (b *BufPool) Put(buf *bytes.Buffer) {
 	b.p.Put(buf)
+}
+
+func GenerateFields(fields string) ([]byte, error) {
+	fieldsDef := strings.Split(fields, ",")
+	buf := new(bytes.Buffer)
+	for _, fieldDef := range fieldsDef {
+		def := strings.Split(fieldDef, " ")
+		if len(def) != 2 {
+			return nil, errors.New(fmt.Sprintf("Field definition must include name and type. Got: %s", fieldDef))
+		}
+		fieldName := def[0]
+		fieldType := def[1]
+		buf.WriteString(fmt.Sprintf(", %s %s", fieldName, fieldType))
+	}
+	return buf.Bytes(), nil
 }

@@ -74,7 +74,6 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	dbName := p.GetString(mysqlDBName, "test")
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
-	var err error
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
@@ -83,12 +82,12 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	threadCount := int(p.GetInt64(prop.ThreadCount, prop.ThreadCountDefault))
 	db.SetMaxIdleConns(threadCount + 1)
 	db.SetMaxOpenConns(threadCount * 2)
+	d.db = db
 
 	d.verbose = p.GetBool(prop.Verbose, prop.VerboseDefault)
 	if p.GetBool(mysqlForceIndex, true) {
 		d.forceIndexKeyword = "FORCE INDEX(`PRIMARY`)"
 	}
-	d.db = db
 
 	d.bufPool = util.NewBufPool()
 
@@ -99,24 +98,65 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	return d, nil
 }
 
+func (db *mysqlDB) getDB() (*sql.DB, error) {
+	p := db.p
+	if p.GetBool(prop.UseShortConn, prop.UseShortConnDefault) {
+		host := p.GetString(mysqlHost, "127.0.0.1")
+		port := p.GetInt(mysqlPort, 3306)
+		user := p.GetString(mysqlUser, "root")
+		password := p.GetString(mysqlPassword, "")
+		dbName := p.GetString(mysqlDBName, "test")
+
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
+		myDB, err := sql.Open("mysql", dsn)
+		if err != nil {
+			return nil, err
+		}
+		myDB.SetMaxOpenConns(1)
+		myDB.SetMaxIdleConns(0)
+		return myDB, nil
+	}
+	return db.db, nil
+}
+
+func (db *mysqlDB) CloseShortConnDB(myDB *sql.DB) {
+	if db.p.GetBool(prop.UseShortConn, prop.UseShortConnDefault) {
+		myDB.Close()
+	}
+}
+
 func (db *mysqlDB) createTable() error {
 	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
 
 	if db.p.GetBool(prop.DropData, prop.DropDataDefault) && !db.p.GetBool(prop.DoTransactions, true) {
-		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
+		myDB, err := db.getDB()
+		if err != nil {
+			return err
+		}
+		defer db.CloseShortConnDB(myDB)
+		if _, err := myDB.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
 			return err
 		}
 	}
 
 	fieldCount := db.p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
 	fieldLength := db.p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
+	fields := db.p.GetString(prop.Fields, prop.FieldsDefault)
 
 	buf := new(bytes.Buffer)
 	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(64) PRIMARY KEY", tableName)
 	buf.WriteString(s)
-
-	for i := int64(0); i < fieldCount; i++ {
-		buf.WriteString(fmt.Sprintf(", FIELD%d VARCHAR(%d)", i, fieldLength))
+	if fields == "" {
+		for i := int64(0); i < fieldCount; i++ {
+			buf.WriteString(fmt.Sprintf(", FIELD%d VARCHAR(%d)", i, fieldLength))
+		}
+	} else {
+		var genFields []byte
+		genFields, err := util.GenerateFields(fields)
+		if err != nil {
+			return err
+		}
+		buf.Write(genFields)
 	}
 
 	buf.WriteString(");")
@@ -125,7 +165,12 @@ func (db *mysqlDB) createTable() error {
 		fmt.Println(buf.String())
 	}
 
-	_, err := db.db.Exec(buf.String())
+	myDB, err := db.getDB()
+	if err != nil {
+		return err
+	}
+	defer db.CloseShortConnDB(myDB)
+	_, err = myDB.Exec(buf.String())
 	return err
 }
 
@@ -200,11 +245,24 @@ func (db *mysqlDB) queryRows(ctx context.Context, query string, count int, args 
 		fmt.Printf("%s %v\n", query, args)
 	}
 
-	stmt, err := db.getAndCacheStmt(ctx, query)
-	if err != nil {
-		return nil, err
+	var rows *sql.Rows
+	var err error
+	if db.p.GetBool(prop.UseShortConn, prop.UseShortConnDefault) {
+		var myDB *sql.DB
+		myDB, err = db.getDB()
+		if err != nil {
+			return nil, err
+		}
+		defer db.CloseShortConnDB(myDB)
+		rows, err = myDB.QueryContext(ctx, query, args...)
+	} else {
+		var stmt *sql.Stmt
+		stmt, err = db.getAndCacheStmt(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		rows, err = stmt.QueryContext(ctx, args...)
 	}
-	rows, err := stmt.QueryContext(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +304,9 @@ func (db *mysqlDB) Read(ctx context.Context, table string, key string, fields []
 	}
 
 	rows, err := db.queryRows(ctx, query, 1, key)
-	db.clearCacheIfFailed(ctx, query, err)
+	if !db.p.GetBool(prop.UseShortConn, prop.UseShortConnDefault) {
+		db.clearCacheIfFailed(ctx, query, err)
+	}
 
 	if err != nil {
 		return nil, err
@@ -266,7 +326,9 @@ func (db *mysqlDB) Scan(ctx context.Context, table string, startKey string, coun
 	}
 
 	rows, err := db.queryRows(ctx, query, count, startKey, count)
-	db.clearCacheIfFailed(ctx, query, err)
+	if !db.p.GetBool(prop.UseShortConn, prop.UseShortConnDefault) {
+		db.clearCacheIfFailed(ctx, query, err)
+	}
 
 	return rows, err
 }
@@ -276,13 +338,24 @@ func (db *mysqlDB) execQuery(ctx context.Context, query string, args ...interfac
 		fmt.Printf("%s %v\n", query, args)
 	}
 
-	stmt, err := db.getAndCacheStmt(ctx, query)
-	if err != nil {
-		return err
+	var err error
+	if db.p.GetBool(prop.UseShortConn, prop.UseShortConnDefault) {
+		var myDB *sql.DB
+		myDB, err = db.getDB()
+		if err != nil {
+			return err
+		}
+		defer db.CloseShortConnDB(myDB)
+		_, err = myDB.QueryContext(ctx, query, args...)
+	} else {
+		var stmt *sql.Stmt
+		stmt, err = db.getAndCacheStmt(ctx, query)
+		if err != nil {
+			return err
+		}
+		_, err = stmt.ExecContext(ctx, args...)
+		db.clearCacheIfFailed(ctx, query, err)
 	}
-
-	_, err = stmt.ExecContext(ctx, args...)
-	db.clearCacheIfFailed(ctx, query, err)
 	return err
 }
 
@@ -305,13 +378,24 @@ func (db *mysqlDB) Update(ctx context.Context, table string, key string, values 
 
 		buf.WriteString(p.Field)
 		buf.WriteString(`= ?`)
-		args = append(args, p.Value)
+		args = appendArgs(args, p.Value)
 	}
 	buf.WriteString(" WHERE YCSB_KEY = ?")
 
 	args = append(args, key)
 
 	return db.execQuery(ctx, buf.String(), args...)
+}
+
+func appendArgs(args []interface{}, value []byte) []interface{} {
+	if string(value) == "true" {
+		args = append(args, true)
+	} else if string(value) == "false" {
+		args = append(args, false)
+	} else {
+		args = append(args, value)
+	}
+	return args
 }
 
 func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -327,7 +411,7 @@ func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values 
 
 	pairs := util.NewFieldPairs(values)
 	for _, p := range pairs {
-		args = append(args, p.Value)
+		args = appendArgs(args, p.Value)
 		buf.WriteString(" ,")
 		buf.WriteString(p.Field)
 	}
@@ -349,7 +433,12 @@ func (db *mysqlDB) Delete(ctx context.Context, table string, key string) error {
 }
 
 func (db *mysqlDB) Analyze(ctx context.Context, table string) error {
-	_, err := db.db.Exec(fmt.Sprintf(`ANALYZE TABLE %s`, table))
+	myDB, err := db.getDB()
+	if err != nil {
+		return err
+	}
+	defer db.CloseShortConnDB(myDB)
+	_, err = myDB.Exec(fmt.Sprintf(`ANALYZE TABLE %s`, table))
 	return err
 }
 

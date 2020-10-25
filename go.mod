@@ -29,6 +29,7 @@ require (
 	github.com/gogo/protobuf v1.2.0 // indirect
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9 // indirect
 	github.com/google/go-cmp v0.3.1 // indirect
+	github.com/google/uuid v1.1.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1 // indirect
@@ -71,4 +72,8 @@ require (
 
 replace github.com/apache/thrift => github.com/apache/thrift v0.0.0-20171203172758-327ebb6c2b6d
 
+replace cloud.google.com/go/spanner => github.com/cyliu0/google-cloud-go/spanner v1.1.1-0.20200928075735-2c090c150a61
+
 go 1.13
+
+replace golang.org/x/oauth2 => github.com/cyliu0/oauth2 v0.0.0-20200927074342-7b01fdc58ef3

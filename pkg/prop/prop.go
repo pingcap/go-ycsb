@@ -106,4 +106,11 @@ const (
 
 	KeyPrefix        = "keyprefix"
 	KeyPrefixDefault = "user"
+
+	Fields = "fields"
+	FieldsDefault = ""
+	UUIDPrimaryKey = "uuidprimarykey"
+	UUIDPrimaryKeyDefault = true
+	UseShortConn = "useshortconn"
+	UseShortConnDefault = false
 )
