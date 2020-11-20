@@ -106,4 +106,6 @@ const (
 
 	KeyPrefix        = "keyprefix"
 	KeyPrefixDefault = "user"
+
+	LogInterval = "measurement.interval"
 )

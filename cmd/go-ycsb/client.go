@@ -42,6 +42,10 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 		if cmd.Flags().Changed("target") {
 			globalProps.Set(prop.Target, strconv.Itoa(targetArg))
 		}
+
+		if cmd.Flags().Changed("interval") {
+			globalProps.Set(prop.LogInterval, strconv.Itoa(reportInterval))
+		}
 	})
 
 	fmt.Println("***************** properties *****************")
@@ -67,8 +71,9 @@ func runTransCommandFunc(cmd *cobra.Command, args []string) {
 }
 
 var (
-	threadsArg int
-	targetArg  int
+	threadsArg     int
+	targetArg      int
+	reportInterval int
 )
 
 func initClientCommand(m *cobra.Command) {
@@ -77,6 +82,7 @@ func initClientCommand(m *cobra.Command) {
 	m.Flags().StringVar(&tableName, "table", "", "Use the table name instead of the default \""+prop.TableNameDefault+"\"")
 	m.Flags().IntVar(&threadsArg, "threads", 1, "Execute using n threads - can also be specified as the \"threadcount\" property")
 	m.Flags().IntVar(&targetArg, "target", 0, "Attempt to do n operations per second (default: unlimited) - can also be specified as the \"target\" property")
+	m.Flags().IntVar(&reportInterval, "interval", 10, "Interval of outputting measurements in seconds")
 }
 
 func newLoadCommand() *cobra.Command {
