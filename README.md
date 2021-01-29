@@ -244,7 +244,7 @@ Common configurations:
 |redis.max_retry_backoff|512ms|Maximum backoff between each retry|
 |redis.dial_timeout|5s|Dial timeout for establishing new connection|
 |redis.read_timeout|3s|Timeout for socket reads|
-|redis.write_timeout|3s|Timeout for socker writes|
+|redis.write_timeout|3s|Timeout for socket writes|
 |redis.pool_size|10|Maximum number of socket connections|
 |redis.min_idle_conns|0|Minimum number of idle connections|
 |redis.max_conn_age|0|Connection age at which client closes the connection|
