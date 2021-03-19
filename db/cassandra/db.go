@@ -16,6 +16,7 @@ package cassandra
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -123,6 +124,10 @@ func (db *cassandraDB) createTable() error {
 
 	err := db.session.Query(buf.String()).Exec()
 	return err
+}
+
+func (db *cassandraDB) ToSqlDB() *sql.DB {
+	return nil
 }
 
 func (db *cassandraDB) Close() error {

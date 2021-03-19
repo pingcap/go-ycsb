@@ -8,9 +8,9 @@ ifdef FDB_CHECK
 endif 
 
 ifeq ($(ROCKSDB_CHECK), 0)
-	TAGS += rocksdb
-    CGO_CXXFLAGS := "${CGO_CXXFLAGS} -std=c++11"
-    CGO_FLAGS += CGO_CXXFLAGS=$(CGO_CXXFLAGS)
+	# TAGS += rocksdb
+    # CGO_CXXFLAGS := "${CGO_CXXFLAGS} -std=c++11"
+    # CGO_FLAGS += CGO_CXXFLAGS=$(CGO_CXXFLAGS)
 endif
 
 default: build

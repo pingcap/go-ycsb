@@ -1,0 +1,24 @@
+# Usage:
+# ./bin/go-ycsb load mysql -P workloads/wallet
+# ./bin/go-ycsb run mysql -P workloads/wallet
+
+# NOTE: currently can't load data with multiple instance.
+# NOTE: the core workload is broken in the branch.
+
+# How to complete the workload:
+# for creating tables, complete function `Init` in `pkg/workload/wallet.go`.
+# for initialize data, complete function `Load` in `pkg/workload/wallet.go`.
+# for run workload, complete function `DoTransaction` in `pkg/workload/wallet.go`.
+
+workload = wallet
+mysql.host = 172.16.5.71
+mysql.port = 32865
+mysql.user = root
+mysql.db = test
+threadcount = 10
+
+# for load
+recordcount = 100
+
+# for run
+operationcount = 1000
