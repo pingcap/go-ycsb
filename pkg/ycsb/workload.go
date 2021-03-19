@@ -35,7 +35,7 @@ type Workload interface {
 
 	// InitThread initializes the state associated to the goroutine worker.
 	// The Returned context will be passed to the following DoInsert and DoTransaction.
-	InitThread(ctx context.Context, threadID int, threadCount int) context.Context
+	InitThread(ctx context.Context, threadID int, threadCount int, db DB) context.Context
 
 	// CleanupThread cleans up the state when the worker finished.
 	CleanupThread(ctx context.Context)

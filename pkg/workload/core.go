@@ -170,7 +170,7 @@ func (c *core) Load(ctx context.Context, db ycsb.DB, totalCount int64) error {
 }
 
 // InitThread implements the Workload InitThread interface.
-func (c *core) InitThread(ctx context.Context, _ int, _ int) context.Context {
+func (c *core) InitThread(ctx context.Context, _ int, _ int, db ycsb.DB) context.Context {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	fieldNames := make([]string, len(c.fieldNames))
 	copy(fieldNames, c.fieldNames)

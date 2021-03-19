@@ -53,16 +53,7 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 	w.workload = workload
 	w.workDB = db
 
-	var totalOpCount int64
-	if w.doTransactions {
-		totalOpCount = p.GetInt64(prop.OperationCount, 0)
-	} else {
-		if _, ok := p.Get(prop.InsertCount); ok {
-			totalOpCount = p.GetInt64(prop.InsertCount, 0)
-		} else {
-			totalOpCount = p.GetInt64(prop.RecordCount, 0)
-		}
-	}
+	totalOpCount := p.GetInt64(prop.OperationCount, 0)
 
 	if totalOpCount < int64(threadCount) {
 		fmt.Printf("totalOpCount(%s/%s/%s): %d should be bigger than threadCount: %d",
@@ -118,20 +109,12 @@ func (w *worker) run(ctx context.Context) {
 	for w.opCount == 0 || w.opsDone < w.opCount {
 		var err error
 		opsCount := 1
-		if w.doTransactions {
-			if w.doBatch {
-				err = w.workload.DoBatchTransaction(ctx, w.batchSize, w.workDB)
-				opsCount = w.batchSize
-			} else {
-				err = w.workload.DoTransaction(ctx, w.workDB)
-			}
+
+		if w.doBatch {
+			err = w.workload.DoBatchTransaction(ctx, w.batchSize, w.workDB)
+			opsCount = w.batchSize
 		} else {
-			if w.doBatch {
-				err = w.workload.DoBatchInsert(ctx, w.batchSize, w.workDB)
-				opsCount = w.batchSize
-			} else {
-				err = w.workload.DoInsert(ctx, w.workDB)
-			}
+			err = w.workload.DoTransaction(ctx, w.workDB)
 		}
 
 		if err != nil && !w.p.GetBool(prop.Silence, prop.SilenceDefault) {
@@ -165,7 +148,7 @@ func NewClient(p *properties.Properties, workload ycsb.Workload, db ycsb.DB) *Cl
 }
 
 // Run runs the workload to the target DB, and blocks until all workers end.
-func (c *Client) Run(ctx context.Context) {
+func (c *Client) Run(ctx context.Context, load bool) {
 	var wg sync.WaitGroup
 	threadCount := c.p.GetInt(prop.ThreadCount, 1)
 
@@ -212,9 +195,14 @@ func (c *Client) Run(ctx context.Context) {
 			defer wg.Done()
 
 			w := newWorker(c.p, threadId, threadCount, c.workload, c.db)
-			ctx := c.workload.InitThread(ctx, threadId, threadCount)
+			ctx := c.workload.InitThread(ctx, threadId, threadCount, c.db)
 			ctx = c.db.InitThread(ctx, threadId, threadCount)
-			w.run(ctx)
+			if !load {
+				w.run(ctx)
+			} else {
+				recordCount := c.p.GetInt64(prop.RecordCount, 0)
+				c.workload.Load(ctx, c.db, recordCount)
+			}
 			c.db.CleanupThread(ctx)
 			c.workload.CleanupThread(ctx)
 		}(i)
