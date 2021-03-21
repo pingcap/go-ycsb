@@ -15,6 +15,10 @@ mysql.host = 172.16.5.71
 mysql.port = 32865
 mysql.user = root
 mysql.db = test
+
+# client processes and threads
+clientcount = 1
+clientid = 0
 threadcount = 10
 
 # for load
