@@ -26,13 +26,14 @@ import (
 )
 
 type workload struct {
-	p *properties.Properties
+	clientCount int
+	clientID    int
 }
 
 type threadedState struct {
 	r           *rand.Rand
-	threadID    int
-	threadCount int
+	threadID    int // Real thread ID in all clients
+	threadCount int // Real thread count for all clients
 }
 
 // Init implements the Workload Close interface.
@@ -80,8 +81,8 @@ func (w *workload) InitThread(ctx context.Context, threadID int, threadCount int
 	seed := rand.NewSource(time.Now().UnixNano() + int64(threadID*10000000))
 	state := &threadedState{
 		r:           rand.New(seed),
-		threadID:    threadID,
-		threadCount: threadCount,
+		threadID:    w.clientID*threadCount + threadID,
+		threadCount: w.clientCount * threadCount,
 	}
 	return context.WithValue(ctx, "state", state)
 }
@@ -115,7 +116,12 @@ func (w *workload) DoBatchTransaction(ctx context.Context, batchSize int, db ycs
 type creator struct{}
 
 func (creator) Create(p *properties.Properties) (ycsb.Workload, error) {
-	return &workload{p: p}, nil
+	clientCount := p.MustGetInt("clientcount")
+	clientID := p.MustGetInt("clientid")
+	return &workload{
+		clientCount: clientCount,
+		clientID:    clientID,
+	}, nil
 }
 
 func init() {
