@@ -2,6 +2,7 @@ package aerospike
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	as "github.com/aerospike/aerospike-client-go"
@@ -23,6 +24,10 @@ type aerospikedb struct {
 // Close closes the database layer.
 func (adb *aerospikedb) Close() error {
 	adb.client.Close()
+	return nil
+}
+
+func (db *aerospikedb) ToSqlDB() *sql.DB {
 	return nil
 }
 

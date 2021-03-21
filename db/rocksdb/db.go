@@ -17,6 +17,7 @@ package rocksdb
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 
@@ -159,6 +160,10 @@ func getOptions(p *properties.Properties) *gorocksdb.Options {
 	opts.SetBlockBasedTableFactory(getTableOptions(p))
 
 	return opts
+}
+
+func (db *rocksDB) ToSqlDB() *sql.DB {
+	return nil
 }
 
 func (db *rocksDB) Close() error {

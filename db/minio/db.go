@@ -3,6 +3,7 @@ package minio
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"io/ioutil"
 
 	"github.com/magiconair/properties"
@@ -35,6 +36,10 @@ func (c minioCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 type minioDB struct {
 	db *minio.Client
+}
+
+func (db *minioDB) ToSqlDB() *sql.DB {
+	return nil
 }
 
 // Close closes the database layer.

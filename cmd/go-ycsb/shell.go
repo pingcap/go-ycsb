@@ -46,7 +46,7 @@ func runShellCommandFunc(cmd *cobra.Command, args []string) {
 	dbName := args[0]
 	initialGlobal(dbName, nil)
 
-	shellContext = globalWorkload.InitThread(globalContext, 0, 1)
+	shellContext = globalWorkload.InitThread(globalContext, 0, 1, globalDB)
 	shellContext = globalDB.InitThread(shellContext, 0, 1)
 
 	shellLoop()
@@ -66,45 +66,45 @@ func runShellCommand(args []string) {
 
 	cmd.AddCommand(
 		&cobra.Command{
-			Use:   "read key [field0 field1 field2 ...]",
-			Short: "Read a record",
-			Args:  cobra.MinimumNArgs(1),
-			Run:   runShellReadCommand,
+			Use:                   "read key [field0 field1 field2 ...]",
+			Short:                 "Read a record",
+			Args:                  cobra.MinimumNArgs(1),
+			Run:                   runShellReadCommand,
 			DisableFlagsInUseLine: true,
 		},
 		&cobra.Command{
-			Use:   "scan key recordcount [field0 field1 field2 ...]",
-			Short: "Scan starting at key",
-			Args:  cobra.MinimumNArgs(2),
-			Run:   runShellScanCommand,
+			Use:                   "scan key recordcount [field0 field1 field2 ...]",
+			Short:                 "Scan starting at key",
+			Args:                  cobra.MinimumNArgs(2),
+			Run:                   runShellScanCommand,
 			DisableFlagsInUseLine: true,
 		},
 		&cobra.Command{
-			Use:   "insert key field0=value0 [field1=value1 ...]",
-			Short: "Insert a record",
-			Args:  cobra.MinimumNArgs(2),
-			Run:   runShellInsertCommand,
+			Use:                   "insert key field0=value0 [field1=value1 ...]",
+			Short:                 "Insert a record",
+			Args:                  cobra.MinimumNArgs(2),
+			Run:                   runShellInsertCommand,
 			DisableFlagsInUseLine: true,
 		},
 		&cobra.Command{
-			Use:   "update key field0=value0 [field1=value1 ...]",
-			Short: "Update a record",
-			Args:  cobra.MinimumNArgs(2),
-			Run:   runShellUpdateCommand,
+			Use:                   "update key field0=value0 [field1=value1 ...]",
+			Short:                 "Update a record",
+			Args:                  cobra.MinimumNArgs(2),
+			Run:                   runShellUpdateCommand,
 			DisableFlagsInUseLine: true,
 		},
 		&cobra.Command{
-			Use:   "delete key",
-			Short: "Delete a record",
-			Args:  cobra.MinimumNArgs(1),
-			Run:   runShellDeleteCommand,
+			Use:                   "delete key",
+			Short:                 "Delete a record",
+			Args:                  cobra.MinimumNArgs(1),
+			Run:                   runShellDeleteCommand,
 			DisableFlagsInUseLine: true,
 		},
 		&cobra.Command{
-			Use:   "table [tablename]",
-			Short: "Get or [set] the name of the table",
-			Args:  cobra.MaximumNArgs(1),
-			Run:   runShellTableCommand,
+			Use:                   "table [tablename]",
+			Short:                 "Get or [set] the name of the table",
+			Args:                  cobra.MaximumNArgs(1),
+			Run:                   runShellTableCommand,
 			DisableFlagsInUseLine: true,
 		},
 	)
