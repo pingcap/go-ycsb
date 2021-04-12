@@ -27,21 +27,15 @@ type WorkloadCreator interface {
 
 // Workload defines different workload for YCSB.
 type Workload interface {
-	// Initialize the workload.
-	Init(db DB) error
-
 	// Close closes the workload.
 	Close() error
 
 	// InitThread initializes the state associated to the goroutine worker.
 	// The Returned context will be passed to the following DoInsert and DoTransaction.
-	InitThread(ctx context.Context, threadID int, threadCount int, db DB) context.Context
+	InitThread(ctx context.Context, threadID int, threadCount int) context.Context
 
 	// CleanupThread cleans up the state when the worker finished.
 	CleanupThread(ctx context.Context)
-
-	// Load data into DB.
-	Load(ctx context.Context, db DB, totalCount int64) error
 
 	// DoInsert does one insert operation.
 	DoInsert(ctx context.Context, db DB) error
