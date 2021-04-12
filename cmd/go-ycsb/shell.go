@@ -46,7 +46,7 @@ func runShellCommandFunc(cmd *cobra.Command, args []string) {
 	dbName := args[0]
 	initialGlobal(dbName, nil)
 
-	shellContext = globalWorkload.InitThread(globalContext, 0, 1, globalDB)
+	shellContext = globalWorkload.InitThread(globalContext, 0, 1)
 	shellContext = globalDB.InitThread(shellContext, 0, 1)
 
 	shellLoop()
