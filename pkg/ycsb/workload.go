@@ -27,6 +27,9 @@ type WorkloadCreator interface {
 
 // Workload defines different workload for YCSB.
 type Workload interface {
+	// Initialize the workload.
+	Init(db DB) error
+
 	// Close closes the workload.
 	Close() error
 
@@ -36,6 +39,9 @@ type Workload interface {
 
 	// CleanupThread cleans up the state when the worker finished.
 	CleanupThread(ctx context.Context)
+
+	// Load data into DB.
+	Load(ctx context.Context, db DB, totalCount int64) error
 
 	// DoInsert does one insert operation.
 	DoInsert(ctx context.Context, db DB) error

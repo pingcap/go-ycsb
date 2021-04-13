@@ -133,6 +133,16 @@ func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 	return operationChooser
 }
 
+// Init implements the Workload Close interface.
+func (c *core) Init(db ycsb.DB) error {
+	return nil
+}
+
+// Load implements the Workload Close interface.
+func (c *core) Load(ctx context.Context, db ycsb.DB, totalCount int64) error {
+	return nil
+}
+
 // InitThread implements the Workload InitThread interface.
 func (c *core) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
