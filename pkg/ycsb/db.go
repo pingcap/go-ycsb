@@ -31,9 +31,6 @@ type DB interface {
 	// ToSqlDB returns a sql.DB if it's possible.
 	ToSqlDB() *sql.DB
 
-	// InitYCSB prepare base schema for ycsb test.
-	InitYCSB() error
-
 	// Close closes the database layer.
 	Close() error
 

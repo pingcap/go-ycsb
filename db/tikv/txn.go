@@ -67,10 +67,6 @@ func (db *txnDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
-func (db *txnDB) InitYCSB() error {
-	return nil
-}
-
 func (db *txnDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	tx, err := db.db.Begin()
 	if err != nil {

@@ -166,10 +166,6 @@ func (db *rocksDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
-func (db *rocksDB) InitYCSB() error {
-	return nil
-}
-
 func (db *rocksDB) Close() error {
 	db.db.Close()
 	return nil
