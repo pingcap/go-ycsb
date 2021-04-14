@@ -135,10 +135,6 @@ func (db *badgerDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
-func (db *badgerDB) InitYCSB() error {
-	return nil
-}
-
 func (db *badgerDB) Close() error {
 	return db.db.Close()
 }

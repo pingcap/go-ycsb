@@ -14,7 +14,6 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
@@ -43,7 +42,7 @@ const (
 type mysqlCreator struct {
 }
 
-type mysqlDB struct {
+type MysqlDB struct {
 	p                 *properties.Properties
 	db                *sql.DB
 	verbose           bool
@@ -54,7 +53,7 @@ type mysqlDB struct {
 
 type contextKey string
 
-const stateKey = contextKey("mysqlDB")
+const stateKey = contextKey("MysqlDB")
 
 type mysqlState struct {
 	// Do we need a LRU cache here?
@@ -64,7 +63,7 @@ type mysqlState struct {
 }
 
 func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
-	d := new(mysqlDB)
+	d := new(MysqlDB)
 	d.p = p
 
 	host := p.GetString(mysqlHost, "127.0.0.1")
@@ -95,44 +94,11 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	return d, nil
 }
 
-func (db *mysqlDB) ToSqlDB() *sql.DB {
+func (db *MysqlDB) ToSqlDB() *sql.DB {
 	return db.db
 }
-func (db *mysqlDB) InitYCSB() error {
-	return db.createTable()
-}
 
-func (db *mysqlDB) createTable() error {
-	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
-
-	if db.p.GetBool(prop.DropData, prop.DropDataDefault) && !db.p.GetBool(prop.DoTransactions, true) {
-		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
-			return err
-		}
-	}
-
-	fieldCount := db.p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
-	fieldLength := db.p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
-
-	buf := new(bytes.Buffer)
-	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(64) PRIMARY KEY", tableName)
-	buf.WriteString(s)
-
-	for i := int64(0); i < fieldCount; i++ {
-		buf.WriteString(fmt.Sprintf(", FIELD%d VARCHAR(%d)", i, fieldLength))
-	}
-
-	buf.WriteString(");")
-
-	if db.verbose {
-		fmt.Println(buf.String())
-	}
-
-	_, err := db.db.Exec(buf.String())
-	return err
-}
-
-func (db *mysqlDB) Close() error {
+func (db *MysqlDB) Close() error {
 	if db.db == nil {
 		return nil
 	}
@@ -140,7 +106,7 @@ func (db *mysqlDB) Close() error {
 	return db.db.Close()
 }
 
-func (db *mysqlDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
+func (db *MysqlDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	conn, err := db.db.Conn(ctx)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create db conn %v", err))
@@ -154,7 +120,7 @@ func (db *mysqlDB) InitThread(ctx context.Context, _ int, _ int) context.Context
 	return context.WithValue(ctx, stateKey, state)
 }
 
-func (db *mysqlDB) CleanupThread(ctx context.Context) {
+func (db *MysqlDB) CleanupThread(ctx context.Context) {
 	state := ctx.Value(stateKey).(*mysqlState)
 
 	for _, stmt := range state.stmtCache {
@@ -163,7 +129,7 @@ func (db *mysqlDB) CleanupThread(ctx context.Context) {
 	state.conn.Close()
 }
 
-func (db *mysqlDB) getAndCacheStmt(ctx context.Context, query string) (*sql.Stmt, error) {
+func (db *MysqlDB) getAndCacheStmt(ctx context.Context, query string) (*sql.Stmt, error) {
 	state := ctx.Value(stateKey).(*mysqlState)
 
 	if stmt, ok := state.stmtCache[query]; ok {
@@ -186,7 +152,7 @@ func (db *mysqlDB) getAndCacheStmt(ctx context.Context, query string) (*sql.Stmt
 	return stmt, nil
 }
 
-func (db *mysqlDB) clearCacheIfFailed(ctx context.Context, query string, err error) {
+func (db *MysqlDB) clearCacheIfFailed(ctx context.Context, query string, err error) {
 	if err == nil {
 		return
 	}
@@ -198,7 +164,7 @@ func (db *mysqlDB) clearCacheIfFailed(ctx context.Context, query string, err err
 	delete(state.stmtCache, query)
 }
 
-func (db *mysqlDB) queryRows(ctx context.Context, query string, count int, args ...interface{}) ([]map[string][]byte, error) {
+func (db *MysqlDB) queryRows(ctx context.Context, query string, count int, args ...interface{}) ([]map[string][]byte, error) {
 	if db.verbose {
 		fmt.Printf("%s %v\n", query, args)
 	}
@@ -240,7 +206,7 @@ func (db *mysqlDB) queryRows(ctx context.Context, query string, count int, args 
 	return vs, rows.Err()
 }
 
-func (db *mysqlDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
+func (db *MysqlDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s %s WHERE YCSB_KEY = ?`, table, db.forceIndexKeyword)
@@ -260,7 +226,7 @@ func (db *mysqlDB) Read(ctx context.Context, table string, key string, fields []
 	return rows[0], nil
 }
 
-func (db *mysqlDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
+func (db *MysqlDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s %s WHERE YCSB_KEY >= ? LIMIT ?`, table, db.forceIndexKeyword)
@@ -274,7 +240,7 @@ func (db *mysqlDB) Scan(ctx context.Context, table string, startKey string, coun
 	return rows, err
 }
 
-func (db *mysqlDB) execQuery(ctx context.Context, query string, args ...interface{}) error {
+func (db *MysqlDB) execQuery(ctx context.Context, query string, args ...interface{}) error {
 	if db.verbose {
 		fmt.Printf("%s %v\n", query, args)
 	}
@@ -289,7 +255,7 @@ func (db *mysqlDB) execQuery(ctx context.Context, query string, args ...interfac
 	return err
 }
 
-func (db *mysqlDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
+func (db *MysqlDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
 	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
 
@@ -317,7 +283,7 @@ func (db *mysqlDB) Update(ctx context.Context, table string, key string, values 
 	return db.execQuery(ctx, buf.String(), args...)
 }
 
-func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
+func (db *MysqlDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	args := make([]interface{}, 0, 1+len(values))
 	args = append(args, key)
 
@@ -345,13 +311,13 @@ func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values 
 	return db.execQuery(ctx, buf.String(), args...)
 }
 
-func (db *mysqlDB) Delete(ctx context.Context, table string, key string) error {
+func (db *MysqlDB) Delete(ctx context.Context, table string, key string) error {
 	query := fmt.Sprintf(`DELETE FROM %s WHERE YCSB_KEY = ?`, table)
 
 	return db.execQuery(ctx, query, key)
 }
 
-func (db *mysqlDB) Analyze(ctx context.Context, table string) error {
+func (db *MysqlDB) Analyze(ctx context.Context, table string) error {
 	_, err := db.db.Exec(fmt.Sprintf(`ANALYZE TABLE %s`, table))
 	return err
 }
