@@ -134,6 +134,10 @@ func (db *pgDB) ToSqlDB() *sql.DB {
 	return db.db
 }
 
+func (db *pgDB) InitYCSB() error {
+	return nil
+}
+
 func (db *pgDB) Close() error {
 	if db.db == nil {
 		return nil

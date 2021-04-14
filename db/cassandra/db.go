@@ -130,6 +130,10 @@ func (db *cassandraDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *cassandraDB) InitYCSB() error {
+	return nil
+}
+
 func (db *cassandraDB) Close() error {
 	if db.session == nil {
 		return nil

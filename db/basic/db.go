@@ -91,6 +91,10 @@ func (db *basicDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *basicDB) InitYCSB() error {
+	return nil
+}
+
 func (db *basicDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	state := new(basicState)
 	state.r = rand.New(rand.NewSource(time.Now().UnixNano()))

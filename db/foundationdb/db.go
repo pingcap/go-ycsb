@@ -63,6 +63,10 @@ func (db *fDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *fDB) InitYCSB() error {
+	return nil
+}
+
 func (db *fDB) Close() error {
 	return nil
 }

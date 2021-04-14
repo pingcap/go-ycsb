@@ -71,6 +71,10 @@ func (db *pegasusDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *pegasusDB) InitYCSB() error {
+	return nil
+}
+
 func (db *pegasusDB) InitThread(ctx context.Context, threadId int, _ int) context.Context {
 	return context.WithValue(ctx, "tid", threadId)
 }

@@ -117,6 +117,10 @@ func (db *sqliteDB) ToSqlDB() *sql.DB {
 	return db.db
 }
 
+func (db *sqliteDB) InitYCSB() error {
+	return nil
+}
+
 func (db *sqliteDB) Close() error {
 	if db.db == nil {
 		return nil

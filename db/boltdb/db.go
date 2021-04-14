@@ -114,6 +114,10 @@ func (db *boltDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *boltDB) InitYCSB() error {
+	return nil
+}
+
 func (db *boltDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	return ctx
 }

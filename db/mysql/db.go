@@ -92,15 +92,14 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 	d.bufPool = util.NewBufPool()
 
-	if err := d.createTable(); err != nil {
-		return nil, err
-	}
-
 	return d, nil
 }
 
 func (db *mysqlDB) ToSqlDB() *sql.DB {
 	return db.db
+}
+func (db *mysqlDB) InitYCSB() error {
+	return db.createTable()
 }
 
 func (db *mysqlDB) createTable() error {

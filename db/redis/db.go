@@ -34,6 +34,10 @@ func (db *redis) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *redis) InitYCSB() error {
+	return nil
+}
+
 func (r *redis) Close() error {
 	return r.client.Close()
 }

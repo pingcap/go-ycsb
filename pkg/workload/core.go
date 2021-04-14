@@ -133,12 +133,12 @@ func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 	return operationChooser
 }
 
-// Init implements the Workload Close interface.
+// Init implements the Workload Init interface.
 func (c *core) Init(db ycsb.DB) error {
-	return nil
+	return db.InitYCSB()
 }
 
-// Load implements the Workload Close interface.
+// Load implements the Workload Load interface.
 func (c *core) Load(ctx context.Context, db ycsb.DB, totalCount int64) error {
 	return nil
 }

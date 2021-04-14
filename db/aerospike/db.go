@@ -31,6 +31,10 @@ func (db *aerospikedb) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *aerospikedb) InitYCSB() error {
+	return nil
+}
+
 // InitThread initializes the state associated to the goroutine worker.
 // The Returned context will be passed to the following usage.
 func (adb *aerospikedb) InitThread(ctx context.Context, threadID int, threadCount int) context.Context {
@@ -39,7 +43,6 @@ func (adb *aerospikedb) InitThread(ctx context.Context, threadID int, threadCoun
 
 // CleanupThread cleans up the state when the worker finished.
 func (adb *aerospikedb) CleanupThread(ctx context.Context) {
-	return
 }
 
 // Read reads a record from the database and returns a map of each field/value pair.
