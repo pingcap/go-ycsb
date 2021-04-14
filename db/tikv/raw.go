@@ -67,6 +67,10 @@ func (db *rawDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *rawDB) InitYCSB() error {
+	return nil
+}
+
 func (db *rawDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	row, err := db.db.Get(db.getRowKey(table, key))
 	if err != nil {

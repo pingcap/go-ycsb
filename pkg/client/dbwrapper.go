@@ -42,6 +42,10 @@ func (db DbWrapper) ToSqlDB() *sql.DB {
 	return db.DB.ToSqlDB()
 }
 
+func (db DbWrapper) InitYCSB() error {
+	return db.DB.InitYCSB()
+}
+
 func (db DbWrapper) Close() error {
 	return db.DB.Close()
 }

@@ -231,6 +231,10 @@ func (db *spannerDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *spannerDB) InitYCSB() error {
+	return nil
+}
+
 func (db *spannerDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	state := &spannerState{}
 

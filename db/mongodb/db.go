@@ -38,6 +38,10 @@ func (db *mongoDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *mongoDB) InitYCSB() error {
+	return nil
+}
+
 func (m *mongoDB) Close() error {
 	return m.cli.Disconnect(context.Background())
 }

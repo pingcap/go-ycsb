@@ -31,6 +31,10 @@ func (db *aerospikedb) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *aerospikedb) InitYCSB() error {
+	return nil
+}
+
 // InitThread initializes the state associated to the goroutine worker.
 // The Returned context will be passed to the following usage.
 func (adb *aerospikedb) InitThread(ctx context.Context, threadID int, threadCount int) context.Context {

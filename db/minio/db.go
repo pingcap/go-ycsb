@@ -42,6 +42,10 @@ func (db *minioDB) ToSqlDB() *sql.DB {
 	return nil
 }
 
+func (db *minioDB) InitYCSB() error {
+	return nil
+}
+
 // Close closes the database layer.
 func (db *minioDB) Close() error {
 	return nil
