@@ -114,7 +114,7 @@ func (db *sqliteDB) createTable() error {
 }
 
 func (db *sqliteDB) ToSqlDB() *sql.DB {
-	return db.db
+	return nil
 }
 
 func (db *sqliteDB) Close() error {

@@ -131,7 +131,7 @@ func (db *pgDB) createTable() error {
 }
 
 func (db *pgDB) ToSqlDB() *sql.DB {
-	return db.db
+	return nil
 }
 
 func (db *pgDB) Close() error {
