@@ -135,7 +135,7 @@ func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 
 // Init --create all schemas for ycsb workload
 func (c *core) Init(db ycsb.DB) error {
-	// need to redesign the relation btw worklaod and db interface later.
+	// need to redesign the relation btw workload and db interface later.
 	sqlDB := db.ToSqlDB()
 	if sqlDB != nil {
 		tableName := c.p.GetString(prop.TableName, prop.TableNameDefault)
