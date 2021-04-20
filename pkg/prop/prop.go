@@ -108,4 +108,7 @@ const (
 	KeyPrefixDefault = "user"
 
 	LogInterval = "measurement.interval"
+
+	//[sysbench]
+	SysbenchOpType = "SysbenchOpType"
 )
