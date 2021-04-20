@@ -24,6 +24,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type SysbenchOpType int
+
+const Sysbench_Prepare SysbenchOpType = 1
+const Sysbench_Event SysbenchOpType = 2
+const Sysbench_Cleanup SysbenchOpType = 3
+
 func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool) {
 	dbName := args[0]
 
@@ -107,4 +113,45 @@ func newRunCommand() *cobra.Command {
 
 	initClientCommand(m)
 	return m
+}
+
+//TODO The definition of runLoadCommandFunc and runTransCommandFunc
+//interface looks a bit vague, re-design later.
+func newSysbenchPrepareCommand() *cobra.Command {
+	m := &cobra.Command{
+		Use:   "sysbench_prepare db",
+		Short: "Sysbench prepare database",
+		Args:  cobra.MinimumNArgs(1),
+		Run:   runSysBenchPrepareCommand,
+	}
+	initClientCommand(m)
+	return m
+}
+
+func runSysBenchPrepareCommand(cmd *cobra.Command, args []string) {
+	fmt.Println("runSysBenchPrepareCommand running...", args)
+	execSysBench(cmd, args, Sysbench_Prepare)
+}
+
+func execSysBench(cmd *cobra.Command, args []string, opType SysbenchOpType) {
+	dbName := args[0]
+	if dbName != "mysql" {
+		fmt.Println("currently sysbench support only mysql")
+		return
+	}
+	initialGlobal(dbName, nil)
+	globalProps.Set(prop.SysbenchOpType, strconv.Itoa(int(opType)))
+	fmt.Println("***************** properties *****************")
+	for key, value := range globalProps.Map() {
+		fmt.Printf("\"%s\"=\"%s\"\n", key, value)
+	}
+	fmt.Println("**********************************************")
+
+	c := client.NewClient(globalProps, globalWorkload, globalDB)
+	start := time.Now()
+	c.Run(globalContext)
+
+	fmt.Printf("Run finished, takes %s\n", time.Since(start))
+	measurement.Output()
+
 }
