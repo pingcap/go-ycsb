@@ -124,7 +124,7 @@ func initialGlobal(dbName string, onProperties func()) {
 	if globalDB, err = dbCreator.Create(globalProps); err != nil {
 		util.Fatalf("create db %s failed %v", dbName, err)
 	}
-	globalDB = client.DbWrapper{globalDB}
+	globalDB = client.DbWrapper{DB: globalDB}
 }
 
 func main() {
