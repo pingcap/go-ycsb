@@ -176,7 +176,7 @@ func execSysBench(cmd *cobra.Command, args []string, cmdType string) {
 	}
 	fmt.Println("**********************************************")
 
-	c := client.NewSysbenchClient(globalProps, globalWorkload, globalDB)
+	c := workload.NewSysbenchClient(globalProps, globalWorkload, globalDB)
 	start := time.Now()
 	c.Run(globalContext)
 

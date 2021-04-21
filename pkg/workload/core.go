@@ -54,7 +54,8 @@ const (
 
 // Core is the core benchmark scenario. Represents a set of clients doing simple CRUD operations.
 type core struct {
-	p *properties.Properties
+	p  *properties.Properties
+	db ycsb.DB
 
 	table      string
 	fieldCount int64
@@ -168,7 +169,7 @@ func (c *core) Init(db ycsb.DB) error {
 func (c *core) Load(ctx context.Context, db ycsb.DB, totalCount int64) error {
 	return nil
 }
-func (c *core) Exec(ctx context.Context, db ycsb.DB) error {
+func (c *core) Exec(ctx context.Context, threadID int) error {
 	// all workload interface will be re-design lator
 	return nil
 }
@@ -643,9 +644,10 @@ type coreCreator struct {
 }
 
 // Create implements the WorkloadCreator Create interface.
-func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
+func (coreCreator) Create(p *properties.Properties, db ycsb.DB) (ycsb.Workload, error) {
 	c := new(core)
 	c.p = p
+	c.db = db
 	c.table = p.GetString(prop.TableName, prop.TableNameDefault)
 	c.fieldCount = p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
 	c.fieldNames = make([]string, c.fieldCount)
