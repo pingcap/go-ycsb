@@ -41,7 +41,61 @@ threadcount=10
 events=1000
 time=0
 report.interva=1
-#recordcount=1000
+
 table_size=1000
+range_size=100
+tables=10
+point_selects=10
+index_updates=1
 
-
+#sysbenchoptions = {
+#   table_size =
+#      {"Number of rows per table", 10000},
+#   range_size =
+#      {"Range size for range SELECT queries", 100},
+#   tables =
+#      {"Number of tables", 1},
+#   point_selects =
+#      {"Number of point SELECT queries per transaction", 10},
+#   simple_ranges =
+#      {"Number of simple range SELECT queries per transaction", 1},
+#   sum_ranges =
+#      {"Number of SELECT SUM() queries per transaction", 1},
+#   order_ranges =
+#      {"Number of SELECT ORDER BY queries per transaction", 1},
+#   distinct_ranges =
+#      {"Number of SELECT DISTINCT queries per transaction", 1},
+#   index_updates =
+#      {"Number of UPDATE index queries per transaction", 1},
+#   non_index_updates =
+#      {"Number of UPDATE non-index queries per transaction", 1},
+#   delete_inserts =
+#      {"Number of DELETE/INSERT combinations per transaction", 1},
+#   range_selects =
+#      {"Enable/disable all range SELECT queries", true},
+#   auto_inc =
+#   {"Use AUTO_INCREMENT column as Primary Key (for MySQL), " ..
+#       "or its alternatives in other DBMS. When disabled, use " ..
+#       "client-generated IDs", true},
+#   create_table_options =
+#      {"Extra CREATE TABLE options", ""},
+#   skip_trx =
+#      {"Don't start explicit transactions and execute all queries " ..
+#          "in the AUTOCOMMIT mode", false},
+#   secondary =
+#      {"Use a secondary index in place of the PRIMARY KEY", false},
+#   create_secondary =
+#      {"Create a secondary index in addition to the PRIMARY KEY", true},
+#   reconnect =
+#      {"Reconnect after every N events. The default (0) is to not reconnect",
+#       0},
+#   mysql_storage_engine =
+#      {"Storage engine, if MySQL is used", "innodb"},
+#   pgsql_variant =
+#      {"Use this PostgreSQL variant when running with the " ..
+#          "PostgreSQL driver. The only currently supported " ..
+#          "variant is 'redshift'. When enabled, " ..
+#          "create_secondary is automatically disabled, and " ..
+#          "delete_inserts is set to 0"}
+#}
+#

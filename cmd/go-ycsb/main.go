@@ -82,6 +82,7 @@ var (
 	globalProps    *properties.Properties
 )
 
+//TODO fix later
 func initialGlobal(dbName string, onProperties func()) {
 	globalProps = properties.NewProperties()
 	if len(propertyFiles) > 0 {
@@ -112,9 +113,6 @@ func initialGlobal(dbName string, onProperties func()) {
 	workloadCreator := ycsb.GetWorkloadCreator(workloadName)
 
 	var err error
-	if globalWorkload, err = workloadCreator.Create(globalProps); err != nil {
-		util.Fatalf("create workload %s failed %v", workloadName, err)
-	}
 
 	dbCreator := ycsb.GetDBCreator(dbName)
 	if dbCreator == nil {
@@ -124,6 +122,10 @@ func initialGlobal(dbName string, onProperties func()) {
 		util.Fatalf("create db %s failed %v", dbName, err)
 	}
 	globalDB = client.DbWrapper{DB: globalDB}
+
+	if globalWorkload, err = workloadCreator.Create(globalProps, globalDB); err != nil {
+		util.Fatalf("create workload %s failed %v", workloadName, err)
+	}
 }
 
 func main() {

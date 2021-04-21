@@ -110,6 +110,8 @@ const (
 	LogInterval = "measurement.interval"
 
 	//[sysbench]
-	SysbenchCmdType      = string("SysbenchCmdType")
-	SysbenchWorkLoadType = string("SysbenchWorkLoadType")
+	SysbenchCmdType        = string("SysbenchCmdType")
+	SysbenchWorkLoadType   = string("SysbenchWorkLoadType")
+	SysbenchThreads        = string("threads")
+	SysbenchThreadsDefault = 1
 )
