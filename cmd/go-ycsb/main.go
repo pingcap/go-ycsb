@@ -72,7 +72,6 @@ import (
 var (
 	propertyFiles  []string
 	propertyValues []string
-	dbName         string
 	tableName      string
 
 	globalContext context.Context
@@ -166,6 +165,8 @@ func main() {
 		newLoadCommand(),
 		newRunCommand(),
 		newSysbenchPrepareCommand(),
+		newSysbenchRunCommand(),
+		newSysbenchCleanupCommand(),
 	)
 
 	cobra.EnablePrefixMatching = true
