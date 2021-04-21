@@ -33,7 +33,6 @@
 
 #[sysbench]
 workload=sysbench
-workload.type=oltp_point_select
 mysql.host=172.16.4.78
 mysql.port=4000
 mysql.user=root

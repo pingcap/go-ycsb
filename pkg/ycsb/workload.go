@@ -30,6 +30,9 @@ type Workload interface {
 	// Initialize the workload.
 	Init(db DB) error
 
+	// Exec command
+	Exec(ctx context.Context, db DB) error
+
 	// Close closes the workload.
 	Close() error
 

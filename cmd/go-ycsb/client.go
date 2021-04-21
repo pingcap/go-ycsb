@@ -21,14 +21,9 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/client"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
+	"github.com/pingcap/go-ycsb/pkg/workload"
 	"github.com/spf13/cobra"
 )
-
-type SysbenchOpType int
-
-const Sysbench_Prepare SysbenchOpType = 1
-const Sysbench_Event SysbenchOpType = 2
-const Sysbench_Cleanup SysbenchOpType = 3
 
 func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool) {
 	dbName := args[0]
@@ -119,35 +114,69 @@ func newRunCommand() *cobra.Command {
 //interface looks a bit vague, re-design later.
 func newSysbenchPrepareCommand() *cobra.Command {
 	m := &cobra.Command{
-		Use:   "sysbench_prepare db",
+		Use:   "sysbench_prepare workload db",
 		Short: "Sysbench prepare database",
+		Args:  cobra.MinimumNArgs(2),
+		Run:   execSysBenchPrepareCommand,
+	}
+	initClientCommand(m)
+	return m
+}
+func newSysbenchRunCommand() *cobra.Command {
+	m := &cobra.Command{
+		Use:   "sysbench_run db",
+		Short: "Sysbench run workload",
 		Args:  cobra.MinimumNArgs(1),
-		Run:   runSysBenchPrepareCommand,
+		Run:   execSysBenchRunCommand,
 	}
 	initClientCommand(m)
 	return m
 }
 
-func runSysBenchPrepareCommand(cmd *cobra.Command, args []string) {
-	fmt.Println("runSysBenchPrepareCommand running...", args)
-	execSysBench(cmd, args, Sysbench_Prepare)
+func newSysbenchCleanupCommand() *cobra.Command {
+	m := &cobra.Command{
+		Use:   "sysbench_cleanup db",
+		Short: "Sysbench cleanup database",
+		Args:  cobra.MinimumNArgs(1),
+		Run:   execSysBenchClearupCommand,
+	}
+	initClientCommand(m)
+	return m
 }
 
-func execSysBench(cmd *cobra.Command, args []string, opType SysbenchOpType) {
-	dbName := args[0]
-	if dbName != "mysql" {
+func execSysBenchPrepareCommand(cmd *cobra.Command, args []string) {
+	fmt.Println("runSysBenchPrepareCommand running...", args)
+	execSysBench(cmd, args, workload.SysbenchCmd_Prepare)
+}
+
+func execSysBenchRunCommand(cmd *cobra.Command, args []string) {
+	fmt.Println("execSysBenchRunCommand running...", args)
+	execSysBench(cmd, args, workload.SysbenchCmd_Run)
+}
+
+func execSysBenchClearupCommand(cmd *cobra.Command, args []string) {
+	fmt.Println("execSysBenchClearupCommand running ...", args)
+	execSysBench(cmd, args, workload.SysbenchCmd_Cleanup)
+}
+
+func execSysBench(cmd *cobra.Command, args []string, cmdType string) {
+	workloadType := args[0]
+	dbType := args[1]
+	if dbType != "mysql" {
 		fmt.Println("currently sysbench support only mysql")
 		return
 	}
-	initialGlobal(dbName, nil)
-	globalProps.Set(prop.SysbenchOpType, strconv.Itoa(int(opType)))
+	initialGlobal(dbType, nil)
+	globalProps.Set(prop.SysbenchCmdType, cmdType)
+	globalProps.Set(prop.SysbenchWorkLoadType, workloadType)
+
 	fmt.Println("***************** properties *****************")
 	for key, value := range globalProps.Map() {
 		fmt.Printf("\"%s\"=\"%s\"\n", key, value)
 	}
 	fmt.Println("**********************************************")
 
-	c := client.NewClient(globalProps, globalWorkload, globalDB)
+	c := client.NewSysbenchClient(globalProps, globalWorkload, globalDB)
 	start := time.Now()
 	c.Run(globalContext)
 

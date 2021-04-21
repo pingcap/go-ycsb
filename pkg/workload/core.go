@@ -168,6 +168,10 @@ func (c *core) Init(db ycsb.DB) error {
 func (c *core) Load(ctx context.Context, db ycsb.DB, totalCount int64) error {
 	return nil
 }
+func (c *core) Exec(ctx context.Context, db ycsb.DB) error {
+	// all workload interface will be re-design lator
+	return nil
+}
 
 // InitThread implements the Workload InitThread interface.
 func (c *core) InitThread(ctx context.Context, _ int, _ int) context.Context {
