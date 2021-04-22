@@ -35,23 +35,23 @@ func (s *sysBench) Init(db ycsb.DB) error {
 }
 
 //TODO return none will be ok later.
-func (c *sysBench) Exec(ctx context.Context, threadID int) error {
-	cmdType := c.p.GetString(prop.SysbenchCmdType, "nil")
-	workloadType := c.p.GetString(prop.SysbenchWorkLoadType, "nil")
+func (s *sysBench) Exec(ctx context.Context, tid int) error {
+	cmdType := s.p.GetString(prop.SysbenchCmdType, "nil")
+	workloadType := s.p.GetString(prop.SysbenchWorkLoadType, "nil")
 	creator := GetSysbenchWorkloadCreator(workloadType)
 	if creator == nil {
 		fmt.Println("sysbench workloadtype doesn't exist, please check your command")
 		return nil
 	}
-	sysBenchWL := creator.Create(c)
+	sysBenchWL := creator.Create(s)
 
 	switch cmdType {
 	case "prepare":
-		sysBenchWL.Prepare()
+		sysBenchWL.Prepare(tid)
 	case "run":
-		sysBenchWL.Run()
+		sysBenchWL.Run(tid)
 	case "cleanup":
-		sysBenchWL.Cleanup()
+		sysBenchWL.Cleanup(tid)
 	}
 	return nil
 }
@@ -128,11 +128,11 @@ func (creator SysbenchPointSelectCreator) Create(s *sysBench) SysbenchWorkload {
 type SysbenchWorkload interface {
 	ID() string
 	// prepare the base data for the workload test
-	Prepare()
+	Prepare(tid int)
 	// run the workload test
-	Run()
+	Run(tid int)
 	// clean the base data
-	Cleanup()
+	Cleanup(tid int)
 
 	GetSysBench() *sysBench
 }
@@ -144,19 +144,17 @@ type SysbenchPointSelect struct {
 func (ps *SysbenchPointSelect) ID() string {
 	return "SysbenchPointSelect"
 }
-func (ps *SysbenchPointSelect) Prepare() {
+func (ps *SysbenchPointSelect) Prepare(tid int) {
 	fmt.Println("SysbenchPointSelect Prepare running ...")
-	//create schema
-	//generate test data
-	createSysbenchTable(ps)
+	prepareSysbenchData(ps, tid)
 
 }
 
-func (ps *SysbenchPointSelect) Run() {
+func (ps *SysbenchPointSelect) Run(tid int) {
 	fmt.Println("SysbenchPointSelect Run running...")
 }
 
-func (ps *SysbenchPointSelect) Cleanup() {
+func (ps *SysbenchPointSelect) Cleanup(tid int) {
 	fmt.Println("SysbenchPointSelect Cleanup running...")
 }
 
@@ -171,15 +169,15 @@ type SysbenchUpdateIndex struct {
 func (ui *SysbenchUpdateIndex) ID() string {
 	return "SysbenchUpdateIndex"
 }
-func (ui *SysbenchUpdateIndex) Prepare() {
+func (ui *SysbenchUpdateIndex) Prepare(tid int) {
 	fmt.Println("SysbenchUpdateIndex Prepare running...")
 
 }
-func (ui *SysbenchUpdateIndex) Run() {
+func (ui *SysbenchUpdateIndex) Run(tid int) {
 	fmt.Println("SysbenchUpdateIndex Run running...")
 
 }
-func (ui *SysbenchUpdateIndex) Cleanup() {
+func (ui *SysbenchUpdateIndex) Cleanup(tid int) {
 	fmt.Println("SysbenchUpdateIndex Clearup running...")
 
 }
@@ -197,10 +195,29 @@ func (creator SysbenchUpdateIndexCreator) Create(s *sysBench) SysbenchWorkload {
 
 }
 
-func createSysbenchTable(wl SysbenchWorkload) {
+func createTable(wl SysbenchWorkload, tableId int) {
+	id_def := string("INTEGER NOT NULL")
+	id_index_def := string("PRIMARY KEY")
+	sql := fmt.Sprintf("CREATE TABLE sbtest%v ("+
+		"id %v,"+
+		"k INTEGER DEFAULT '0' NOT NULL,"+
+		"c CHAR(120) DEFAULT '' NOT NULL,"+
+		"pad CHAR(60) DEFAULT '' NOT NULL,"+
+		"%v (id)"+
+		")",
+		tableId, id_def, id_index_def)
+	sqlDB := wl.GetSysBench().db.ToSqlDB()
+	sqlDB.Exec(sql)
+}
+
+//TODO currently assumed mysql, fix it later
+func prepareSysbenchData(wl SysbenchWorkload, tid int) {
 	sysbench := wl.GetSysBench()
 	threads := sysbench.p.GetInt(prop.SysbenchThreads, prop.SysbenchThreadsDefault)
-	fmt.Println("sysbench threads num", threads)
+	tables := sysbench.p.GetInt(prop.SysbenchTables, prop.SysbenchTablesDefault)
+	for i := tid % threads; i <= threads; i = i + tables {
+		createTable(wl, i)
+	}
 }
 
 func init() {

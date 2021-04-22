@@ -113,5 +113,7 @@ const (
 	SysbenchCmdType        = string("SysbenchCmdType")
 	SysbenchWorkLoadType   = string("SysbenchWorkLoadType")
 	SysbenchThreads        = string("threads")
-	SysbenchThreadsDefault = 1
+	SysbenchThreadsDefault = 10
+	SysbenchTables         = string("tables")
+	SysbenchTablesDefault  = 2
 )
