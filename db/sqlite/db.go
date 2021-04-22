@@ -113,6 +113,10 @@ func (db *sqliteDB) createTable() error {
 	return err
 }
 
+func (db *sqliteDB) ToSqlDB() *sql.DB {
+	return nil
+}
+
 func (db *sqliteDB) Close() error {
 	if db.db == nil {
 		return nil

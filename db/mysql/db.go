@@ -14,7 +14,6 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
@@ -92,41 +91,11 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 	d.bufPool = util.NewBufPool()
 
-	if err := d.createTable(); err != nil {
-		return nil, err
-	}
-
 	return d, nil
 }
 
-func (db *mysqlDB) createTable() error {
-	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
-
-	if db.p.GetBool(prop.DropData, prop.DropDataDefault) && !db.p.GetBool(prop.DoTransactions, true) {
-		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
-			return err
-		}
-	}
-
-	fieldCount := db.p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
-	fieldLength := db.p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
-
-	buf := new(bytes.Buffer)
-	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(64) PRIMARY KEY", tableName)
-	buf.WriteString(s)
-
-	for i := int64(0); i < fieldCount; i++ {
-		buf.WriteString(fmt.Sprintf(", FIELD%d VARCHAR(%d)", i, fieldLength))
-	}
-
-	buf.WriteString(");")
-
-	if db.verbose {
-		fmt.Println(buf.String())
-	}
-
-	_, err := db.db.Exec(buf.String())
-	return err
+func (db *mysqlDB) ToSqlDB() *sql.DB {
+	return db.db
 }
 
 func (db *mysqlDB) Close() error {

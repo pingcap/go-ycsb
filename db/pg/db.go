@@ -130,6 +130,10 @@ func (db *pgDB) createTable() error {
 	return err
 }
 
+func (db *pgDB) ToSqlDB() *sql.DB {
+	return nil
+}
+
 func (db *pgDB) Close() error {
 	if db.db == nil {
 		return nil
