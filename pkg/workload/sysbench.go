@@ -25,12 +25,13 @@ const SysbenchType_oltp_update_non_index = "oltp_update_non_index"
 const SysbenchType_oltp_read_write = "oltp_read_write"
 
 type sysBench struct {
-	p         *properties.Properties
-	db        ycsb.DB
-	tableCnt  int   //table count
-	tableSize int64 //table row count
-	threadCnt int
-	eventCnt  int64 //test count
+	p              *properties.Properties
+	db             ycsb.DB
+	tableCnt       int   //table count
+	tableSize      int64 //table row count
+	threadCnt      int
+	eventCnt       int64 //test count
+	indexUpdateCnt int
 }
 
 // All the interface including params need to be re-design later.
@@ -103,7 +104,7 @@ func (sysBenchCreator) Create(p *properties.Properties, db ycsb.DB) (ycsb.Worklo
 	s.tableSize = p.GetInt64(prop.SysbenchTableSize, prop.SysbenchTableSizeDefault)
 	s.threadCnt = p.GetInt(prop.SysbenchThreads, prop.SysbenchThreadsDefault)
 	s.eventCnt = p.GetInt64(prop.SysbenchEvents, prop.SysbenchEventsDefault)
-	fmt.Println("sysbench params:", "tables=", s.tableCnt, "table-size=", s.tableSize, "threadCnt=", s.threadCnt, "events=", s.eventCnt)
+	s.indexUpdateCnt = p.GetInt(prop.SysbenchIndexUpdateCnt, prop.SysbenchIndexUpdateCntDefault)
 	return s, nil
 }
 
@@ -165,6 +166,7 @@ func (ps *SysbenchPointSelect) Run(ctx context.Context, tid int) {
 	if err != nil {
 		panic(err)
 	}
+	defer conn.Close()
 	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(tid)*int64(100000000)))
 	stmts := make([]*sql.Stmt, ps.s.tableCnt)
 	for i := 0; i < ps.s.tableCnt; i++ {
@@ -192,7 +194,7 @@ func (ps *SysbenchPointSelect) Cleanup(tid int) {
 	fmt.Println("SysbenchPointSelect Cleanup running...")
 	threads := ps.s.threadCnt
 	tableCnt := ps.s.tableCnt
-	for i := (tid % threads) + 1; i <= threads; i = i + tableCnt {
+	for i := (tid % threads) + 1; i <= tableCnt; i = i + threads {
 		query := fmt.Sprintf("drop table if exists sbtest%v", i)
 		_, err := ps.s.db.ToSqlDB().Exec(query)
 		if err != nil {
@@ -216,15 +218,54 @@ func (ui *SysbenchUpdateIndex) ID() string {
 }
 func (ui *SysbenchUpdateIndex) Prepare(tid int) {
 	fmt.Println("SysbenchUpdateIndex Prepare running...")
+	prepareSysbenchData(ui, tid)
 
 }
+
+//UPDATE sbtest%u SET k=k+1 WHERE id=?
 func (ui *SysbenchUpdateIndex) Run(ctx context.Context, tid int) {
 	fmt.Println("SysbenchUpdateIndex Run running...")
+	conn, err := ui.s.db.ToSqlDB().Conn(ctx)
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(tid)*int64(100000000)))
+	stmts := make([]*sql.Stmt, ui.s.tableCnt)
+	for i := 0; i < ui.s.tableCnt; i++ {
+		tableName := fmt.Sprintf("sbtest%v", i+1)
+		updateIndex := string("update " + tableName + " set k=k+1 where id=?")
+		stmt, err := conn.PrepareContext(ctx, updateIndex)
+		if err != nil {
+			panic(err)
+		}
+		stmts[i] = stmt
+	}
+
+	for i := int64(0); i < ui.s.eventCnt; i++ {
+		stmtIndex := r.Intn(ui.s.tableCnt)
+		id := r.Int63n(ui.s.tableSize)
+		_, err := stmts[stmtIndex].ExecContext(ctx, id)
+		if err != nil {
+			panic(err)
+		}
+	}
+	fmt.Println("SysbenchUpdateIndex exec", ui.s.eventCnt)
 
 }
 func (ui *SysbenchUpdateIndex) Cleanup(tid int) {
 	fmt.Println("SysbenchUpdateIndex Clearup running...")
-
+	threads := ui.s.threadCnt
+	tableCnt := ui.s.tableCnt
+	for i := (tid % threads) + 1; i <= tableCnt; i = i + threads {
+		query := fmt.Sprintf("drop table if exists sbtest%v", i)
+		_, err := ui.s.db.ToSqlDB().Exec(query)
+		if err != nil {
+			fmt.Println("[Failed]:", query, err)
+			panic(err)
+		}
+	}
+	fmt.Println("SysbenchUpdateIndex cleanup database")
 }
 func (ui *SysbenchUpdateIndex) GetSysBench() *sysBench {
 	return ui.s
@@ -343,8 +384,7 @@ func createSysbenchTable(wl SysbenchWorkload, tableId int) {
 //TODO currently assumed mysql, fix it later
 func prepareSysbenchData(wl SysbenchWorkload, tid int) {
 	sysbench := wl.GetSysBench()
-	threads := sysbench.threadCnt
-	for i := (tid % threads) + 1; i <= threads; i = i + sysbench.tableCnt {
+	for i := (tid % sysbench.threadCnt) + 1; i <= sysbench.tableCnt; i = i + sysbench.threadCnt {
 		createSysbenchTable(wl, i)
 	}
 }
