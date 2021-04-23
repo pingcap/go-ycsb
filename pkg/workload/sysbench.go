@@ -25,8 +25,12 @@ const SysbenchType_oltp_update_non_index = "oltp_update_non_index"
 const SysbenchType_oltp_read_write = "oltp_read_write"
 
 type sysBench struct {
-	p  *properties.Properties
-	db ycsb.DB
+	p         *properties.Properties
+	db        ycsb.DB
+	tableCnt  int   //table count
+	tableSize int64 //table row count
+	threadCnt int
+	eventCnt  int64 //test count
 }
 
 // All the interface including params need to be re-design later.
@@ -92,10 +96,15 @@ func (s *sysBench) DoBatchTransaction(ctx context.Context, batchSize int, db ycs
 type sysBenchCreator struct{}
 
 func (sysBenchCreator) Create(p *properties.Properties, db ycsb.DB) (ycsb.Workload, error) {
-	sysbench := new(sysBench)
-	sysbench.p = p
-	sysbench.db = db
-	return sysbench, nil
+	s := new(sysBench)
+	s.p = p
+	s.db = db
+	s.tableCnt = p.GetInt(prop.SysbenchTables, prop.SysbenchTablesDefault)
+	s.tableSize = p.GetInt64(prop.SysbenchTableSize, prop.SysbenchTableSizeDefault)
+	s.threadCnt = p.GetInt(prop.SysbenchThreads, prop.SysbenchThreadsDefault)
+	s.eventCnt = p.GetInt64(prop.SysbenchEvents, prop.SysbenchEventsDefault)
+	fmt.Println("sysbench params:", "tables=", s.tableCnt, "table-size=", s.tableSize, "threadCnt=", s.threadCnt, "events=", s.eventCnt)
+	return s, nil
 }
 
 type SysbenchPointSelectCreator struct{}
@@ -157,10 +166,8 @@ func (ps *SysbenchPointSelect) Run(ctx context.Context, tid int) {
 		panic(err)
 	}
 	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(tid)*int64(100000000)))
-	tableSize := prop.SysbenchTableSizeDefault
-	tables := prop.SysbenchTablesDefault
-	stmts := make([]*sql.Stmt, tables)
-	for i := 0; i < tables; i++ {
+	stmts := make([]*sql.Stmt, ps.s.tableCnt)
+	for i := 0; i < ps.s.tableCnt; i++ {
 		tableName := fmt.Sprintf("sbtest%v", i+1)
 		pointSelect := string("SELECT c FROM " + tableName + " WHERE id=?")
 		stmt, err := conn.PrepareContext(ctx, pointSelect)
@@ -169,20 +176,31 @@ func (ps *SysbenchPointSelect) Run(ctx context.Context, tid int) {
 		}
 		stmts[i] = stmt
 	}
-	events := 10
-	for i := 0; i < events; i++ {
-		table := r.Intn(tables)
-		id := r.Int63n(tableSize)
-		_, err := stmts[table].ExecContext(ctx, id)
+
+	for i := int64(0); i < ps.s.eventCnt; i++ {
+		stmtIndex := r.Intn(ps.s.tableCnt)
+		id := r.Int63n(ps.s.tableSize)
+		_, err := stmts[stmtIndex].ExecContext(ctx, id)
 		if err != nil {
 			panic(err)
 		}
 	}
-	fmt.Println("SysbenchPointSelect exec", events)
+	fmt.Println("SysbenchPointSelect exec", ps.s.eventCnt)
 }
 
 func (ps *SysbenchPointSelect) Cleanup(tid int) {
 	fmt.Println("SysbenchPointSelect Cleanup running...")
+	threads := ps.s.threadCnt
+	tableCnt := ps.s.tableCnt
+	for i := (tid % threads) + 1; i <= threads; i = i + tableCnt {
+		query := fmt.Sprintf("drop table if exists sbtest%v", i)
+		_, err := ps.s.db.ToSqlDB().Exec(query)
+		if err != nil {
+			fmt.Println("[Failed]:", query, err)
+			panic(err)
+		}
+	}
+	fmt.Println("SysbenchPointSelect cleanup database")
 }
 
 func (ps *SysbenchPointSelect) GetSysBench() *sysBench {
@@ -285,14 +303,16 @@ func createSysbenchTable(wl SysbenchWorkload, tableId int) {
 		")",
 		tableId, id_def, id_index_def)
 	sqlDB := wl.GetSysBench().db.ToSqlDB()
+	dropSql := fmt.Sprintf("drop table if exists sbtest%v", tableId)
+	sqlDB.Exec(dropSql)
 	_, err := sqlDB.Exec(sql)
 	if err != nil {
 		panic(err)
 	}
 
-	table_size := wl.GetSysBench().p.GetInt64(prop.SysbenchTableSize, prop.SysbenchTableSizeDefault)
-	if table_size > 0 {
-		fmt.Printf("Inserting %v records into sbtest%v\n", table_size, tableId)
+	tableSize := wl.GetSysBench().tableSize
+	if tableSize > 0 {
+		fmt.Printf("Inserting %v records into sbtest%v\n", tableSize, tableId)
 	}
 	//TODO deal with auto inc param later
 	query := fmt.Sprintf("INSERT INTO sbtest%v (k, c, pad) VALUES", tableId)
@@ -305,8 +325,8 @@ func createSysbenchTable(wl SysbenchWorkload, tableId int) {
 	var c_value string
 	var pad_value string
 	var k int64
-	for i := int64(0); i < table_size; i++ {
-		k = r.Int63n(table_size)
+	for i := int64(0); i < tableSize; i++ {
+		k = r.Int63n(tableSize)
 		c_value = randStringRunes(c_value_len, r)
 		pad_value = randStringRunes(pad_value_len, r)
 		query = fmt.Sprintf("(%v,'%v','%v')", k, c_value, pad_value)
@@ -323,9 +343,8 @@ func createSysbenchTable(wl SysbenchWorkload, tableId int) {
 //TODO currently assumed mysql, fix it later
 func prepareSysbenchData(wl SysbenchWorkload, tid int) {
 	sysbench := wl.GetSysBench()
-	threads := sysbench.p.GetInt(prop.SysbenchThreads, prop.SysbenchThreadsDefault)
-	tables := sysbench.p.GetInt(prop.SysbenchTables, prop.SysbenchTablesDefault)
-	for i := (tid % threads) + 1; i <= threads; i = i + tables {
+	threads := sysbench.threadCnt
+	for i := (tid % threads) + 1; i <= threads; i = i + sysbench.tableCnt {
 		createSysbenchTable(wl, i)
 	}
 }

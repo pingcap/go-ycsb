@@ -37,15 +37,14 @@ mysql.host=172.16.4.78
 mysql.port=4000
 mysql.user=root
 mysql.db=mytest
-threadcount=10
-events=1000
+threads=21
+events=20000
 time=0
 report.interva=1
-
-table_size=1000
+table_size=15000
 range_size=100
-tables=10
-point_selects=10
+tables=13
+point_selects=1
 index_updates=1
 
 #sysbenchoptions = {
