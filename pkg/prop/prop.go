@@ -122,4 +122,5 @@ const (
 	SysbenchPadLength            = 60  //sysbench schema required
 	SysbenchBulkInsertCount      = 100
 	SysbenchCreateSecondaryIndex = 1 //
+	SysbenchPointSelect          = 1
 )

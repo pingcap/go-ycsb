@@ -51,7 +51,7 @@ func (s *sysBench) Exec(ctx context.Context, tid int) error {
 	case "prepare":
 		sysBenchWL.Prepare(tid)
 	case "run":
-		sysBenchWL.Run(tid)
+		sysBenchWL.Run(ctx, tid)
 	case "cleanup":
 		sysBenchWL.Cleanup(tid)
 	}
@@ -132,13 +132,12 @@ type SysbenchWorkload interface {
 	// prepare the base data for the workload test
 	Prepare(tid int)
 	// run the workload test
-	Run(tid int)
+	Run(ctx context.Context, tid int)
 	// clean the base data
 	Cleanup(tid int)
 
 	GetSysBench() *sysBench
 }
-
 type SysbenchPointSelect struct {
 	s *sysBench
 }
@@ -149,11 +148,37 @@ func (ps *SysbenchPointSelect) ID() string {
 func (ps *SysbenchPointSelect) Prepare(tid int) {
 	fmt.Println("SysbenchPointSelect Prepare running ...")
 	prepareSysbenchData(ps, tid)
-
 }
 
-func (ps *SysbenchPointSelect) Run(tid int) {
+func (ps *SysbenchPointSelect) Run(ctx context.Context, tid int) {
 	fmt.Println("SysbenchPointSelect Run running...")
+	conn, err := ps.s.db.ToSqlDB().Conn(ctx)
+	if err != nil {
+		panic(err)
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(tid)*int64(100000000)))
+	tableSize := prop.SysbenchTableSizeDefault
+	tables := prop.SysbenchTablesDefault
+	stmts := make([]*sql.Stmt, tables)
+	for i := 0; i < tables; i++ {
+		tableName := fmt.Sprintf("sbtest%v", i+1)
+		pointSelect := string("SELECT c FROM " + tableName + " WHERE id=?")
+		stmt, err := conn.PrepareContext(ctx, pointSelect)
+		if err != nil {
+			panic(err)
+		}
+		stmts[i] = stmt
+	}
+	events := 10
+	for i := 0; i < events; i++ {
+		table := r.Intn(tables)
+		id := r.Int63n(tableSize)
+		_, err := stmts[table].ExecContext(ctx, id)
+		if err != nil {
+			panic(err)
+		}
+	}
+	fmt.Println("SysbenchPointSelect exec", events)
 }
 
 func (ps *SysbenchPointSelect) Cleanup(tid int) {
@@ -175,7 +200,7 @@ func (ui *SysbenchUpdateIndex) Prepare(tid int) {
 	fmt.Println("SysbenchUpdateIndex Prepare running...")
 
 }
-func (ui *SysbenchUpdateIndex) Run(tid int) {
+func (ui *SysbenchUpdateIndex) Run(ctx context.Context, tid int) {
 	fmt.Println("SysbenchUpdateIndex Run running...")
 
 }
@@ -311,8 +336,6 @@ func init() {
 	RegisterSysbenchWorkloadCreator(SysbenchType_oltp_update_index, SysbenchUpdateIndexCreator{})
 }
 
-/*************************************************************************************/
-// sysbenchClient logic
 /***************************************************************************************/
 // Sysbench Client
 type SysbenchClient struct {
@@ -323,16 +346,6 @@ type SysbenchClient struct {
 
 func NewSysbenchClient(p *properties.Properties, workload ycsb.Workload, db ycsb.DB) *SysbenchClient {
 	return &SysbenchClient{p: p, workload: workload, db: db}
-}
-
-type SysbenchWorker struct {
-	tid int
-	wl  ycsb.Workload
-	db  ycsb.DB
-}
-
-func (worker *SysbenchWorker) Run(ctx context.Context) {
-	worker.wl.Exec(ctx, worker.tid)
 }
 
 /*
@@ -366,15 +379,9 @@ func (c *SysbenchClient) Run(ctx context.Context) {
 	for i := 0; i < threads; i++ {
 		go func(threadId int) {
 			defer wg.Done()
-
-			w := SysbenchWorker{tid: threadId,
-				wl: c.workload,
-				db: c.db,
-				//r:  rand.NewSource(time.Now().UnixNano() + int64(threadId)*int64(100000000)),
-			}
 			ctx := c.workload.InitThread(ctx, threadId, threads)
 			ctx = c.db.InitThread(ctx, threadId, threads)
-			w.Run(ctx)
+			c.workload.Exec(ctx, threadId)
 			c.db.CleanupThread(ctx)
 			c.workload.CleanupThread(ctx)
 		}(i + 1)
