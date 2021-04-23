@@ -19,10 +19,16 @@ const SysbenchCmd_Run = "run"
 const SysbenchCmd_Cleanup = "cleanup"
 
 // SysbenchType
-const SysbenchType_oltp_point_select = "oltp_point_select"
-const SysbenchType_oltp_update_index = "oltp_update_index"
-const SysbenchType_oltp_update_non_index = "oltp_update_non_index"
-const SysbenchType_oltp_read_write = "oltp_read_write"
+const TypePointSelect = "oltp_point_select"
+const TypeUpdateIndex = "oltp_update_index"
+const TypeUpdateNonIndex = "oltp_update_non_index"
+const TypeReadWrite = "oltp_read_write"
+
+var statDefs = map[string]string{
+	TypePointSelect:    "SELECT c FROM sbtest%v WHERE id=?",
+	TypeUpdateIndex:    "UPDATE sbtest%v SET k=k+1 WHERE id=?",
+	TypeUpdateNonIndex: "UPDATE sbtest%v SET c=? WHERE id=?",
+}
 
 type sysBench struct {
 	p              *properties.Properties
@@ -32,35 +38,109 @@ type sysBench struct {
 	threadCnt      int
 	eventCnt       int64 //test count
 	indexUpdateCnt int
+	events         map[string](func(ctx context.Context, w *sysbenchWorker))
 }
 
 // All the interface including params need to be re-design later.
 // Sysbench workload has nothing todo here
 func (s *sysBench) Init(db ycsb.DB) error {
-	fmt.Println("sysBench Init running...")
+	s.events = make(map[string]func(ctx context.Context, w *sysbenchWorker))
+	s.events[TypePointSelect] = s.eventPointSelect
+	s.events[TypeUpdateIndex] = s.eventUpdateIndex
 	return nil
 }
 
 //TODO return none will be ok later.
 func (s *sysBench) Exec(ctx context.Context, tid int) error {
 	cmdType := s.p.GetString(prop.SysbenchCmdType, "nil")
-	workloadType := s.p.GetString(prop.SysbenchWorkLoadType, "nil")
-	creator := GetSysbenchWorkloadCreator(workloadType)
-	if creator == nil {
-		fmt.Println("sysbench workloadtype doesn't exist, please check your command")
-		return nil
-	}
-	sysBenchWL := creator.Create(s)
+	wlType := s.p.GetString(prop.SysbenchWorkLoadType, "nil")
 
 	switch cmdType {
 	case "prepare":
-		sysBenchWL.Prepare(tid)
+		s.Prepare(tid)
 	case "run":
-		sysBenchWL.Run(ctx, tid)
+		s.RunEvent(ctx, tid, wlType)
 	case "cleanup":
-		sysBenchWL.Cleanup(tid)
+		s.Cleanup(tid)
 	}
 	return nil
+}
+
+type sysbenchWorker struct {
+	r     *rand.Rand
+	conn  *sql.Conn
+	stmts []*sql.Stmt
+}
+
+func (s *sysBench) createWorker(ctx context.Context, tid int, wlType string) *sysbenchWorker {
+	conn, err := s.db.ToSqlDB().Conn(ctx)
+	if err != nil {
+		panic(err)
+	}
+	w := new(sysbenchWorker)
+	w.r = rand.New(rand.NewSource(time.Now().UnixNano() + int64(tid)*int64(100000000)))
+	w.conn = conn
+	w.stmts = s.PrepareStatements(ctx, wlType, conn)
+	return w
+}
+func (s *sysBench) releaseWorker(ctx context.Context, w *sysbenchWorker) {
+	w.conn.Close()
+}
+func (s *sysBench) RunEvent(ctx context.Context, tid int, wlType string) {
+	w := s.createWorker(ctx, tid, wlType)
+	event := s.events[wlType]
+	for i := int64(0); i < s.eventCnt; i++ {
+		event(ctx, w)
+	}
+	s.releaseWorker(ctx, w)
+}
+func (s *sysBench) eventPointSelect(ctx context.Context, w *sysbenchWorker) {
+	tableId := w.r.Intn(int(s.tableCnt)) + 1
+	id := w.r.Int63n(s.tableSize)
+	_, err := w.stmts[tableId].ExecContext(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("sysbench point select running with tableID and id", tableId, id)
+}
+func (s *sysBench) eventUpdateIndex(ctx context.Context, w *sysbenchWorker) {
+	tableId := w.r.Intn(int(s.tableCnt)) + 1
+	id := w.r.Int63n(s.tableSize)
+	_, err := w.stmts[tableId].ExecContext(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("sysbench update index running with tableID and id", tableId, id)
+}
+
+func (s *sysBench) PrepareStatements(ctx context.Context, wlType string, conn *sql.Conn) []*sql.Stmt {
+	var err error
+	stmts := make([]*sql.Stmt, s.tableCnt+1)
+
+	for i := 1; i <= s.tableCnt; i++ {
+		sql := fmt.Sprintf(statDefs[wlType], i)
+		stmts[i], err = conn.PrepareContext(ctx, sql)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return stmts
+}
+
+func (s *sysBench) Prepare(tid int) {
+	s.prepareSysbenchData(tid)
+}
+
+func (s *sysBench) Cleanup(tid int) {
+	for i := (tid % s.threadCnt) + 1; i <= s.tableCnt; i = i + s.threadCnt {
+		query := fmt.Sprintf("drop table if exists sbtest%v", i)
+		_, err := s.db.ToSqlDB().Exec(query)
+		if err != nil {
+			fmt.Println("[Failed]:", query, err)
+			panic(err)
+		}
+	}
+	fmt.Println("sysbench cleanup database over")
 }
 
 func (s *sysBench) Close() error {
@@ -93,6 +173,62 @@ func (s *sysBench) DoTransaction(ctx context.Context, db ycsb.DB) error {
 func (s *sysBench) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.DB) error {
 	return nil
 }
+func (s *sysBench) createSysbenchTable(tableId int) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(tableId)*int64(100000000)))
+	id_def := string("INTEGER NOT NULL AUTO_INCREMENT")
+	id_index_def := string("PRIMARY KEY")
+	sql := fmt.Sprintf("CREATE TABLE sbtest%v ("+
+		"id %v,"+
+		"k INTEGER DEFAULT '0' NOT NULL,"+
+		"c CHAR(120) DEFAULT '' NOT NULL,"+
+		"pad CHAR(60) DEFAULT '' NOT NULL,"+
+		"%v (id)"+
+		")",
+		tableId, id_def, id_index_def)
+	sqlDB := s.db.ToSqlDB()
+	dropSql := fmt.Sprintf("drop table if exists sbtest%v", tableId)
+	sqlDB.Exec(dropSql)
+	_, err := sqlDB.Exec(sql)
+	if err != nil {
+		panic(err)
+	}
+
+	tableSize := s.tableSize
+	if tableSize > 0 {
+		fmt.Printf("Inserting %v records into sbtest%v\n", tableSize, tableId)
+	}
+	//TODO deal with auto inc param later
+	query := fmt.Sprintf("INSERT INTO sbtest%v (k, c, pad) VALUES", tableId)
+	c_value_len := prop.SysbenchCharLength
+	pad_value_len := prop.SysbenchPadLength
+	bulk_size := prop.SysbenchBulkInsertCount
+
+	bi := new(BulkWorker)
+	bi.BulkInsertInit(query, bulk_size, sqlDB)
+	var c_value string
+	var pad_value string
+	var k int64
+	for i := int64(0); i < tableSize; i++ {
+		k = r.Int63n(tableSize)
+		c_value = randStringRunes(c_value_len, r)
+		pad_value = randStringRunes(pad_value_len, r)
+		query = fmt.Sprintf("(%v,'%v','%v')", k, c_value, pad_value)
+		bi.BulkInsertNext(query)
+	}
+	bi.BulkInsertDone()
+	if prop.SysbenchCreateSecondaryIndex != 0 {
+		fmt.Printf("Creating a secondary index on 'sbtest%v' ...\n", tableId)
+		query = fmt.Sprintf("CREATE INDEX k_%d ON sbtest%d(k)", tableId, tableId)
+		sqlDB.Exec(query)
+	}
+}
+
+//TODO currently assumed mysql, fix it later
+func (s *sysBench) prepareSysbenchData(tid int) {
+	for i := (tid % s.threadCnt) + 1; i <= s.tableCnt; i = i + s.threadCnt {
+		s.createSysbenchTable(i)
+	}
+}
 
 type sysBenchCreator struct{}
 
@@ -106,179 +242,6 @@ func (sysBenchCreator) Create(p *properties.Properties, db ycsb.DB) (ycsb.Worklo
 	s.eventCnt = p.GetInt64(prop.SysbenchEvents, prop.SysbenchEventsDefault)
 	s.indexUpdateCnt = p.GetInt(prop.SysbenchIndexUpdateCnt, prop.SysbenchIndexUpdateCntDefault)
 	return s, nil
-}
-
-type SysbenchPointSelectCreator struct{}
-type sysbenchWorkloadCreator interface {
-	Create(s *sysBench) SysbenchWorkload
-}
-
-var sysbenchWorkloadCreators = map[string]sysbenchWorkloadCreator{}
-
-// RegisterWorkloadCreator registers a creator for the workload
-func RegisterSysbenchWorkloadCreator(name string, creator sysbenchWorkloadCreator) {
-	_, ok := sysbenchWorkloadCreators[name]
-	if ok {
-		panic(fmt.Sprintf("duplicate register sysbenchWorkloadCreator %s", name))
-	}
-
-	sysbenchWorkloadCreators[name] = creator
-}
-
-// GetWorkloadCreator gets the WorkloadCreator for the database
-func GetSysbenchWorkloadCreator(name string) sysbenchWorkloadCreator {
-	return sysbenchWorkloadCreators[name]
-}
-
-func (creator SysbenchPointSelectCreator) Create(s *sysBench) SysbenchWorkload {
-	fmt.Println("Sysbench SysbenchPointSelect workload creating...")
-	w := new(SysbenchPointSelect)
-	w.s = s
-	return w
-}
-
-type SysbenchWorkload interface {
-	ID() string
-	// prepare the base data for the workload test
-	Prepare(tid int)
-	// run the workload test
-	Run(ctx context.Context, tid int)
-	// clean the base data
-	Cleanup(tid int)
-
-	GetSysBench() *sysBench
-}
-type SysbenchPointSelect struct {
-	s *sysBench
-}
-
-func (ps *SysbenchPointSelect) ID() string {
-	return "SysbenchPointSelect"
-}
-func (ps *SysbenchPointSelect) Prepare(tid int) {
-	fmt.Println("SysbenchPointSelect Prepare running ...")
-	prepareSysbenchData(ps, tid)
-}
-
-func (ps *SysbenchPointSelect) Run(ctx context.Context, tid int) {
-	fmt.Println("SysbenchPointSelect Run running...")
-	conn, err := ps.s.db.ToSqlDB().Conn(ctx)
-	if err != nil {
-		panic(err)
-	}
-	defer conn.Close()
-	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(tid)*int64(100000000)))
-	stmts := make([]*sql.Stmt, ps.s.tableCnt)
-	for i := 0; i < ps.s.tableCnt; i++ {
-		tableName := fmt.Sprintf("sbtest%v", i+1)
-		pointSelect := string("SELECT c FROM " + tableName + " WHERE id=?")
-		stmt, err := conn.PrepareContext(ctx, pointSelect)
-		if err != nil {
-			panic(err)
-		}
-		stmts[i] = stmt
-	}
-
-	for i := int64(0); i < ps.s.eventCnt; i++ {
-		stmtIndex := r.Intn(ps.s.tableCnt)
-		id := r.Int63n(ps.s.tableSize)
-		_, err := stmts[stmtIndex].ExecContext(ctx, id)
-		if err != nil {
-			panic(err)
-		}
-	}
-	fmt.Println("SysbenchPointSelect exec", ps.s.eventCnt)
-}
-
-func (ps *SysbenchPointSelect) Cleanup(tid int) {
-	fmt.Println("SysbenchPointSelect Cleanup running...")
-	threads := ps.s.threadCnt
-	tableCnt := ps.s.tableCnt
-	for i := (tid % threads) + 1; i <= tableCnt; i = i + threads {
-		query := fmt.Sprintf("drop table if exists sbtest%v", i)
-		_, err := ps.s.db.ToSqlDB().Exec(query)
-		if err != nil {
-			fmt.Println("[Failed]:", query, err)
-			panic(err)
-		}
-	}
-	fmt.Println("SysbenchPointSelect cleanup database")
-}
-
-func (ps *SysbenchPointSelect) GetSysBench() *sysBench {
-	return ps.s
-}
-
-type SysbenchUpdateIndex struct {
-	s *sysBench
-}
-
-func (ui *SysbenchUpdateIndex) ID() string {
-	return "SysbenchUpdateIndex"
-}
-func (ui *SysbenchUpdateIndex) Prepare(tid int) {
-	fmt.Println("SysbenchUpdateIndex Prepare running...")
-	prepareSysbenchData(ui, tid)
-
-}
-
-//UPDATE sbtest%u SET k=k+1 WHERE id=?
-func (ui *SysbenchUpdateIndex) Run(ctx context.Context, tid int) {
-	fmt.Println("SysbenchUpdateIndex Run running...")
-	conn, err := ui.s.db.ToSqlDB().Conn(ctx)
-	if err != nil {
-		panic(err)
-	}
-	defer conn.Close()
-	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(tid)*int64(100000000)))
-	stmts := make([]*sql.Stmt, ui.s.tableCnt)
-	for i := 0; i < ui.s.tableCnt; i++ {
-		tableName := fmt.Sprintf("sbtest%v", i+1)
-		updateIndex := string("update " + tableName + " set k=k+1 where id=?")
-		stmt, err := conn.PrepareContext(ctx, updateIndex)
-		if err != nil {
-			panic(err)
-		}
-		stmts[i] = stmt
-	}
-
-	for i := int64(0); i < ui.s.eventCnt; i++ {
-		stmtIndex := r.Intn(ui.s.tableCnt)
-		id := r.Int63n(ui.s.tableSize)
-		_, err := stmts[stmtIndex].ExecContext(ctx, id)
-		if err != nil {
-			panic(err)
-		}
-	}
-	fmt.Println("SysbenchUpdateIndex exec", ui.s.eventCnt)
-
-}
-func (ui *SysbenchUpdateIndex) Cleanup(tid int) {
-	fmt.Println("SysbenchUpdateIndex Clearup running...")
-	threads := ui.s.threadCnt
-	tableCnt := ui.s.tableCnt
-	for i := (tid % threads) + 1; i <= tableCnt; i = i + threads {
-		query := fmt.Sprintf("drop table if exists sbtest%v", i)
-		_, err := ui.s.db.ToSqlDB().Exec(query)
-		if err != nil {
-			fmt.Println("[Failed]:", query, err)
-			panic(err)
-		}
-	}
-	fmt.Println("SysbenchUpdateIndex cleanup database")
-}
-func (ui *SysbenchUpdateIndex) GetSysBench() *sysBench {
-	return ui.s
-}
-
-type SysbenchUpdateIndexCreator struct{}
-
-func (creator SysbenchUpdateIndexCreator) Create(s *sysBench) SysbenchWorkload {
-	fmt.Println("Sysbench SysbenchUpdateIndex workload creating...")
-	w := new(SysbenchUpdateIndex)
-	w.s = s
-	return w
-
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -331,68 +294,9 @@ func (w *BulkWorker) BulkInsertDone() {
 		}
 	}
 }
-func createSysbenchTable(wl SysbenchWorkload, tableId int) {
-	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(tableId)*int64(100000000)))
-	id_def := string("INTEGER NOT NULL AUTO_INCREMENT")
-	id_index_def := string("PRIMARY KEY")
-	sql := fmt.Sprintf("CREATE TABLE sbtest%v ("+
-		"id %v,"+
-		"k INTEGER DEFAULT '0' NOT NULL,"+
-		"c CHAR(120) DEFAULT '' NOT NULL,"+
-		"pad CHAR(60) DEFAULT '' NOT NULL,"+
-		"%v (id)"+
-		")",
-		tableId, id_def, id_index_def)
-	sqlDB := wl.GetSysBench().db.ToSqlDB()
-	dropSql := fmt.Sprintf("drop table if exists sbtest%v", tableId)
-	sqlDB.Exec(dropSql)
-	_, err := sqlDB.Exec(sql)
-	if err != nil {
-		panic(err)
-	}
-
-	tableSize := wl.GetSysBench().tableSize
-	if tableSize > 0 {
-		fmt.Printf("Inserting %v records into sbtest%v\n", tableSize, tableId)
-	}
-	//TODO deal with auto inc param later
-	query := fmt.Sprintf("INSERT INTO sbtest%v (k, c, pad) VALUES", tableId)
-	c_value_len := prop.SysbenchCharLength
-	pad_value_len := prop.SysbenchPadLength
-	bulk_size := prop.SysbenchBulkInsertCount
-
-	bi := new(BulkWorker)
-	bi.BulkInsertInit(query, bulk_size, sqlDB)
-	var c_value string
-	var pad_value string
-	var k int64
-	for i := int64(0); i < tableSize; i++ {
-		k = r.Int63n(tableSize)
-		c_value = randStringRunes(c_value_len, r)
-		pad_value = randStringRunes(pad_value_len, r)
-		query = fmt.Sprintf("(%v,'%v','%v')", k, c_value, pad_value)
-		bi.BulkInsertNext(query)
-	}
-	bi.BulkInsertDone()
-	if prop.SysbenchCreateSecondaryIndex != 0 {
-		fmt.Printf("Creating a secondary index on 'sbtest%v' ...\n", tableId)
-		query = fmt.Sprintf("CREATE INDEX k_%d ON sbtest%d(k)", tableId, tableId)
-		sqlDB.Exec(query)
-	}
-}
-
-//TODO currently assumed mysql, fix it later
-func prepareSysbenchData(wl SysbenchWorkload, tid int) {
-	sysbench := wl.GetSysBench()
-	for i := (tid % sysbench.threadCnt) + 1; i <= sysbench.tableCnt; i = i + sysbench.threadCnt {
-		createSysbenchTable(wl, i)
-	}
-}
 
 func init() {
 	ycsb.RegisterWorkloadCreator("sysbench", sysBenchCreator{})
-	RegisterSysbenchWorkloadCreator(SysbenchType_oltp_point_select, SysbenchPointSelectCreator{})
-	RegisterSysbenchWorkloadCreator(SysbenchType_oltp_update_index, SysbenchUpdateIndexCreator{})
 }
 
 /***************************************************************************************/
@@ -435,6 +339,7 @@ func (c *SysbenchClient) Run(ctx context.Context) {
 		}
 	}()
 
+	c.workload.Init(nil)
 	for i := 0; i < threads; i++ {
 		go func(threadId int) {
 			defer wg.Done()
