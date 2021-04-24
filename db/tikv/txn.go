@@ -35,7 +35,7 @@ type txnDB struct {
 
 func createTxnDB(p *properties.Properties, conf config.Config) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	db, err := txnkv.NewClient(strings.Split(pdAddr, ","), conf)
+	db, err := txnkv.NewClient(context.Background(), strings.Split(pdAddr, ","), conf)
 	if err != nil {
 		return nil, err
 	}
@@ -68,13 +68,13 @@ func (db *txnDB) ToSqlDB() *sql.DB {
 }
 
 func (db *txnDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
-	tx, err := db.db.Begin()
+	tx, err := db.db.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	row, err := tx.Get(db.getRowKey(table, key))
+	row, err := tx.Get(ctx, db.getRowKey(table, key))
 	if kv.IsErrNotFound(err) {
 		return nil, nil
 	} else if row == nil {
@@ -89,7 +89,7 @@ func (db *txnDB) Read(ctx context.Context, table string, key string, fields []st
 }
 
 func (db *txnDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
-	tx, err := db.db.Begin()
+	tx, err := db.db.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (db *txnDB) BatchRead(ctx context.Context, table string, keys []string, fie
 
 	rowValues := make([]map[string][]byte, len(keys))
 	for i, key := range keys {
-		value, err := tx.Get(db.getRowKey(table, key))
+		value, err := tx.Get(ctx, db.getRowKey(table, key))
 		if kv.IsErrNotFound(err) || value == nil {
 			rowValues[i] = nil
 		} else {
@@ -112,13 +112,13 @@ func (db *txnDB) BatchRead(ctx context.Context, table string, keys []string, fie
 }
 
 func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
-	tx, err := db.db.Begin()
+	tx, err := db.db.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	it, err := tx.Iter(db.getRowKey(table, startKey), nil)
+	it, err := tx.Iter(ctx, db.getRowKey(table, startKey), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count 
 	for i := 0; i < count && it.Valid(); i++ {
 		value := append([]byte{}, it.Value()...)
 		rows = append(rows, value)
-		if err = it.Next(); err != nil {
+		if err = it.Next(ctx); err != nil {
 			return nil, err
 		}
 	}
@@ -157,13 +157,13 @@ func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count 
 func (db *txnDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
 	rowKey := db.getRowKey(table, key)
 
-	tx, err := db.db.Begin()
+	tx, err := db.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	row, err := tx.Get(rowKey)
+	row, err := tx.Get(ctx, rowKey)
 	if kv.IsErrNotFound(err) {
 		return nil
 	} else if row == nil {
@@ -195,7 +195,7 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 }
 
 func (db *txnDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	tx, err := db.db.Begin()
+	tx, err := db.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 		return err
 	}
 
-	tx, err := db.db.Begin()
+	tx, err := db.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 }
 
 func (db *txnDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	tx, err := db.db.Begin()
+	tx, err := db.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -258,7 +258,7 @@ func (db *txnDB) BatchInsert(ctx context.Context, table string, keys []string, v
 }
 
 func (db *txnDB) Delete(ctx context.Context, table string, key string) error {
-	tx, err := db.db.Begin()
+	tx, err := db.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func (db *txnDB) Delete(ctx context.Context, table string, key string) error {
 }
 
 func (db *txnDB) BatchDelete(ctx context.Context, table string, keys []string) error {
-	tx, err := db.db.Begin()
+	tx, err := db.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
