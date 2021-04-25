@@ -31,14 +31,17 @@ var statDefs = map[string]string{
 }
 
 type sysBench struct {
-	p              *properties.Properties
-	db             ycsb.DB
-	tableCnt       int   //table count
-	tableSize      int64 //table row count
-	threadCnt      int
-	eventCnt       int64 //test count
-	indexUpdateCnt int
-	events         map[string](func(ctx context.Context, w *sysbenchWorker))
+	p                 *properties.Properties
+	db                ycsb.DB
+	tableCnt          int   //table count
+	tableSize         int64 //table row count
+	threadCnt         int
+	eventCnt          int64 //test count
+	indexUpdateCnt    int
+	nonIndexUpdateCnt int
+	cValueLen         int
+	padLen            int
+	events            map[string](func(ctx context.Context, w *sysbenchWorker))
 }
 
 // All the interface including params need to be re-design later.
@@ -46,7 +49,8 @@ type sysBench struct {
 func (s *sysBench) Init(db ycsb.DB) error {
 	s.events = make(map[string]func(ctx context.Context, w *sysbenchWorker))
 	s.events[TypePointSelect] = s.eventPointSelect
-	s.events[TypeUpdateIndex] = s.eventUpdateIndex
+	s.events[TypeUpdateIndex] = s.eventIndexUpdate
+	s.events[TypeUpdateNonIndex] = s.eventNonIndexUpdate
 	return nil
 }
 
@@ -103,14 +107,24 @@ func (s *sysBench) eventPointSelect(ctx context.Context, w *sysbenchWorker) {
 	}
 	fmt.Println("sysbench point select running with tableID and id", tableId, id)
 }
-func (s *sysBench) eventUpdateIndex(ctx context.Context, w *sysbenchWorker) {
+func (s *sysBench) eventIndexUpdate(ctx context.Context, w *sysbenchWorker) {
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
 	id := w.r.Int63n(s.tableSize)
 	_, err := w.stmts[tableId].ExecContext(ctx, id)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("sysbench update index running with tableID and id", tableId, id)
+	fmt.Println("sysbench index update running with tableID and id", tableId, id)
+}
+func (s *sysBench) eventNonIndexUpdate(ctx context.Context, w *sysbenchWorker) {
+	tableId := w.r.Intn(int(s.tableCnt)) + 1
+	id := w.r.Int63n(s.tableSize)
+	c_value := randStringRunes(s.cValueLen, w.r)
+	_, err := w.stmts[tableId].ExecContext(ctx, c_value, id)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("sysbench non index update running with tableID and id", tableId, id)
 }
 
 func (s *sysBench) PrepareStatements(ctx context.Context, wlType string, conn *sql.Conn) []*sql.Stmt {
@@ -241,6 +255,9 @@ func (sysBenchCreator) Create(p *properties.Properties, db ycsb.DB) (ycsb.Worklo
 	s.threadCnt = p.GetInt(prop.SysbenchThreads, prop.SysbenchThreadsDefault)
 	s.eventCnt = p.GetInt64(prop.SysbenchEvents, prop.SysbenchEventsDefault)
 	s.indexUpdateCnt = p.GetInt(prop.SysbenchIndexUpdateCnt, prop.SysbenchIndexUpdateCntDefault)
+	s.nonIndexUpdateCnt = p.GetInt(prop.SysbenchNonIndexUpdateCnt, prop.SysbenchNonIndexUpdateCntDefault)
+	s.cValueLen = 120
+	s.padLen = 60
 	return s, nil
 }
 

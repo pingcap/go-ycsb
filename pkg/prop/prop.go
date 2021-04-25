@@ -110,21 +110,23 @@ const (
 	LogInterval = "measurement.interval"
 
 	//[sysbench]
-	SysbenchCmdType               = string("SysbenchCmdType")
-	SysbenchWorkLoadType          = string("SysbenchWorkLoadType")
-	SysbenchThreads               = string("threads")
-	SysbenchThreadsDefault        = 10
-	SysbenchTables                = string("tables")
-	SysbenchTablesDefault         = 2
-	SysbenchTableSize             = string("table_size")
-	SysbenchTableSizeDefault      = int64(1000)
-	SysbenchCharLength            = 120 //sysbench schema required
-	SysbenchPadLength             = 60  //sysbench schema required
-	SysbenchBulkInsertCount       = 100
-	SysbenchCreateSecondaryIndex  = 1 //
-	SysbenchPointSelect           = 1
-	SysbenchEvents                = string("events")
-	SysbenchEventsDefault         = int64(1000)
-	SysbenchIndexUpdateCnt        = string("index_updates")
-	SysbenchIndexUpdateCntDefault = 1
+	SysbenchCmdType                  = string("SysbenchCmdType")
+	SysbenchWorkLoadType             = string("SysbenchWorkLoadType")
+	SysbenchThreads                  = string("threads")
+	SysbenchThreadsDefault           = 10
+	SysbenchTables                   = string("tables")
+	SysbenchTablesDefault            = 2
+	SysbenchTableSize                = string("table_size")
+	SysbenchTableSizeDefault         = int64(1000)
+	SysbenchCharLength               = 120 //sysbench schema required
+	SysbenchPadLength                = 60  //sysbench schema required
+	SysbenchBulkInsertCount          = 100
+	SysbenchCreateSecondaryIndex     = 1 //
+	SysbenchPointSelect              = 1
+	SysbenchEvents                   = string("events")
+	SysbenchEventsDefault            = int64(1000)
+	SysbenchIndexUpdateCnt           = string("index_updates")
+	SysbenchIndexUpdateCntDefault    = 1
+	SysbenchNonIndexUpdateCnt        = string("non_index_updates")
+	SysbenchNonIndexUpdateCntDefault = 1
 )
