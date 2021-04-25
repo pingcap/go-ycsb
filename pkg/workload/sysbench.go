@@ -24,10 +24,20 @@ const TypeUpdateIndex = "oltp_update_index"
 const TypeUpdateNonIndex = "oltp_update_non_index"
 const TypeReadWrite = "oltp_read_write"
 
+const QueryPointSelect = string("point_selects")
+const QueryIndexUpdate = string("index_updates")
+const QueryNonIndexUpdate = string("non_index_updates")
+const QuerySimpleRanges = string("simple_ranges")
+const QuerySumRanges = string("sum_ranges")
+const QueryOrderRagnes = string("order_ranges")
+const QueryDistinctRanges = string("distinct_ranges")
+
 var statDefs = map[string]string{
-	TypePointSelect:    "SELECT c FROM sbtest%v WHERE id=?",
-	TypeUpdateIndex:    "UPDATE sbtest%v SET k=k+1 WHERE id=?",
-	TypeUpdateNonIndex: "UPDATE sbtest%v SET c=? WHERE id=?",
+	QueryPointSelect:    "SELECT c FROM sbtest%v WHERE id=?",
+	QueryIndexUpdate:    "UPDATE sbtest%v SET k=k+1 WHERE id=?",
+	QueryNonIndexUpdate: "UPDATE sbtest%v SET c=? WHERE id=?",
+	QuerySimpleRanges:   "SELECT c FROM sbtest%v WHERE id BETWEEN ? AND ?",
+	QuerySumRanges:      "SELECT SUM(k) FROM sbtest%v WHERE id BETWEEN ? AND ?",
 }
 
 type sysBench struct {
@@ -41,7 +51,10 @@ type sysBench struct {
 	nonIndexUpdateCnt int
 	cValueLen         int
 	padLen            int
-	events            map[string](func(ctx context.Context, w *sysbenchWorker))
+	// key:workloadtype, value: querylist
+	operations map[string][]string
+	// workLoadType:handler
+	events map[string](func(ctx context.Context, w *sysbenchWorker))
 }
 
 // All the interface including params need to be re-design later.
@@ -51,6 +64,20 @@ func (s *sysBench) Init(db ycsb.DB) error {
 	s.events[TypePointSelect] = s.eventPointSelect
 	s.events[TypeUpdateIndex] = s.eventIndexUpdate
 	s.events[TypeUpdateNonIndex] = s.eventNonIndexUpdate
+	s.events[TypeReadWrite] = s.eventReadWrite
+
+	op := make(map[string][]string)
+	op[TypePointSelect] = make([]string, 0)
+	op[TypePointSelect] = append(op[TypePointSelect], QueryPointSelect)
+	op[TypeUpdateIndex] = make([]string, 0)
+	op[TypeUpdateIndex] = append(op[TypeUpdateIndex], QueryIndexUpdate)
+	op[TypeUpdateNonIndex] = make([]string, 0)
+	op[TypeUpdateNonIndex] = append(op[TypeUpdateNonIndex], QueryNonIndexUpdate)
+
+	op[TypeReadWrite] = make([]string, 0)
+	op[TypeReadWrite] = append(op[TypeReadWrite], QueryPointSelect, QuerySimpleRanges, QuerySumRanges,
+		QueryIndexUpdate, QueryNonIndexUpdate)
+	s.operations = op
 	return nil
 }
 
@@ -71,9 +98,12 @@ func (s *sysBench) Exec(ctx context.Context, tid int) error {
 }
 
 type sysbenchWorker struct {
-	r     *rand.Rand
-	conn  *sql.Conn
-	stmts []*sql.Stmt
+	r    *rand.Rand
+	conn *sql.Conn
+	//map[Queryxxx]:[nil,table1_stmt,table2_stmt]
+	stmts map[string][]*sql.Stmt
+	//map {workloadtype:map {Queryxxx:[nil,table1_stmt,table2_stmt]}}
+	//stmts map[string]map[string][]*sql.Stmt
 }
 
 func (s *sysBench) createWorker(ctx context.Context, tid int, wlType string) *sysbenchWorker {
@@ -84,7 +114,7 @@ func (s *sysBench) createWorker(ctx context.Context, tid int, wlType string) *sy
 	w := new(sysbenchWorker)
 	w.r = rand.New(rand.NewSource(time.Now().UnixNano() + int64(tid)*int64(100000000)))
 	w.conn = conn
-	w.stmts = s.PrepareStatements(ctx, wlType, conn)
+	w.stmts = s.prepareStatements(ctx, wlType, conn)
 	return w
 }
 func (s *sysBench) releaseWorker(ctx context.Context, w *sysbenchWorker) {
@@ -92,7 +122,11 @@ func (s *sysBench) releaseWorker(ctx context.Context, w *sysbenchWorker) {
 }
 func (s *sysBench) RunEvent(ctx context.Context, tid int, wlType string) {
 	w := s.createWorker(ctx, tid, wlType)
-	event := s.events[wlType]
+	event, ok := s.events[wlType]
+	if !ok {
+		fmt.Println("sysbench workload type doesn't not exist")
+		return
+	}
 	for i := int64(0); i < s.eventCnt; i++ {
 		event(ctx, w)
 	}
@@ -101,7 +135,7 @@ func (s *sysBench) RunEvent(ctx context.Context, tid int, wlType string) {
 func (s *sysBench) eventPointSelect(ctx context.Context, w *sysbenchWorker) {
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
 	id := w.r.Int63n(s.tableSize)
-	_, err := w.stmts[tableId].ExecContext(ctx, id)
+	_, err := w.stmts[QueryPointSelect][tableId].ExecContext(ctx, id)
 	if err != nil {
 		panic(err)
 	}
@@ -110,7 +144,7 @@ func (s *sysBench) eventPointSelect(ctx context.Context, w *sysbenchWorker) {
 func (s *sysBench) eventIndexUpdate(ctx context.Context, w *sysbenchWorker) {
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
 	id := w.r.Int63n(s.tableSize)
-	_, err := w.stmts[tableId].ExecContext(ctx, id)
+	_, err := w.stmts[QueryIndexUpdate][tableId].ExecContext(ctx, id)
 	if err != nil {
 		panic(err)
 	}
@@ -120,23 +154,38 @@ func (s *sysBench) eventNonIndexUpdate(ctx context.Context, w *sysbenchWorker) {
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
 	id := w.r.Int63n(s.tableSize)
 	c_value := randStringRunes(s.cValueLen, w.r)
-	_, err := w.stmts[tableId].ExecContext(ctx, c_value, id)
+	_, err := w.stmts[QueryNonIndexUpdate][tableId].ExecContext(ctx, c_value, id)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("sysbench non index update running with tableID and id", tableId, id)
 }
+func (s *sysBench) eventReadWrite(ctx context.Context, w *sysbenchWorker) {
+	fmt.Println("sysbench read write running...")
+}
 
-func (s *sysBench) PrepareStatements(ctx context.Context, wlType string, conn *sql.Conn) []*sql.Stmt {
+// get the each prepared stmtment of each table for each operation of wlType workload
+func (s *sysBench) prepareStatements(ctx context.Context, wlType string, conn *sql.Conn) map[string][]*sql.Stmt {
+	fmt.Println("prepareStatements running...")
 	var err error
-	stmts := make([]*sql.Stmt, s.tableCnt+1)
+	cnt := s.tableCnt + 1
+	stmts := make(map[string][]*sql.Stmt)
+	ops := s.operations[wlType]
 
-	for i := 1; i <= s.tableCnt; i++ {
-		sql := fmt.Sprintf(statDefs[wlType], i)
-		stmts[i], err = conn.PrepareContext(ctx, sql)
-		if err != nil {
-			panic(err)
+	for i := 0; i < len(ops); i++ {
+		tablesStmt := make([]*sql.Stmt, cnt)
+		query := statDefs[ops[i]]
+
+		for tableID := 1; tableID <= s.tableCnt; tableID++ {
+			sql := fmt.Sprintf(query, tableID)
+			fmt.Println("prepareStatements prepare:", query, ops[i])
+			tablesStmt[tableID], err = conn.PrepareContext(ctx, sql)
+			if err != nil {
+				time.Sleep(time.Duration(1) * time.Second)
+				panic(err)
+			}
 		}
+		stmts[ops[i]] = tablesStmt
 	}
 	return stmts
 }

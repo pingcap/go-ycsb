@@ -129,4 +129,12 @@ const (
 	SysbenchIndexUpdateCntDefault    = 1
 	SysbenchNonIndexUpdateCnt        = string("non_index_updates")
 	SysbenchNonIndexUpdateCntDefault = 1
+	SysbenchSimpleRangesCnt          = string("simple_ranges")
+	SysbenchSimpleRangesCntDefault   = 1
+	SysbenchSumRangesCnt             = string("sum_ranges")
+	SysbenchSumRangesCntDefault      = 1
+	SysbenchOrderRangesCnt           = string("order_ranges")
+	SysbenchOrderRangesCntDefault    = 1
+	SysbenchDistinctRangeCnt         = string("distinct_ranges")
+	SysbenchDistinctRangeCntDefault  = 1
 )
