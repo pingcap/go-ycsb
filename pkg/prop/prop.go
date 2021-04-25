@@ -129,6 +129,8 @@ const (
 	SysbenchIndexUpdateCntDefault    = 1
 	SysbenchNonIndexUpdateCnt        = string("non_index_updates")
 	SysbenchNonIndexUpdateCntDefault = 1
+	SysbenchRangeSize                = string("range_size")
+	SysbenchRangeSizeDefault         = 100
 	SysbenchSimpleRangesCnt          = string("simple_ranges")
 	SysbenchSimpleRangesCntDefault   = 1
 	SysbenchSumRangesCnt             = string("sum_ranges")
@@ -137,4 +139,10 @@ const (
 	SysbenchOrderRangesCntDefault    = 1
 	SysbenchDistinctRangeCnt         = string("distinct_ranges")
 	SysbenchDistinctRangeCntDefault  = 1
+	SysbenchDeleteInsertCnt          = string("delete_inserts")
+	SysbenchDeleteInsertCntDefault   = 1
+	SysbenchTestRangeSelect          = string("range_selects")
+	SysbenchTestRangeSelectDefault   = 1
+	SysbenchSkipTrx                  = string("skip_trx")
+	SysbenchSkipTrxDefault           = 0
 )
