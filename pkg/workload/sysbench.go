@@ -31,6 +31,8 @@ const QuerySimpleRanges = string("simple_ranges")
 const QuerySumRanges = string("sum_ranges")
 const QueryOrderRagnes = string("order_ranges")
 const QueryDistinctRanges = string("distinct_ranges")
+const QueryDeletes = string("deletes")
+const QueryInserts = string("inserts")
 
 var statDefs = map[string]string{
 	QueryPointSelect:    "SELECT c FROM sbtest%v WHERE id=?",
@@ -38,6 +40,10 @@ var statDefs = map[string]string{
 	QueryNonIndexUpdate: "UPDATE sbtest%v SET c=? WHERE id=?",
 	QuerySimpleRanges:   "SELECT c FROM sbtest%v WHERE id BETWEEN ? AND ?",
 	QuerySumRanges:      "SELECT SUM(k) FROM sbtest%v WHERE id BETWEEN ? AND ?",
+	QueryOrderRagnes:    "SELECT c FROM sbtest%v WHERE id BETWEEN ? AND ? ORDER BY c",
+	QueryDistinctRanges: "SELECT DISTINCT c FROM sbtest%v WHERE id BETWEEN ? AND ? ORDER BY c",
+	QueryDeletes:        "DELETE FROM sbtest%v WHERE id=?",
+	QueryInserts:        "INSERT INTO sbtest%v (id, k, c, pad) VALUES (?, ?, ?, ?)",
 }
 
 type sysBench struct {
@@ -51,10 +57,21 @@ type sysBench struct {
 	nonIndexUpdateCnt int
 	cValueLen         int
 	padLen            int
+	rangeSize         int
+	simpleRangesCnt   int
+	sumRangesCnt      int
+	orderRangesCnt    int
+	distinctRangsCnt  int
+	deleteInsertCnt   int
+	hasRangeSelect    int
+	skipTrx           int
+
 	// key:workloadtype, value: querylist
 	operations map[string][]string
 	// workLoadType:handler
 	events map[string](func(ctx context.Context, w *sysbenchWorker))
+	// queryType: handler
+	handlers map[string](func(ctx context.Context, w *sysbenchWorker))
 }
 
 // All the interface including params need to be re-design later.
@@ -66,6 +83,20 @@ func (s *sysBench) Init(db ycsb.DB) error {
 	s.events[TypeUpdateNonIndex] = s.eventNonIndexUpdate
 	s.events[TypeReadWrite] = s.eventReadWrite
 
+	h := make(map[string](func(ctx context.Context, w *sysbenchWorker)))
+	h[QueryPointSelect] = s.execPointSelect
+	h[QueryIndexUpdate] = s.execIndexUpdate
+	h[QueryNonIndexUpdate] = s.execNonIndexUpdate
+	h[QuerySimpleRanges] = s.execSimpleRanges
+	h[QuerySumRanges] = s.execSumRanges
+	h[QuerySimpleRanges] = s.execSimpleRanges
+	h[QuerySumRanges] = s.execSumRanges
+	h[QueryOrderRagnes] = s.execOrderRanges
+	h[QueryDistinctRanges] = s.execDistinctRanges
+	// h[QueryDeletes] = s.execDeletes
+	// h[QueryInserts] = s.execInserts
+	s.handlers = h
+
 	op := make(map[string][]string)
 	op[TypePointSelect] = make([]string, 0)
 	op[TypePointSelect] = append(op[TypePointSelect], QueryPointSelect)
@@ -75,8 +106,11 @@ func (s *sysBench) Init(db ycsb.DB) error {
 	op[TypeUpdateNonIndex] = append(op[TypeUpdateNonIndex], QueryNonIndexUpdate)
 
 	op[TypeReadWrite] = make([]string, 0)
-	op[TypeReadWrite] = append(op[TypeReadWrite], QueryPointSelect, QuerySimpleRanges, QuerySumRanges,
-		QueryIndexUpdate, QueryNonIndexUpdate)
+	op[TypeReadWrite] = append(op[TypeReadWrite], QueryPointSelect,
+		QuerySimpleRanges, QuerySumRanges, QueryOrderRagnes, QueryDistinctRanges,
+		QueryIndexUpdate, QueryNonIndexUpdate,
+		QueryDeletes, QueryInserts,
+	)
 	s.operations = op
 	return nil
 }
@@ -100,10 +134,9 @@ func (s *sysBench) Exec(ctx context.Context, tid int) error {
 type sysbenchWorker struct {
 	r    *rand.Rand
 	conn *sql.Conn
+	tid  int
 	//map[Queryxxx]:[nil,table1_stmt,table2_stmt]
 	stmts map[string][]*sql.Stmt
-	//map {workloadtype:map {Queryxxx:[nil,table1_stmt,table2_stmt]}}
-	//stmts map[string]map[string][]*sql.Stmt
 }
 
 func (s *sysBench) createWorker(ctx context.Context, tid int, wlType string) *sysbenchWorker {
@@ -114,6 +147,7 @@ func (s *sysBench) createWorker(ctx context.Context, tid int, wlType string) *sy
 	w := new(sysbenchWorker)
 	w.r = rand.New(rand.NewSource(time.Now().UnixNano() + int64(tid)*int64(100000000)))
 	w.conn = conn
+	w.tid = tid
 	w.stmts = s.prepareStatements(ctx, wlType, conn)
 	return w
 }
@@ -132,41 +166,124 @@ func (s *sysBench) RunEvent(ctx context.Context, tid int, wlType string) {
 	}
 	s.releaseWorker(ctx, w)
 }
-func (s *sysBench) eventPointSelect(ctx context.Context, w *sysbenchWorker) {
+func (s *sysBench) execPointSelect(ctx context.Context, w *sysbenchWorker) {
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
 	id := w.r.Int63n(s.tableSize)
 	_, err := w.stmts[QueryPointSelect][tableId].ExecContext(ctx, id)
 	if err != nil {
-		panic(err)
+		fmt.Println("execPointSelect error", err)
+		return
 	}
-	fmt.Println("sysbench point select running with tableID and id", tableId, id)
+	//fmt.Println("sysbench point select running with tableID and id", tableId, id)
 }
-func (s *sysBench) eventIndexUpdate(ctx context.Context, w *sysbenchWorker) {
+func (s *sysBench) eventPointSelect(ctx context.Context, w *sysbenchWorker) {
+	s.handlers[QueryPointSelect](ctx, w)
+}
+func (s *sysBench) execIndexUpdate(ctx context.Context, w *sysbenchWorker) {
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
 	id := w.r.Int63n(s.tableSize)
 	_, err := w.stmts[QueryIndexUpdate][tableId].ExecContext(ctx, id)
 	if err != nil {
-		panic(err)
+		fmt.Println("execIndexUpdate error", err)
+		return
 	}
-	fmt.Println("sysbench index update running with tableID and id", tableId, id)
+	//fmt.Println("sysbench index update running with tableID and id", tableId, id)
+
 }
-func (s *sysBench) eventNonIndexUpdate(ctx context.Context, w *sysbenchWorker) {
+func (s *sysBench) eventIndexUpdate(ctx context.Context, w *sysbenchWorker) {
+	s.handlers[QueryIndexUpdate](ctx, w)
+}
+
+func (s *sysBench) execRanges(ctx context.Context, w *sysbenchWorker, rangeType string) {
+	if s.hasRangeSelect == 0 {
+		return
+	}
+	tableId := w.r.Intn(int(s.tableCnt)) + 1
+
+	for i := 1; i <= s.simpleRangesCnt; i++ {
+		id := w.r.Int63n(s.tableSize)
+		_, err := w.stmts[rangeType][tableId].ExecContext(ctx, id, id+int64(s.rangeSize)-1)
+		if err != nil {
+			fmt.Println("execRanges error", err)
+			return
+		}
+	}
+}
+func (s *sysBench) execNonIndexUpdate(ctx context.Context, w *sysbenchWorker) {
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
 	id := w.r.Int63n(s.tableSize)
 	c_value := randStringRunes(s.cValueLen, w.r)
 	_, err := w.stmts[QueryNonIndexUpdate][tableId].ExecContext(ctx, c_value, id)
 	if err != nil {
-		panic(err)
+		fmt.Println("execNonIndexUpdate error", err)
 	}
-	fmt.Println("sysbench non index update running with tableID and id", tableId, id)
+	//fmt.Println("sysbench non index update running with tableID and id", tableId, id)
 }
+func (s *sysBench) eventNonIndexUpdate(ctx context.Context, w *sysbenchWorker) {
+	s.handlers[QueryNonIndexUpdate](ctx, w)
+}
+
+func (s *sysBench) execSimpleRanges(ctx context.Context, w *sysbenchWorker) {
+	s.execRanges(ctx, w, QuerySimpleRanges)
+}
+
+func (s *sysBench) execSumRanges(ctx context.Context, w *sysbenchWorker) {
+	s.execRanges(ctx, w, QuerySumRanges)
+}
+
+func (s *sysBench) execOrderRanges(ctx context.Context, w *sysbenchWorker) {
+	s.execRanges(ctx, w, QueryOrderRagnes)
+}
+
+func (s *sysBench) execDistinctRanges(ctx context.Context, w *sysbenchWorker) {
+	s.execRanges(ctx, w, QueryDistinctRanges)
+}
+
+func (s *sysBench) execDeleteInserts(ctx context.Context, w *sysbenchWorker) {
+	tableId := w.r.Intn(int(s.tableCnt)) + 1
+
+	for i := 1; i <= s.deleteInsertCnt; i++ {
+		id := w.r.Int63n(s.tableSize)
+		k := w.r.Int63n(s.tableSize)
+		_, err := w.stmts[QueryDeletes][tableId].ExecContext(ctx, id)
+		//fmt.Println("thread -", w.tid, "sysbench delete test", statDefs[QueryDeletes], id)
+		if err != nil {
+			fmt.Println("sysbench deletes test error", err)
+			return
+		}
+		c_value := randStringRunes(s.cValueLen, w.r)
+		pad := randStringRunes(s.padLen, w.r)
+		_, err = w.stmts[QueryInserts][tableId].ExecContext(ctx, id, k, c_value, pad)
+		//fmt.Println("thread -", w.tid, "sysbench insert test", statDefs[QueryInserts], id)
+		if err != nil {
+			fmt.Println("sysbench inserts test error", err)
+			return
+		}
+	}
+}
+
 func (s *sysBench) eventReadWrite(ctx context.Context, w *sysbenchWorker) {
-	fmt.Println("sysbench read write running...")
+	//fmt.Println("sysbench read write running...")
+	if s.skipTrx == 0 {
+		w.conn.ExecContext(ctx, "begin")
+	}
+	ops := s.operations[TypeReadWrite]
+	for i := 0; i < len(ops); i++ {
+		if ops[i] == QueryDeletes || ops[i] == QueryInserts {
+			continue
+		} else {
+			s.handlers[ops[i]](ctx, w)
+		}
+	}
+	s.execDeleteInserts(ctx, w)
+	if s.skipTrx == 0 {
+		w.conn.ExecContext(ctx, "commit")
+	}
 }
 
 // get the each prepared stmtment of each table for each operation of wlType workload
 func (s *sysBench) prepareStatements(ctx context.Context, wlType string, conn *sql.Conn) map[string][]*sql.Stmt {
-	fmt.Println("prepareStatements running...")
+	//fmt.Println("prepareStatements running...")
 	var err error
 	cnt := s.tableCnt + 1
 	stmts := make(map[string][]*sql.Stmt)
@@ -178,7 +295,7 @@ func (s *sysBench) prepareStatements(ctx context.Context, wlType string, conn *s
 
 		for tableID := 1; tableID <= s.tableCnt; tableID++ {
 			sql := fmt.Sprintf(query, tableID)
-			fmt.Println("prepareStatements prepare:", query, ops[i])
+			//fmt.Println("prepareStatements prepare:", query, ops[i])
 			tablesStmt[tableID], err = conn.PrepareContext(ctx, sql)
 			if err != nil {
 				time.Sleep(time.Duration(1) * time.Second)
@@ -200,7 +317,7 @@ func (s *sysBench) Cleanup(tid int) {
 		_, err := s.db.ToSqlDB().Exec(query)
 		if err != nil {
 			fmt.Println("[Failed]:", query, err)
-			panic(err)
+			return
 		}
 	}
 	fmt.Println("sysbench cleanup database over")
@@ -305,8 +422,16 @@ func (sysBenchCreator) Create(p *properties.Properties, db ycsb.DB) (ycsb.Worklo
 	s.eventCnt = p.GetInt64(prop.SysbenchEvents, prop.SysbenchEventsDefault)
 	s.indexUpdateCnt = p.GetInt(prop.SysbenchIndexUpdateCnt, prop.SysbenchIndexUpdateCntDefault)
 	s.nonIndexUpdateCnt = p.GetInt(prop.SysbenchNonIndexUpdateCnt, prop.SysbenchNonIndexUpdateCntDefault)
-	s.cValueLen = 120
-	s.padLen = 60
+	s.cValueLen = prop.SysbenchCharLength
+	s.padLen = prop.SysbenchPadLength
+	s.rangeSize = p.GetInt(prop.SysbenchRangeSize, prop.SysbenchRangeSizeDefault)
+	s.simpleRangesCnt = p.GetInt(prop.SysbenchSimpleRangesCnt, prop.SysbenchSimpleRangesCntDefault)
+	s.sumRangesCnt = p.GetInt(prop.SysbenchSumRangesCnt, prop.SysbenchSumRangesCntDefault)
+	s.orderRangesCnt = p.GetInt(prop.SysbenchOrderRangesCnt, prop.SysbenchOrderRangesCntDefault)
+	s.distinctRangsCnt = p.GetInt(prop.SysbenchDistinctRangeCnt, prop.SysbenchDistinctRangeCntDefault)
+	s.deleteInsertCnt = p.GetInt(prop.SysbenchDeleteInsertCnt, prop.SysbenchDeleteInsertCntDefault)
+	s.hasRangeSelect = p.GetInt(prop.SysbenchTestRangeSelect, prop.SysbenchTestRangeSelectDefault)
+	s.skipTrx = p.GetInt(prop.SysbenchSkipTrx, prop.SysbenchSkipTrxDefault)
 	return s, nil
 }
 
