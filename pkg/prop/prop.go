@@ -121,7 +121,8 @@ const (
 	SysbenchCharLength               = 120 //sysbench schema required
 	SysbenchPadLength                = 60  //sysbench schema required
 	SysbenchBulkInsertCount          = 100
-	SysbenchCreateSecondaryIndex     = 1 //
+	SysbenchSecondary                = string("secondary") //
+	SysbenchSecondaryDefault         = 0
 	SysbenchPointSelect              = 1
 	SysbenchEvents                   = string("events")
 	SysbenchEventsDefault            = int64(1000)
@@ -145,4 +146,10 @@ const (
 	SysbenchTestRangeSelectDefault   = 1
 	SysbenchSkipTrx                  = string("skip_trx")
 	SysbenchSkipTrxDefault           = 0
+	SysbenchAutoIncrement            = string("auto_inc")
+	SysbenchAutoIncrementDefault     = 1
+	SysbenchMysqlEngine              = string("mysql_storage_engine")
+	SysbenchMysqlEngineDefault       = string("innodb")
+	SysbenchMysqlTableOptions        = string("create_table_options")
+	SysbenchMysqlTableOptionsDefault = string("")
 )

@@ -75,7 +75,6 @@ type sysBench struct {
 }
 
 // All the interface including params need to be re-design later.
-// Sysbench workload has nothing todo here
 func (s *sysBench) Init(db ycsb.DB) error {
 	e := make(map[string]func(ctx context.Context, w *sysbenchWorker) error)
 	e[TypePointSelect] = s.eventPointSelect
@@ -116,7 +115,6 @@ func (s *sysBench) Init(db ycsb.DB) error {
 	return nil
 }
 
-//TODO return none will be ok later.
 func (s *sysBench) Exec(ctx context.Context, tid int) {
 	cmdType := s.p.GetString(prop.SysbenchCmdType, "nil")
 	wlType := s.p.GetString(prop.SysbenchWorkLoadType, "nil")
@@ -384,18 +382,37 @@ func (s *sysBench) DoBatchTransaction(ctx context.Context, batchSize int, db ycs
 	return nil
 }
 
+// currently only for mysql
+// TODO tuning schemas for TiDB later
 func (s *sysBench) createSysbenchTable(tableId int) {
+	// create schema
 	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(tableId)*int64(100000000)))
-	id_def := string("INTEGER NOT NULL AUTO_INCREMENT")
-	id_index_def := string("PRIMARY KEY")
+	secondary := s.p.GetInt(prop.SysbenchSecondary, prop.SysbenchSecondaryDefault)
+	auto_incr := s.p.GetInt(prop.SysbenchAutoIncrement, prop.SysbenchAutoIncrementDefault)
+	engine := s.p.GetString(prop.SysbenchMysqlEngine, prop.SysbenchMysqlEngineDefault)
+	options := s.p.GetString(prop.SysbenchMysqlTableOptions, prop.SysbenchMysqlTableOptionsDefault)
+	var id_index_def, id_def string
+	if secondary == 1 {
+		id_index_def = "KEY xid"
+	} else {
+		id_index_def = "PRIMARY KEY"
+	}
+	if auto_incr == 1 {
+		id_def = string("INTEGER NOT NULL AUTO_INCREMENT")
+	} else {
+		id_def = "INTEGER NOT NULL"
+	}
+	engine_def := "/*! ENGINE = " + engine + " */"
+
 	sql := fmt.Sprintf("CREATE TABLE sbtest%v ("+
 		"id %v,"+
 		"k INTEGER DEFAULT '0' NOT NULL,"+
 		"c CHAR(120) DEFAULT '' NOT NULL,"+
 		"pad CHAR(60) DEFAULT '' NOT NULL,"+
 		"%v (id)"+
-		")",
-		tableId, id_def, id_index_def)
+		") %v %v",
+		tableId, id_def, id_index_def, engine_def, options)
+
 	sqlDB := s.db.ToSqlDB()
 	dropSql := fmt.Sprintf("drop table if exists sbtest%v", tableId)
 	sqlDB.Exec(dropSql)
@@ -404,12 +421,17 @@ func (s *sysBench) createSysbenchTable(tableId int) {
 		panic(err)
 	}
 
+	//load data
 	tableSize := s.tableSize
 	if tableSize > 0 {
 		fmt.Printf("Inserting %v records into sbtest%v\n", tableSize, tableId)
 	}
-	//TODO deal with auto inc param later
-	query := fmt.Sprintf("INSERT INTO sbtest%v (k, c, pad) VALUES", tableId)
+	var query string
+	if auto_incr == 1 {
+		query = fmt.Sprintf("INSERT INTO sbtest%v (k, c, pad) VALUES", tableId)
+	} else {
+		query = fmt.Sprintf("INSERT INTO sbtest%v (id, k, c, pad) VALUES", tableId)
+	}
 	c_value_len := prop.SysbenchCharLength
 	pad_value_len := prop.SysbenchPadLength
 	bulk_size := prop.SysbenchBulkInsertCount
@@ -423,18 +445,24 @@ func (s *sysBench) createSysbenchTable(tableId int) {
 		k = r.Int63n(tableSize)
 		c_value = randStringRunes(c_value_len, r)
 		pad_value = randStringRunes(pad_value_len, r)
-		query = fmt.Sprintf("(%v,'%v','%v')", k, c_value, pad_value)
+		if auto_incr == 1 {
+			query = fmt.Sprintf("(%v,'%v','%v')", k, c_value, pad_value)
+		} else {
+			query = fmt.Sprintf("(%v,%v,'%v','%v')", i, k, c_value, pad_value)
+		}
+
 		bi.BulkInsertNext(query)
 	}
 	bi.BulkInsertDone()
-	if prop.SysbenchCreateSecondaryIndex != 0 {
+
+	//create secondary index
+	if secondary == 1 {
 		fmt.Printf("Creating a secondary index on 'sbtest%v' ...\n", tableId)
 		query = fmt.Sprintf("CREATE INDEX k_%d ON sbtest%d(k)", tableId, tableId)
 		sqlDB.Exec(query)
 	}
 }
 
-//TODO currently assumed mysql, fix it later
 func (s *sysBench) prepareSysbenchData(tid int) {
 	for i := (tid % s.threadCnt) + 1; i <= s.tableCnt; i = i + s.threadCnt {
 		s.createSysbenchTable(i)
