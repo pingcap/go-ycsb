@@ -105,7 +105,6 @@ func (s *sysBench) Init(db ycsb.DB) error {
 	op[TypeUpdateIndex] = append(op[TypeUpdateIndex], QueryIndexUpdate)
 	op[TypeUpdateNonIndex] = make([]string, 0)
 	op[TypeUpdateNonIndex] = append(op[TypeUpdateNonIndex], QueryNonIndexUpdate)
-
 	op[TypeReadWrite] = make([]string, 0)
 	op[TypeReadWrite] = append(op[TypeReadWrite], QueryPointSelect,
 		QuerySimpleRanges, QuerySumRanges, QueryOrderRagnes, QueryDistinctRanges,
@@ -113,11 +112,12 @@ func (s *sysBench) Init(db ycsb.DB) error {
 		QueryDeletes, QueryInserts,
 	)
 	s.operations = op
+
 	return nil
 }
 
 //TODO return none will be ok later.
-func (s *sysBench) Exec(ctx context.Context, tid int) error {
+func (s *sysBench) Exec(ctx context.Context, tid int) {
 	cmdType := s.p.GetString(prop.SysbenchCmdType, "nil")
 	wlType := s.p.GetString(prop.SysbenchWorkLoadType, "nil")
 
@@ -129,7 +129,6 @@ func (s *sysBench) Exec(ctx context.Context, tid int) error {
 	case "cleanup":
 		s.Cleanup(tid)
 	}
-	return nil
 }
 
 type sysbenchWorker struct {
@@ -150,48 +149,58 @@ func (s *sysBench) createWorker(ctx context.Context, tid int, wlType string) *sy
 	w.conn = conn
 	w.tid = tid
 	w.stmts = s.prepareStatements(ctx, wlType, conn)
+
 	return w
 }
+
 func (s *sysBench) releaseWorker(ctx context.Context, w *sysbenchWorker) {
 	w.conn.Close()
 }
+
 func (s *sysBench) RunEvent(ctx context.Context, tid int, wlType string) {
 	var err error
 	w := s.createWorker(ctx, tid, wlType)
 	defer s.releaseWorker(ctx, w)
 	event, ok := s.events[wlType]
+
 	if !ok {
 		fmt.Println("sysbench workload type doesn't not exist")
 		return
 	}
+
 	for i := int64(0); i < s.eventCnt; i++ {
 		start := time.Now()
 		err = event(ctx, w)
+
 		if err != nil {
-			fmt.Println(err)
+			//fmt.Println(err)
 			return
 		}
+
 		sysBenchMeasure(start, wlType, err)
 	}
-
 }
+
 func (s *sysBench) execPointSelect(ctx context.Context, w *sysbenchWorker) error {
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
 	id := w.r.Int63n(s.tableSize)
 	_, err := w.stmts[QueryPointSelect][tableId].ExecContext(ctx, id)
+
 	return err
 	//fmt.Println("sysbench point select running with tableID and id", tableId, id)
 }
 func (s *sysBench) eventPointSelect(ctx context.Context, w *sysbenchWorker) error {
 	return s.handlers[QueryPointSelect](ctx, w)
 }
+
 func (s *sysBench) execIndexUpdate(ctx context.Context, w *sysbenchWorker) error {
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
 	id := w.r.Int63n(s.tableSize)
 	_, err := w.stmts[QueryIndexUpdate][tableId].ExecContext(ctx, id)
-	return err
 
+	return err
 }
+
 func (s *sysBench) eventIndexUpdate(ctx context.Context, w *sysbenchWorker) error {
 	return s.handlers[QueryIndexUpdate](ctx, w)
 }
@@ -212,14 +221,17 @@ func (s *sysBench) execRanges(ctx context.Context, w *sysbenchWorker, rangeType 
 	}
 	return nil
 }
+
 func (s *sysBench) execNonIndexUpdate(ctx context.Context, w *sysbenchWorker) error {
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
 	id := w.r.Int63n(s.tableSize)
 	c_value := randStringRunes(s.cValueLen, w.r)
 	_, err := w.stmts[QueryNonIndexUpdate][tableId].ExecContext(ctx, c_value, id)
+
 	return err
 	//fmt.Println("sysbench non index update running with tableID and id", tableId, id)
 }
+
 func (s *sysBench) eventNonIndexUpdate(ctx context.Context, w *sysbenchWorker) error {
 	return s.handlers[QueryNonIndexUpdate](ctx, w)
 }
@@ -249,7 +261,7 @@ func (s *sysBench) execDeleteInserts(ctx context.Context, w *sysbenchWorker) err
 		_, err := w.stmts[QueryDeletes][tableId].ExecContext(ctx, id)
 		//fmt.Println("thread -", w.tid, "sysbench delete test", statDefs[QueryDeletes], id)
 		if err != nil {
-			fmt.Println("sysbench deletes test error", err)
+			//fmt.Println("sysbench deletes test error", err)
 			return err
 		}
 		c_value := randStringRunes(s.cValueLen, w.r)
@@ -272,6 +284,7 @@ func (s *sysBench) eventReadWrite(ctx context.Context, w *sysbenchWorker) error 
 			return err
 		}
 	}
+
 	ops := s.operations[TypeReadWrite]
 	for i := 0; i < len(ops); i++ {
 		if ops[i] == QueryDeletes || ops[i] == QueryInserts {
@@ -283,13 +296,16 @@ func (s *sysBench) eventReadWrite(ctx context.Context, w *sysbenchWorker) error 
 			}
 		}
 	}
+
 	s.execDeleteInserts(ctx, w)
+
 	if s.skipTrx == 0 {
 		_, err := w.conn.ExecContext(ctx, "commit")
 		if err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -316,6 +332,7 @@ func (s *sysBench) prepareStatements(ctx context.Context, wlType string, conn *s
 		}
 		stmts[ops[i]] = tablesStmt
 	}
+
 	return stmts
 }
 
@@ -358,6 +375,7 @@ func (s *sysBench) DoInsert(ctx context.Context, db ycsb.DB) error {
 func (s *sysBench) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) error {
 	return nil
 }
+
 func (s *sysBench) DoTransaction(ctx context.Context, db ycsb.DB) error {
 	return nil
 }
@@ -365,6 +383,7 @@ func (s *sysBench) DoTransaction(ctx context.Context, db ycsb.DB) error {
 func (s *sysBench) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.DB) error {
 	return nil
 }
+
 func (s *sysBench) createSysbenchTable(tableId int) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(tableId)*int64(100000000)))
 	id_def := string("INTEGER NOT NULL AUTO_INCREMENT")
@@ -487,23 +506,20 @@ func (w *BulkWorker) BulkInsertNext(query string) {
 		w.curSize = 0
 		w.sql = w.head
 	}
-
 }
+
 func (w *BulkWorker) BulkInsertDone() {
 	if w.curSize != 0 {
 		_, err := w.db.Exec(w.sql)
 		if err != nil {
 			fmt.Println("exec sql error", w.sql, err)
+			panic(err)
 		}
 	}
 }
+
 func sysBenchMeasure(start time.Time, op string, err error) {
 	lan := time.Since(start)
-	if err != nil {
-		measurement.Measure(fmt.Sprintf("%s_ERROR", op), lan)
-		return
-	}
-
 	measurement.Measure(op, lan)
 }
 

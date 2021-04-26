@@ -31,7 +31,7 @@ type Workload interface {
 	Init(db DB) error
 
 	// Exec command
-	Exec(ctx context.Context, threadID int) error
+	Exec(ctx context.Context, threadID int)
 
 	// Close closes the workload.
 	Close() error

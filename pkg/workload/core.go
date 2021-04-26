@@ -169,9 +169,8 @@ func (c *core) Init(db ycsb.DB) error {
 func (c *core) Load(ctx context.Context, db ycsb.DB, totalCount int64) error {
 	return nil
 }
-func (c *core) Exec(ctx context.Context, threadID int) error {
+func (c *core) Exec(ctx context.Context, threadID int) {
 	// all workload interface will be re-design lator
-	return nil
 }
 
 // InitThread implements the Workload InitThread interface.

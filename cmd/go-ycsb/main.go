@@ -142,6 +142,7 @@ func main() {
 	go func() {
 		sig := <-sc
 		fmt.Printf("\nGot signal [%v] to exit.\n", sig)
+
 		globalCancel()
 
 		select {

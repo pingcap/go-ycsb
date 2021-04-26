@@ -38,15 +38,16 @@ mysql.port=4000
 mysql.user=root
 mysql.db=mytest
 threads=21
-events=20000
+events=2000
 time=0
-report.interval=1
+measurement.interval=5
+# report.interval=1 ie. measurement.interval
 table_size=1500
 range_size=100
 tables=13
-point_selects=1
-index_updates=1
-measurement.interval=1
+point_selects=2
+index_updates=3
+
 
 #sysbenchoptions = {
 #   table_size =
