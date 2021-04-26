@@ -165,11 +165,13 @@ func (s *sysBench) RunEvent(ctx context.Context, tid int, wlType string) {
 		return
 	}
 	for i := int64(0); i < s.eventCnt; i++ {
+		start := time.Now()
 		err = event(ctx, w)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
+		sysBenchMeasure(start, wlType, err)
 	}
 
 }
@@ -495,6 +497,15 @@ func (w *BulkWorker) BulkInsertDone() {
 		}
 	}
 }
+func sysBenchMeasure(start time.Time, op string, err error) {
+	lan := time.Since(start)
+	if err != nil {
+		measurement.Measure(fmt.Sprintf("%s_ERROR", op), lan)
+		return
+	}
+
+	measurement.Measure(op, lan)
+}
 
 func init() {
 	ycsb.RegisterWorkloadCreator("sysbench", sysBenchCreator{})
@@ -529,6 +540,7 @@ func (c *SysbenchClient) Run(ctx context.Context) {
 		dur := c.p.GetInt64(prop.LogInterval, 10)
 		t := time.NewTicker(time.Duration(dur) * time.Second)
 		defer t.Stop()
+		measurement.EnableWarmUp(false)
 
 		for {
 			select {

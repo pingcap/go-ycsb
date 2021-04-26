@@ -40,12 +40,13 @@ mysql.db=mytest
 threads=21
 events=20000
 time=0
-report.interva=1
+report.interval=1
 table_size=1500
 range_size=100
 tables=13
 point_selects=1
 index_updates=1
+measurement.interval=1
 
 #sysbenchoptions = {
 #   table_size =

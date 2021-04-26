@@ -29,7 +29,7 @@ type DbWrapper struct {
 }
 
 func measure(start time.Time, op string, err error) {
-	lan := time.Now().Sub(start)
+	lan := time.Since(start)
 	if err != nil {
 		measurement.Measure(fmt.Sprintf("%s_ERROR", op), lan)
 		return
@@ -37,7 +37,9 @@ func measure(start time.Time, op string, err error) {
 
 	measurement.Measure(op, lan)
 }
-
+func GetMeasureFn() func(time.Time, string, error) {
+	return measure
+}
 func (db DbWrapper) ToSqlDB() *sql.DB {
 	return db.DB.ToSqlDB()
 }
