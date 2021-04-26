@@ -14,6 +14,8 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
+//Note: not support reconnect to db test case.
+
 const SysbenchCmd_Prepare = "prepare"
 const SysbenchCmd_Run = "run"
 const SysbenchCmd_Cleanup = "cleanup"
@@ -152,6 +154,7 @@ func (s *sysBench) createWorker(ctx context.Context, tid int, wlType string) *sy
 }
 
 func (s *sysBench) releaseWorker(ctx context.Context, w *sysbenchWorker) {
+	s.closeStatements(ctx, w.stmts)
 	w.conn.Close()
 }
 
@@ -332,6 +335,15 @@ func (s *sysBench) prepareStatements(ctx context.Context, wlType string, conn *s
 	}
 
 	return stmts
+}
+
+func (s *sysBench) closeStatements(ctx context.Context, stmts map[string][]*sql.Stmt) {
+	for _, tablesStmt := range stmts {
+		//tablesStmt[0]=nil
+		for i := 1; i < len(tablesStmt); i++ {
+			tablesStmt[i].Close()
+		}
+	}
 }
 
 func (s *sysBench) Prepare(tid int) {
