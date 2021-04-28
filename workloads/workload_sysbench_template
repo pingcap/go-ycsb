@@ -50,7 +50,7 @@ range_size=100
 tables=13
 point_selects=1
 index_updates=1
-
+create_secondary=1
 
 #sysbenchoptions = {
 #   table_size =

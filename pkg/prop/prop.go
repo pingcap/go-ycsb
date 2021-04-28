@@ -157,4 +157,6 @@ const (
 	SysbenchTimeDefault              = int64(1<<31 - 1)
 	SysbenchReportInterval           = string("report.interval")
 	SysbenchReportIntervalDefault    = 5
+	SysbenchCreateSecondary          = string("create_secondary")
+	SysbenchCreateSecondaryDefault   = 1
 )

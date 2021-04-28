@@ -448,6 +448,7 @@ func (s *sysBench) createSysbenchTable(tableId int, threadID int) {
 	auto_incr := s.p.GetInt(prop.SysbenchAutoIncrement, prop.SysbenchAutoIncrementDefault)
 	engine := s.p.GetString(prop.SysbenchMysqlEngine, prop.SysbenchMysqlEngineDefault)
 	options := s.p.GetString(prop.SysbenchMysqlTableOptions, prop.SysbenchMysqlTableOptionsDefault)
+	create_secondary := s.p.GetInt(prop.SysbenchCreateSecondary, prop.SysbenchCreateSecondaryDefault)
 	var id_index_def, id_def string
 	if secondary == 1 {
 		id_index_def = "KEY xid"
@@ -513,7 +514,7 @@ func (s *sysBench) createSysbenchTable(tableId int, threadID int) {
 	bi.BulkInsertDone()
 
 	//create secondary index
-	if secondary == 1 {
+	if create_secondary == 1 {
 		fmt.Printf("Creating a secondary index on 'sbtest%v' ...\n", tableId)
 		query = fmt.Sprintf("CREATE INDEX k_%d ON sbtest%d(k)", tableId, tableId)
 		sqlDB.Exec(query)
