@@ -256,8 +256,8 @@ func (s *sysBench) execRanges(ctx context.Context, w *sysbenchWorker, rangeType 
 		return nil
 	}
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
-
-	for i := 1; i <= s.simpleRangesCnt; i++ {
+	cnt := s.p.GetInt(rangeType, 1)
+	for i := 1; i <= cnt; i++ {
 		id := w.r.Int63n(s.tableSize)
 		_, err := w.stmts[rangeType][tableId].ExecContext(ctx, id, id+int64(s.rangeSize)-1)
 		if err != nil {

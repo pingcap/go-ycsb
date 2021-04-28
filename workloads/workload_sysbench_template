@@ -51,6 +51,10 @@ tables=13
 point_selects=1
 index_updates=1
 create_secondary=1
+simple_ranges=10
+sum_ranges=1
+order_ranges=1
+distinct_ranges=1
 
 #sysbenchoptions = {
 #   table_size =
