@@ -152,4 +152,6 @@ const (
 	SysbenchMysqlEngineDefault       = string("innodb")
 	SysbenchMysqlTableOptions        = string("create_table_options")
 	SysbenchMysqlTableOptionsDefault = string("")
+	SysbenchTime                     = string("time") //second
+	SysbenchTimeDefault              = int64(1<<31 - 1)
 )

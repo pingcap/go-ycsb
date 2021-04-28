@@ -39,7 +39,8 @@ mysql.user=root
 mysql.db=mytest
 threads=42
 events=200000
-time=0
+# time second
+time=30
 measurement.interval=5
 # report.interval=1 ie. measurement.interval
 table_size=1500

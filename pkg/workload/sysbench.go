@@ -67,6 +67,7 @@ type sysBench struct {
 	deleteInsertCnt   int
 	hasRangeSelect    int
 	skipTrx           int
+	time              time.Duration
 
 	// key:workloadtype, value: querylist
 	operations map[string][]string
@@ -163,6 +164,7 @@ func (s *sysBench) RunEvent(ctx context.Context, tid int, wlType string) {
 	w := s.createWorker(ctx, tid, wlType)
 	defer s.releaseWorker(ctx, w)
 	event, ok := s.events[wlType]
+	timeStart := time.Now()
 
 	if !ok {
 		fmt.Println("sysbench workload type doesn't not exist")
@@ -179,6 +181,12 @@ func (s *sysBench) RunEvent(ctx context.Context, tid int, wlType string) {
 		}
 
 		sysBenchMeasure(start, wlType, err)
+
+		dur := time.Since(timeStart)
+		if dur >= s.time {
+			//fmt.Println("sysbench RunEvent timeout, existing...", s.time, dur)
+			return
+		}
 	}
 }
 
@@ -503,6 +511,7 @@ func (sysBenchCreator) Create(p *properties.Properties, db ycsb.DB) (ycsb.Worklo
 	s.deleteInsertCnt = p.GetInt(prop.SysbenchDeleteInsertCnt, prop.SysbenchDeleteInsertCntDefault)
 	s.hasRangeSelect = p.GetInt(prop.SysbenchTestRangeSelect, prop.SysbenchTestRangeSelectDefault)
 	s.skipTrx = p.GetInt(prop.SysbenchSkipTrx, prop.SysbenchSkipTrxDefault)
+	s.time = time.Duration(p.GetInt64(prop.SysbenchTime, prop.SysbenchTimeDefault)) * time.Second
 	return s, nil
 }
 
