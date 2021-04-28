@@ -8,7 +8,7 @@ In particular, we have made some optimizations for TiDB's sysbench test.
 
 + We want to build a standard benchmark tool in Go.
 + We are not familiar with Java.
-+ TSome default settings of sysbench are not suitable for TiDB.
++ Some default settings of sysbench are not suitable for TiDB.
 
 ## Getting Started
 
@@ -63,14 +63,22 @@ Available Commands:
 
 ## Sysbench Test
 
-### Load
 ```
 ./bin/go-ycsb command workloadtype dbtype -P configfile
 ```
-command: sysbench_load/sysbench_run/sysbench_cleanup
-workloadtype: oltp_update_index/oltp_update_non_index/oltp_point_select/oltp_read_write
-dbtype: currently only support mysql[TiDB also set to], next will support postgresql etc.
-configfile: ./workloads/workload_sysbench_template has the sysbench test configure template
+### command
+
+   sysbench_load/sysbench_run/sysbench_cleanup
+
+### workloadtype
+
+  oltp_update_index/oltp_update_non_index/oltp_point_select/oltp_read_write
+
+### dbtype
+  currently only support mysql[TiDB also set to], next will support postgresql etc.
+
+### configfile
+  ./workloads/workload_sysbench_template has the sysbench test configure template
 
 
 ## Supported Database
