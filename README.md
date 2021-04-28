@@ -1,11 +1,14 @@
-# go-ycsb 
+# go-ycsb
 
-go-ycsb is a Go port of [YCSB](https://github.com/brianfrankcooper/YCSB). It fully supports all YCSB generators and the Core workload so we can do the basic CRUD benchmarks with Go.
+go-ycsb is a Go port of [YCSB](https://github.com/brianfrankcooper/YCSB) and [sysbench](https://github.com/akopytov/sysbench). It fully supports all YCSB generators and the Core workload so we can do the basic CRUD benchmarks with Go. Also, it suupports the four typical oltp test scenarios of sysbench,such as oltp_point_select,oltp_update_index,oltp_update_non_index,oltp_read_write).
+In particular, we have made some optimizations for TiDB's sysbench test.
+
 
 ## Why another Go YCSB?
 
 + We want to build a standard benchmark tool in Go.
 + We are not familiar with Java.
++ TSome default settings of sysbench are not suitable for TiDB.
 
 ## Getting Started
 
@@ -22,7 +25,7 @@ Notice:
 + To use FoundationDB, you must install [client](https://www.foundationdb.org/download/) library at first, now the supported version is 6.2.11.
 + To use RocksDB, you must follow [INSTALL](https://github.com/facebook/rocksdb/blob/master/INSTALL.md) to install RocksDB at first.
 
-## Usage 
+## Usage
 
 Mostly, we can start from the offical document [Running-a-Workload](https://github.com/brianfrankcooper/YCSB/wiki/Running-a-Workload).
 
@@ -58,11 +61,23 @@ Available Commands:
 ./bin/go-ycsb run basic -P workloads/workloada
 ```
 
+## Sysbench Test
+
+### Load
+```
+./bin/go-ycsb command workloadtype dbtype -P configfile
+```
+command: sysbench_load/sysbench_run/sysbench_cleanup
+workloadtype: oltp_update_index/oltp_update_non_index/oltp_point_select/oltp_read_write
+dbtype: currently only support mysql[TiDB also set to], next will support postgresql etc.
+configfile: ./workloads/workload_sysbench_template has the sysbench test configure template
+
+
 ## Supported Database
 
 - MySQL / TiDB
 - TiKV
-- FoundationDB 
+- FoundationDB
 - Aerospike
 - Badger
 - Cassandra / ScyllaDB
@@ -193,7 +208,7 @@ Common configurations:
 |rocksdb.index_type|kBinarySearch|Sets the index type used for this table. __kBinarySearch__: A space efficient index block that is optimized for binary-search-based index. __kHashSearch__: The hash index, if enabled, will do the hash lookup when `Options.prefix_extractor` is provided. __kTwoLevelIndexSearch__: A two-level index implementation. Both levels are binary search indexes|
 |rocksdb.block_align|false|Enable/Disable align data blocks on lesser of page size and block size|
 
-### Spanner 
+### Spanner
 
 |field|default value|description|
 |-|-|-|
@@ -209,7 +224,7 @@ Common configurations:
 |sqlite.journalmode|"DELETE"|Journal mode: DELETE, TRUNCSTE, PERSIST, MEMORY, WAL, OFF|
 |sqlite.cache|"Shared"|Cache: shared, private|
 
-### Cassandra 
+### Cassandra
 
 |field|default value|description|
 |-|-|-|
