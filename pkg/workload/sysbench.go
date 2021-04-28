@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
@@ -69,6 +70,7 @@ type sysBench struct {
 	skipTrx           int
 	time              time.Duration
 	pointSelectCnt    int
+	reportInterval    int //second
 
 	// key:workloadtype, value: querylist
 	operations map[string][]string
@@ -102,6 +104,7 @@ func (sysBenchCreator) Create(p *properties.Properties, db ycsb.DB) (ycsb.Worklo
 	s.skipTrx = p.GetInt(prop.SysbenchSkipTrx, prop.SysbenchSkipTrxDefault)
 	s.time = time.Duration(p.GetInt64(prop.SysbenchTime, prop.SysbenchTimeDefault)) * time.Second
 	s.pointSelectCnt = p.GetInt(prop.SysbenchPointSelect, prop.SysbenchPointSelectDefault)
+	s.reportInterval = p.GetInt(prop.SysbenchReportInterval, prop.SysbenchReportIntervalDefault)
 	return s, nil
 }
 
@@ -400,8 +403,8 @@ func (s *sysBench) Cleanup(tid int) {
 			fmt.Println("[Failed]:", query, err)
 			return
 		}
+		fmt.Println("thread -", tid, "Droping table sbtest"+strconv.Itoa(i)+"...")
 	}
-	fmt.Println("thread -", tid, "cleanup database over")
 }
 
 func (s *sysBench) Close() error {
@@ -611,7 +614,7 @@ func (c *SysbenchClient) Run(ctx context.Context) {
 		defer func() {
 			measureCh <- struct{}{}
 		}()
-		dur := c.p.GetInt64(prop.LogInterval, 10)
+		dur := c.p.GetInt64(prop.SysbenchReportInterval, prop.SysbenchReportIntervalDefault)
 		t := time.NewTicker(time.Duration(dur) * time.Second)
 		defer t.Stop()
 		measurement.EnableWarmUp(false)

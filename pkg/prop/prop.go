@@ -155,4 +155,6 @@ const (
 	SysbenchMysqlTableOptionsDefault = string("")
 	SysbenchTime                     = string("time") //second
 	SysbenchTimeDefault              = int64(1<<31 - 1)
+	SysbenchReportInterval           = string("report.interval")
+	SysbenchReportIntervalDefault    = 5
 )

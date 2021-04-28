@@ -38,17 +38,16 @@ mysql.host=172.16.4.78
 mysql.port=4000
 mysql.user=root
 mysql.db=mytest
-threads=500
+threads=100
 #events means the test event count of each threads(not total of all threads)
 events=200000
 # time second
 time=300
-# report.interval=1 in sysbench is measurement.interval
-measurement.interval=5
+report.interval=5
 
 table_size=1500
 range_size=100
-tables=100
+tables=13
 point_selects=1
 index_updates=1
 
