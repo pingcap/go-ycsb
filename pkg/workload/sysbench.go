@@ -68,6 +68,7 @@ type sysBench struct {
 	hasRangeSelect    int
 	skipTrx           int
 	time              time.Duration
+	pointSelectCnt    int
 
 	// key:workloadtype, value: querylist
 	operations map[string][]string
@@ -75,6 +76,33 @@ type sysBench struct {
 	events map[string](func(ctx context.Context, w *sysbenchWorker) error)
 	// queryType: handler
 	handlers map[string](func(ctx context.Context, w *sysbenchWorker) error)
+}
+
+type sysBenchCreator struct{}
+
+func (sysBenchCreator) Create(p *properties.Properties, db ycsb.DB) (ycsb.Workload, error) {
+	s := new(sysBench)
+	s.p = p
+	s.db = db
+	s.tableCnt = p.GetInt(prop.SysbenchTables, prop.SysbenchTablesDefault)
+	s.tableSize = p.GetInt64(prop.SysbenchTableSize, prop.SysbenchTableSizeDefault)
+	s.threadCnt = p.GetInt(prop.SysbenchThreads, prop.SysbenchThreadsDefault)
+	s.eventCnt = p.GetInt64(prop.SysbenchEvents, prop.SysbenchEventsDefault)
+	s.indexUpdateCnt = p.GetInt(prop.SysbenchIndexUpdateCnt, prop.SysbenchIndexUpdateCntDefault)
+	s.nonIndexUpdateCnt = p.GetInt(prop.SysbenchNonIndexUpdateCnt, prop.SysbenchNonIndexUpdateCntDefault)
+	s.cValueLen = prop.SysbenchCharLength
+	s.padLen = prop.SysbenchPadLength
+	s.rangeSize = p.GetInt(prop.SysbenchRangeSize, prop.SysbenchRangeSizeDefault)
+	s.simpleRangesCnt = p.GetInt(prop.SysbenchSimpleRangesCnt, prop.SysbenchSimpleRangesCntDefault)
+	s.sumRangesCnt = p.GetInt(prop.SysbenchSumRangesCnt, prop.SysbenchSumRangesCntDefault)
+	s.orderRangesCnt = p.GetInt(prop.SysbenchOrderRangesCnt, prop.SysbenchOrderRangesCntDefault)
+	s.distinctRangsCnt = p.GetInt(prop.SysbenchDistinctRangeCnt, prop.SysbenchDistinctRangeCntDefault)
+	s.deleteInsertCnt = p.GetInt(prop.SysbenchDeleteInsertCnt, prop.SysbenchDeleteInsertCntDefault)
+	s.hasRangeSelect = p.GetInt(prop.SysbenchTestRangeSelect, prop.SysbenchTestRangeSelectDefault)
+	s.skipTrx = p.GetInt(prop.SysbenchSkipTrx, prop.SysbenchSkipTrxDefault)
+	s.time = time.Duration(p.GetInt64(prop.SysbenchTime, prop.SysbenchTimeDefault)) * time.Second
+	s.pointSelectCnt = p.GetInt(prop.SysbenchPointSelect, prop.SysbenchPointSelectDefault)
+	return s, nil
 }
 
 // All the interface including params need to be re-design later.
@@ -192,13 +220,19 @@ func (s *sysBench) RunEvent(ctx context.Context, tid int, wlType string) {
 
 func (s *sysBench) execPointSelect(ctx context.Context, w *sysbenchWorker) error {
 	tableId := w.r.Intn(int(s.tableCnt)) + 1
-	id := w.r.Int63n(s.tableSize)
-	_, err := w.stmts[QueryPointSelect][tableId].ExecContext(ctx, id)
-
-	return err
+	cnt := s.pointSelectCnt
+	for i := 0; i < cnt; i++ {
+		id := w.r.Int63n(s.tableSize)
+		_, err := w.stmts[QueryPointSelect][tableId].ExecContext(ctx, id)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 	//fmt.Println("sysbench point select running with tableID and id", tableId, id)
 }
 func (s *sysBench) eventPointSelect(ctx context.Context, w *sysbenchWorker) error {
+	s.pointSelectCnt = 1
 	return s.handlers[QueryPointSelect](ctx, w)
 }
 
@@ -367,7 +401,7 @@ func (s *sysBench) Cleanup(tid int) {
 			return
 		}
 	}
-	fmt.Println("sysbench cleanup database over")
+	fmt.Println("thread -", tid, "cleanup database over")
 }
 
 func (s *sysBench) Close() error {
@@ -404,7 +438,7 @@ func (s *sysBench) DoBatchTransaction(ctx context.Context, batchSize int, db ycs
 
 // currently only for mysql
 // TODO tuning schemas for TiDB later
-func (s *sysBench) createSysbenchTable(tableId int) {
+func (s *sysBench) createSysbenchTable(tableId int, threadID int) {
 	// create schema
 	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(tableId)*int64(100000000)))
 	secondary := s.p.GetInt(prop.SysbenchSecondary, prop.SysbenchSecondaryDefault)
@@ -444,7 +478,7 @@ func (s *sysBench) createSysbenchTable(tableId int) {
 	//load data
 	tableSize := s.tableSize
 	if tableSize > 0 {
-		fmt.Printf("Inserting %v records into sbtest%v\n", tableSize, tableId)
+		fmt.Printf("thread - %v inserting %v records into sbtest%v...\n", threadID, tableSize, tableId)
 	}
 	var query string
 	if auto_incr == 1 {
@@ -485,34 +519,8 @@ func (s *sysBench) createSysbenchTable(tableId int) {
 
 func (s *sysBench) prepareSysbenchData(tid int) {
 	for i := (tid % s.threadCnt) + 1; i <= s.tableCnt; i = i + s.threadCnt {
-		s.createSysbenchTable(i)
+		s.createSysbenchTable(i, tid)
 	}
-}
-
-type sysBenchCreator struct{}
-
-func (sysBenchCreator) Create(p *properties.Properties, db ycsb.DB) (ycsb.Workload, error) {
-	s := new(sysBench)
-	s.p = p
-	s.db = db
-	s.tableCnt = p.GetInt(prop.SysbenchTables, prop.SysbenchTablesDefault)
-	s.tableSize = p.GetInt64(prop.SysbenchTableSize, prop.SysbenchTableSizeDefault)
-	s.threadCnt = p.GetInt(prop.SysbenchThreads, prop.SysbenchThreadsDefault)
-	s.eventCnt = p.GetInt64(prop.SysbenchEvents, prop.SysbenchEventsDefault)
-	s.indexUpdateCnt = p.GetInt(prop.SysbenchIndexUpdateCnt, prop.SysbenchIndexUpdateCntDefault)
-	s.nonIndexUpdateCnt = p.GetInt(prop.SysbenchNonIndexUpdateCnt, prop.SysbenchNonIndexUpdateCntDefault)
-	s.cValueLen = prop.SysbenchCharLength
-	s.padLen = prop.SysbenchPadLength
-	s.rangeSize = p.GetInt(prop.SysbenchRangeSize, prop.SysbenchRangeSizeDefault)
-	s.simpleRangesCnt = p.GetInt(prop.SysbenchSimpleRangesCnt, prop.SysbenchSimpleRangesCntDefault)
-	s.sumRangesCnt = p.GetInt(prop.SysbenchSumRangesCnt, prop.SysbenchSumRangesCntDefault)
-	s.orderRangesCnt = p.GetInt(prop.SysbenchOrderRangesCnt, prop.SysbenchOrderRangesCntDefault)
-	s.distinctRangsCnt = p.GetInt(prop.SysbenchDistinctRangeCnt, prop.SysbenchDistinctRangeCntDefault)
-	s.deleteInsertCnt = p.GetInt(prop.SysbenchDeleteInsertCnt, prop.SysbenchDeleteInsertCntDefault)
-	s.hasRangeSelect = p.GetInt(prop.SysbenchTestRangeSelect, prop.SysbenchTestRangeSelectDefault)
-	s.skipTrx = p.GetInt(prop.SysbenchSkipTrx, prop.SysbenchSkipTrxDefault)
-	s.time = time.Duration(p.GetInt64(prop.SysbenchTime, prop.SysbenchTimeDefault)) * time.Second
-	return s, nil
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -534,6 +542,7 @@ type BulkWorker struct {
 }
 
 func (w *BulkWorker) BulkInsertInit(head string, bulkSize int, db *sql.DB) {
+	w.bulkSize = bulkSize
 	w.curSize = 0
 	w.sql = head
 	w.head = head
@@ -552,8 +561,6 @@ func (w *BulkWorker) BulkInsertNext(query string) {
 	if w.curSize >= w.bulkSize {
 		w.sql += ";"
 		w.BulkInsertDone()
-		w.curSize = 0
-		w.sql = w.head
 	}
 }
 
@@ -564,6 +571,8 @@ func (w *BulkWorker) BulkInsertDone() {
 			fmt.Println("exec sql error", w.sql, err)
 			panic(err)
 		}
+		w.curSize = 0
+		w.sql = w.head
 	}
 }
 

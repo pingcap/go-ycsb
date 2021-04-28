@@ -32,22 +32,25 @@
 # requestdistribution=uniform
 
 #[sysbench]
+# Whether it's time or events, as long as one of the conditions is met, the test ends.
 workload=sysbench
 mysql.host=172.16.4.78
 mysql.port=4000
 mysql.user=root
 mysql.db=mytest
-threads=42
+threads=500
+#events means the test event count of each threads(not total of all threads)
 events=200000
 # time second
-time=30
+time=300
+# report.interval=1 in sysbench is measurement.interval
 measurement.interval=5
-# report.interval=1 ie. measurement.interval
+
 table_size=1500
 range_size=100
-tables=13
-point_selects=2
-index_updates=3
+tables=100
+point_selects=1
+index_updates=1
 
 
 #sysbenchoptions = {

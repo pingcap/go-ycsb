@@ -124,9 +124,9 @@ func newSysbenchPrepareCommand() *cobra.Command {
 }
 func newSysbenchRunCommand() *cobra.Command {
 	m := &cobra.Command{
-		Use:   "sysbench_run db",
+		Use:   "sysbench_run workload db",
 		Short: "Sysbench run workload",
-		Args:  cobra.MinimumNArgs(1),
+		Args:  cobra.MinimumNArgs(2),
 		Run:   execSysBenchRunCommand,
 	}
 	initClientCommand(m)
@@ -135,9 +135,9 @@ func newSysbenchRunCommand() *cobra.Command {
 
 func newSysbenchCleanupCommand() *cobra.Command {
 	m := &cobra.Command{
-		Use:   "sysbench_cleanup db",
+		Use:   "sysbench_cleanup workload db",
 		Short: "Sysbench cleanup database",
-		Args:  cobra.MinimumNArgs(1),
+		Args:  cobra.MinimumNArgs(2),
 		Run:   execSysBenchClearupCommand,
 	}
 	initClientCommand(m)

@@ -123,7 +123,8 @@ const (
 	SysbenchBulkInsertCount          = 100
 	SysbenchSecondary                = string("secondary") //
 	SysbenchSecondaryDefault         = 0
-	SysbenchPointSelect              = 1
+	SysbenchPointSelect              = string("point_selects")
+	SysbenchPointSelectDefault       = 10
 	SysbenchEvents                   = string("events")
 	SysbenchEventsDefault            = int64(1000)
 	SysbenchIndexUpdateCnt           = string("index_updates")
