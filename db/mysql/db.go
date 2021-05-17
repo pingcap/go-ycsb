@@ -14,6 +14,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
@@ -256,8 +257,10 @@ func (db *mysqlDB) execQuery(ctx context.Context, query string, args ...interfac
 }
 
 func (db *mysqlDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	buf := db.bufPool.Get()
-	defer db.bufPool.Put(buf)
+	buf := bytes.NewBuffer(db.bufPool.Get())
+	defer func() {
+		db.bufPool.Put(buf.Bytes())
+	}()
 
 	buf.WriteString("UPDATE ")
 	buf.WriteString(table)
@@ -287,8 +290,10 @@ func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values 
 	args := make([]interface{}, 0, 1+len(values))
 	args = append(args, key)
 
-	buf := db.bufPool.Get()
-	defer db.bufPool.Put(buf)
+	buf := bytes.NewBuffer(db.bufPool.Get())
+	defer func() {
+		db.bufPool.Put(buf.Bytes())
+	}()
 
 	buf.WriteString("INSERT IGNORE INTO ")
 	buf.WriteString(table)
