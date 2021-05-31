@@ -216,6 +216,8 @@ Common configurations:
 |cassandra.cluster|"127.0.0.1:9042"|Cassandra cluster|
 |cassandra.keyspace|"test"|Keyspace|
 |cassandra.connections|2|Number of connections per host|
+|cassandra.username|cassandra|Username|
+|cassandra.password|cassandra|Password|
 
 ### MongoDB
 
