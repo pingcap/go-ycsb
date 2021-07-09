@@ -23,18 +23,18 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/tikv/client-go/v2/config"
-	"github.com/tikv/client-go/v2/tikv"
+	"github.com/tikv/client-go/v2/rawkv"
 )
 
 type rawDB struct {
-	db      *tikv.RawKVClient
+	db      *rawkv.Client
 	r       *util.RowCodec
 	bufPool *util.BufPool
 }
 
 func createRawDB(p *properties.Properties) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	db, err := tikv.NewRawKVClient(strings.Split(pdAddr, ","), config.Security{})
+	db, err := rawkv.NewClient(context.Background(), strings.Split(pdAddr, ","), config.Security{})
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (db *rawDB) ToSqlDB() *sql.DB {
 }
 
 func (db *rawDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
-	row, err := db.db.Get(db.getRowKey(table, key))
+	row, err := db.db.Get(ctx, db.getRowKey(table, key))
 	if err != nil {
 		return nil, err
 	} else if row == nil {
@@ -83,7 +83,7 @@ func (db *rawDB) BatchRead(ctx context.Context, table string, keys []string, fie
 	for i, key := range keys {
 		rowKeys[i] = db.getRowKey(table, key)
 	}
-	values, err := db.db.BatchGet(rowKeys)
+	values, err := db.db.BatchGet(ctx, rowKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (db *rawDB) BatchRead(ctx context.Context, table string, keys []string, fie
 }
 
 func (db *rawDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
-	_, rows, err := db.db.Scan(db.getRowKey(table, startKey), nil, count)
+	_, rows, err := db.db.Scan(ctx, db.getRowKey(table, startKey), nil, count)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (db *rawDB) Scan(ctx context.Context, table string, startKey string, count 
 }
 
 func (db *rawDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	row, err := db.db.Get(db.getRowKey(table, key))
+	row, err := db.db.Get(ctx, db.getRowKey(table, key))
 	if err != nil {
 		return nil
 	}
@@ -153,7 +153,7 @@ func (db *rawDB) BatchUpdate(ctx context.Context, table string, keys []string, v
 		}
 		rawValues = append(rawValues, rawData)
 	}
-	return db.db.BatchPut(rawKeys, rawValues)
+	return db.db.BatchPut(ctx, rawKeys, rawValues)
 }
 
 func (db *rawDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -166,7 +166,7 @@ func (db *rawDB) Insert(ctx context.Context, table string, key string, values ma
 		return err
 	}
 
-	return db.db.Put(db.getRowKey(table, key), rowData)
+	return db.db.Put(ctx, db.getRowKey(table, key), rowData)
 }
 
 func (db *rawDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
@@ -180,11 +180,11 @@ func (db *rawDB) BatchInsert(ctx context.Context, table string, keys []string, v
 		}
 		rawValues = append(rawValues, rawData)
 	}
-	return db.db.BatchPut(rawKeys, rawValues)
+	return db.db.BatchPut(ctx, rawKeys, rawValues)
 }
 
 func (db *rawDB) Delete(ctx context.Context, table string, key string) error {
-	return db.db.Delete(db.getRowKey(table, key))
+	return db.db.Delete(ctx, db.getRowKey(table, key))
 }
 
 func (db *rawDB) BatchDelete(ctx context.Context, table string, keys []string) error {
@@ -192,5 +192,5 @@ func (db *rawDB) BatchDelete(ctx context.Context, table string, keys []string) e
 	for i, key := range keys {
 		rowKeys[i] = db.getRowKey(table, key)
 	}
-	return db.db.BatchDelete(rowKeys)
+	return db.db.BatchDelete(ctx, rowKeys)
 }
