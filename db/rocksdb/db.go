@@ -60,11 +60,11 @@ const (
 	rocksdbBlockRestartInterval             = "rocksdb.block_restart_interval"
 	rocksdbFilterPolicy                     = "rocksdb.filter_policy"
 	rocksdbIndexType                        = "rocksdb.index_type"
+	rocksdbWALDir                           = "rocksdb.wal_dir"
 	// TODO: add more configurations
 )
 
-type rocksDBCreator struct {
-}
+type rocksDBCreator struct{}
 
 type rocksDB struct {
 	p *properties.Properties
@@ -156,6 +156,7 @@ func getOptions(p *properties.Properties) *gorocksdb.Options {
 	opts.SetUseFsync(p.GetBool(rocksdbUseFsync, false))
 	opts.SetWriteBufferSize(p.GetInt(rocksdbWriteBufferSize, 64<<20))
 	opts.SetMaxWriteBufferNumber(p.GetInt(rocksdbMaxWriteBufferNumber, 2))
+	opts.SetWalDir(p.GetString(rocksdbWALDir, ""))
 
 	opts.SetBlockBasedTableFactory(getTableOptions(p))
 
