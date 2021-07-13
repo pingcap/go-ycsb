@@ -204,6 +204,8 @@ func (c *Client) Run(ctx context.Context) {
 
 	if err := c.workload.Init(c.db); err != nil {
 		fmt.Printf("Initialize workload fail: %v\n", err)
+		measureCancel()
+		<-measureCh
 		return
 	}
 

@@ -108,4 +108,55 @@ const (
 	KeyPrefixDefault = "user"
 
 	LogInterval = "measurement.interval"
+
+	//[sysbench]
+	SysbenchCmdType                  = string("SysbenchCmdType")
+	SysbenchWorkLoadType             = string("SysbenchWorkLoadType")
+	SysbenchThreads                  = string("threads")
+	SysbenchThreadsDefault           = 10
+	SysbenchTables                   = string("tables")
+	SysbenchTablesDefault            = 2
+	SysbenchTableSize                = string("table_size")
+	SysbenchTableSizeDefault         = int64(1000)
+	SysbenchCharLength               = 120 //sysbench schema required
+	SysbenchPadLength                = 60  //sysbench schema required
+	SysbenchBulkInsertCount          = 100
+	SysbenchSecondary                = string("secondary") //
+	SysbenchSecondaryDefault         = 0
+	SysbenchPointSelect              = string("point_selects")
+	SysbenchPointSelectDefault       = 10
+	SysbenchEvents                   = string("events")
+	SysbenchEventsDefault            = int64(1000)
+	SysbenchIndexUpdateCnt           = string("index_updates")
+	SysbenchIndexUpdateCntDefault    = 1
+	SysbenchNonIndexUpdateCnt        = string("non_index_updates")
+	SysbenchNonIndexUpdateCntDefault = 1
+	SysbenchRangeSize                = string("range_size")
+	SysbenchRangeSizeDefault         = 100
+	SysbenchSimpleRangesCnt          = string("simple_ranges")
+	SysbenchSimpleRangesCntDefault   = 1
+	SysbenchSumRangesCnt             = string("sum_ranges")
+	SysbenchSumRangesCntDefault      = 1
+	SysbenchOrderRangesCnt           = string("order_ranges")
+	SysbenchOrderRangesCntDefault    = 1
+	SysbenchDistinctRangeCnt         = string("distinct_ranges")
+	SysbenchDistinctRangeCntDefault  = 1
+	SysbenchDeleteInsertCnt          = string("delete_inserts")
+	SysbenchDeleteInsertCntDefault   = 1
+	SysbenchTestRangeSelect          = string("range_selects")
+	SysbenchTestRangeSelectDefault   = 1
+	SysbenchSkipTrx                  = string("skip_trx")
+	SysbenchSkipTrxDefault           = 0
+	SysbenchAutoIncrement            = string("auto_inc")
+	SysbenchAutoIncrementDefault     = 1
+	SysbenchMysqlEngine              = string("mysql_storage_engine")
+	SysbenchMysqlEngineDefault       = string("innodb")
+	SysbenchMysqlTableOptions        = string("create_table_options")
+	SysbenchMysqlTableOptionsDefault = string("")
+	SysbenchTime                     = string("time") //second
+	SysbenchTimeDefault              = int64(1<<31 - 1)
+	SysbenchReportInterval           = string("report.interval")
+	SysbenchReportIntervalDefault    = 5
+	SysbenchCreateSecondary          = string("create_secondary")
+	SysbenchCreateSecondaryDefault   = 1
 )

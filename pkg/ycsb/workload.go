@@ -22,13 +22,16 @@ import (
 
 // WorkloadCreator creates a Workload
 type WorkloadCreator interface {
-	Create(p *properties.Properties) (Workload, error)
+	Create(p *properties.Properties, db DB) (Workload, error)
 }
 
 // Workload defines different workload for YCSB.
 type Workload interface {
 	// Initialize the workload.
 	Init(db DB) error
+
+	// Exec command
+	Exec(ctx context.Context, threadID int)
 
 	// Close closes the workload.
 	Close() error

@@ -72,7 +72,6 @@ import (
 var (
 	propertyFiles  []string
 	propertyValues []string
-	dbName         string
 	tableName      string
 
 	globalContext context.Context
@@ -83,6 +82,7 @@ var (
 	globalProps    *properties.Properties
 )
 
+//TODO fix later
 func initialGlobal(dbName string, onProperties func()) {
 	globalProps = properties.NewProperties()
 	if len(propertyFiles) > 0 {
@@ -113,9 +113,6 @@ func initialGlobal(dbName string, onProperties func()) {
 	workloadCreator := ycsb.GetWorkloadCreator(workloadName)
 
 	var err error
-	if globalWorkload, err = workloadCreator.Create(globalProps); err != nil {
-		util.Fatalf("create workload %s failed %v", workloadName, err)
-	}
 
 	dbCreator := ycsb.GetDBCreator(dbName)
 	if dbCreator == nil {
@@ -124,7 +121,11 @@ func initialGlobal(dbName string, onProperties func()) {
 	if globalDB, err = dbCreator.Create(globalProps); err != nil {
 		util.Fatalf("create db %s failed %v", dbName, err)
 	}
-	globalDB = client.DbWrapper{globalDB}
+	globalDB = client.DbWrapper{DB: globalDB}
+
+	if globalWorkload, err = workloadCreator.Create(globalProps, globalDB); err != nil {
+		util.Fatalf("create workload %s failed %v", workloadName, err)
+	}
 }
 
 func main() {
@@ -141,6 +142,7 @@ func main() {
 	go func() {
 		sig := <-sc
 		fmt.Printf("\nGot signal [%v] to exit.\n", sig)
+
 		globalCancel()
 
 		select {
@@ -165,6 +167,9 @@ func main() {
 		newShellCommand(),
 		newLoadCommand(),
 		newRunCommand(),
+		newSysbenchPrepareCommand(),
+		newSysbenchRunCommand(),
+		newSysbenchCleanupCommand(),
 	)
 
 	cobra.EnablePrefixMatching = true
