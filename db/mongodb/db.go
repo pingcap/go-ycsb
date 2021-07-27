@@ -11,27 +11,24 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/x/network/command"
 	"go.mongodb.org/mongo-driver/x/network/connstring"
 )
 
 const (
-	mongodbUri       = "mongodb.uri"
-	mongodbNamespace = "mongodb.namespace"
-	mongodbAuthdb    = "mongodb.authdb"
-	mongodbUsername  = "mongodb.username"
-	mongodbPassword  = "mongodb.password"
+	mongodbUrl        = "mongodb.url"
+	mongodbAuthdb     = "mongodb.authdb"
+	mongodbUsername   = "mongodb.username"
+	mongodbPassword   = "mongodb.password"
 
-	mongodbUriDefault       = "mongodb://127.0.0.1:27017"
-	mongodbNamespaceDefault = "ycsb.ycsb"
-	mongodbAuthdbDefault    = "admin"
+	// see https://github.com/brianfrankcooper/YCSB/tree/master/mongodb#mongodb-configuration-parameters
+	mongodbUrlDefault        = "mongodb://127.0.0.1:27017/ycsb?w=1"
+	mongodbDatabaseDefault   = "ycsb"
+	mongodbAuthdbDefault     = "admin"
 )
 
 type mongoDB struct {
-	cli      *mongo.Client
-	dbname   string
-	collname string
-	coll     *mongo.Collection
+	cli  *mongo.Client
+	db   *mongo.Database
 }
 
 func (db *mongoDB) ToSqlDB() *sql.DB {
@@ -57,7 +54,7 @@ func (m *mongoDB) Read(ctx context.Context, table string, key string, fields []s
 	}
 	opt := &options.FindOneOptions{Projection: projection}
 	var doc map[string][]byte
-	if err := m.coll.FindOne(ctx, bson.M{"_id": key}, opt).Decode(&doc); err != nil {
+	if err := m.db.Collection(table).FindOne(ctx, bson.M{"_id": key}, opt).Decode(&doc); err != nil {
 		return nil, fmt.Errorf("Read error: %s", err.Error())
 	}
 	return doc, nil
@@ -71,7 +68,7 @@ func (m *mongoDB) Scan(ctx context.Context, table string, startKey string, count
 	}
 	limit := int64(count)
 	opt := &options.FindOptions{Projection: projection, Sort: bson.M{"_id": 1}, Limit: &limit}
-	cursor, err := m.coll.Find(ctx, bson.M{"_id": bson.M{"$gte": startKey}}, opt)
+	cursor, err := m.db.Collection(table).Find(ctx, bson.M{"_id": bson.M{"$gte": startKey}}, opt)
 	if err != nil {
 		return nil, fmt.Errorf("Scan error: %s", err.Error())
 	}
@@ -93,7 +90,7 @@ func (m *mongoDB) Insert(ctx context.Context, table string, key string, values m
 	for k, v := range values {
 		doc[k] = v
 	}
-	if _, err := m.coll.InsertOne(ctx, doc); err != nil {
+	if _, err := m.db.Collection(table).InsertOne(ctx, doc); err != nil {
 		fmt.Println(err)
 		return fmt.Errorf("Insert error: %s", err.Error())
 	}
@@ -102,7 +99,7 @@ func (m *mongoDB) Insert(ctx context.Context, table string, key string, values m
 
 // Update a document.
 func (m *mongoDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	res, err := m.coll.UpdateOne(ctx, bson.M{"_id": key}, bson.M{"$set": values})
+	res, err := m.db.Collection(table).UpdateOne(ctx, bson.M{"_id": key}, bson.M{"$set": values})
 	if err != nil {
 		return fmt.Errorf("Update error: %s", err.Error())
 	}
@@ -114,7 +111,7 @@ func (m *mongoDB) Update(ctx context.Context, table string, key string, values m
 
 // Delete a document.
 func (m *mongoDB) Delete(ctx context.Context, table string, key string) error {
-	res, err := m.coll.DeleteOne(ctx, bson.M{"_id": key})
+	res, err := m.db.Collection(table).DeleteOne(ctx, bson.M{"_id": key})
 	if err != nil {
 		return fmt.Errorf("Delete error: %s", err.Error())
 	}
@@ -128,15 +125,10 @@ type mongodbCreator struct {
 }
 
 func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
-	uri := p.GetString(mongodbUri, mongodbUriDefault)
-	nss := p.GetString(mongodbNamespace, mongodbNamespaceDefault)
+	uri := p.GetString(mongodbUrl, mongodbUrlDefault)
 	authdb := p.GetString(mongodbAuthdb, mongodbAuthdbDefault)
 
 	if _, err := connstring.Parse(uri); err != nil {
-		return nil, err
-	}
-	ns := command.ParseNamespace(nss)
-	if err := ns.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -171,9 +163,7 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 	m := &mongoDB{
 		cli:      cli,
-		dbname:   ns.DB,
-		collname: ns.Collection,
-		coll:     cli.Database(ns.DB).Collection(ns.Collection),
+		db:       cli.Database(mongodbDatabaseDefault),
 	}
 	return m, nil
 }
