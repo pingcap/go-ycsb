@@ -10,8 +10,8 @@ go-ycsb is a Go port of [YCSB](https://github.com/brianfrankcooper/YCSB). It ful
 ## Getting Started
 
 ```bash
-git clone https://github.com/pingcap/go-ycsb.git $GOPATH/src/github.com/pingcap/go-ycsb
-cd $GOPATH/src/github.com/pingcap/go-ycsb
+git clone https://github.com/pingcap/go-ycsb.git
+cd go-ycsb
 make
 
 ./bin/go-ycsb
@@ -19,6 +19,7 @@ make
 
 Notice:
 
++ Minimum supported go version is 1.16.
 + To use FoundationDB, you must install [client](https://www.foundationdb.org/download/) library at first, now the supported version is 6.2.11.
 + To use RocksDB, you must follow [INSTALL](https://github.com/facebook/rocksdb/blob/master/INSTALL.md) to install RocksDB at first.
 
