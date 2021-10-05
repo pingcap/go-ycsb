@@ -153,7 +153,7 @@ func (db *rawDB) BatchUpdate(ctx context.Context, table string, keys []string, v
 		}
 		rawValues = append(rawValues, rawData)
 	}
-	return db.db.BatchPut(ctx, rawKeys, rawValues)
+	return db.db.BatchPut(ctx, rawKeys, rawValues, nil)
 }
 
 func (db *rawDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -180,7 +180,7 @@ func (db *rawDB) BatchInsert(ctx context.Context, table string, keys []string, v
 		}
 		rawValues = append(rawValues, rawData)
 	}
-	return db.db.BatchPut(ctx, rawKeys, rawValues)
+	return db.db.BatchPut(ctx, rawKeys, rawValues, nil)
 }
 
 func (db *rawDB) Delete(ctx context.Context, table string, key string) error {
