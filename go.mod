@@ -32,7 +32,7 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/spf13/cobra v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
-	github.com/tikv/client-go/v2 v2.0.0-alpha.0.20210706041121-6ca00989ddb4
+	github.com/tikv/client-go/v2 v2.0.0-alpha.0.20211005023200-729d741bfde7
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
 	github.com/xdg/stringprep v1.0.0 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20181031023651-12c4817b42c5 // indirect
