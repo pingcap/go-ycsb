@@ -23,18 +23,18 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	tikverr "github.com/tikv/client-go/v2/error"
-	"github.com/tikv/client-go/v2/tikv"
+	"github.com/tikv/client-go/v2/txnkv"
 )
 
 type txnDB struct {
-	db      *tikv.KVStore
+	db      *txnkv.Client
 	r       *util.RowCodec
 	bufPool *util.BufPool
 }
 
 func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	db, err := tikv.NewTxnClient(strings.Split(pdAddr, ","))
+	db, err := txnkv.NewClient(strings.Split(pdAddr, ","))
 	if err != nil {
 		return nil, err
 	}
