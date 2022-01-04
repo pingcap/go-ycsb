@@ -484,8 +484,6 @@ github.com/tidwall/gjson v1.3.5/go.mod h1:P256ACg0Mn+j1RXIDXoss50DeIABTYK1PULOJH
 github.com/tidwall/match v1.0.1/go.mod h1:LujAq0jyVjBy028G1WhWfIzbpQfMO8bBZ6Tyb0+pL9E=
 github.com/tidwall/pretty v1.0.0 h1:HsD+QiTn7sK6flMKIvNmpqz1qrpP3Ps6jOKIKMooyg4=
 github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
-github.com/tikv/client-go/v2 v2.0.0-rc h1:UDo44co7FNa74HPS5o191Yvh3CeAaHrBUpFUa2k7d7I=
-github.com/tikv/client-go/v2 v2.0.0-rc/go.mod h1:wRuh+W35daKTiYBld0oBlT6PSkzEVr+pB/vChzJZk+8=
 github.com/tikv/client-go/v2 v2.0.0-rc.0.20220104074529-d2f0290d0189 h1:xsSVhDLj6Sf8dQkIKMCoCXmG+pc6R2OIX2nqaWnDrlU=
 github.com/tikv/client-go/v2 v2.0.0-rc.0.20220104074529-d2f0290d0189/go.mod h1:wRuh+W35daKTiYBld0oBlT6PSkzEVr+pB/vChzJZk+8=
 github.com/tikv/pd v1.1.0-beta.0.20211029083450-e65f0c55b6ae h1:PmnkhiOopgMZYDQ7Htj1kt/zwW4MEOUL+Dem6WLZISY=
