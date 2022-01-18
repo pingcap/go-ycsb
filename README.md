@@ -78,7 +78,7 @@ Available Commands:
 
 ## Database Configuration
 
-You can pass the database configuraitons through `-p field=value` in the command line directly.
+You can pass the database configurations through `-p field=value` in the command line directly.
 
 Common configurations:
 
