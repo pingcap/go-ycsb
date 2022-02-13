@@ -32,7 +32,7 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/spf13/cobra v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
-	github.com/tikv/client-go/v2 v2.0.0-rc.0.20220104074529-d2f0290d0189
+	github.com/tikv/client-go/v2 v2.0.0-rc.0.20220209014121-cea0c4c6e67c
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
 	github.com/xdg/stringprep v1.0.0 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20181031023651-12c4817b42c5 // indirect
@@ -40,6 +40,7 @@ require (
 	go.opencensus.io v0.22.2 // indirect
 	golang.org/x/exp v0.0.0-20191129062945-2f5052295587 // indirect
 	golang.org/x/oauth2 v0.0.0-20191202225959-858c2ad4c8b6 // indirect
+	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e // indirect
 	google.golang.org/api v0.14.0
 	google.golang.org/genproto v0.0.0-20200224152610-e50cd9704f63
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
