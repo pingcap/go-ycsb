@@ -39,10 +39,8 @@ require (
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/tikv/client-go/v2 v2.0.0-rc.0.20220222033436-79b962a84d18
 	github.com/tikv/pd/client v0.0.0-20220222032342-97a35a18158c // indirect
-	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
-	github.com/xdg/stringprep v1.0.0 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20181031023651-12c4817b42c5 // indirect
-	go.mongodb.org/mongo-driver v1.0.2
+	go.mongodb.org/mongo-driver v1.5.1
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
 	google.golang.org/api v0.69.0
 	google.golang.org/genproto v0.0.0-20220218161850-94dd64e39d7c
