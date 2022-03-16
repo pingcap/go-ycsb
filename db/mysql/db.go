@@ -402,7 +402,7 @@ func (db *mysqlDB) BatchDelete(ctx context.Context, table string, keys []string)
 	args := make([]interface{}, 0, len(keys))
 	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
-	buf.WriteString(fmt.Sprintf("DELETE FROM %s WHERE YSCB_KEY IN (", table))
+	buf.WriteString(fmt.Sprintf("DELETE FROM %s WHERE YCSB_KEY IN (", table))
 	for i, key := range keys {
 		buf.WriteByte('?')
 		if i < len(keys)-1 {
