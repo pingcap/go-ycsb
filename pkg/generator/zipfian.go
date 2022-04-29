@@ -48,11 +48,11 @@ const (
 // others, according to a zipfian distribution. When you construct an instance of this class, you specify the number
 // of items in the set to draw from, either by specifying an itemcount (so that the sequence is of items from 0 to
 // itemcount-1) or by specifying a min and a max (so that the sequence is of items from min to max inclusive). After
-// you construct the instance, you can change the number of items by calling nextInt(itemcount) or nextLong(itemcount).
+// you construct the instance, you can change the number of items by calling Next(*rand.Rand).
 //
 // Note that the popular items will be clustered together, e.g. item 0 is the most popular, item 1 the second most
 // popular, and so on (or min is the most popular, min+1 the next most popular, etc.) If you don't want this clustering,
-// and instead want the popular items scattered throughout the item space, then use ScrambledZipfianGenerator instead.
+// and instead want the popular items scattered throughout the item space, then use ScrambledZipfian(located in scrambled_zipfian.go) instead.
 //
 // Be aware: initializing this generator may take a long time if there are lots of items to choose from (e.g. over a
 // minute for 100 million objects). This is because certain mathematical values need to be computed to properly
