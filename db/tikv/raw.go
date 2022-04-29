@@ -159,14 +159,16 @@ func (db *rawDB) BatchUpdate(ctx context.Context, table string, keys []string, v
 func (db *rawDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	// Simulate TiDB data
 	buf := db.bufPool.Get()
-	defer db.bufPool.Put(buf)
+	defer func() {
+		db.bufPool.Put(buf)
+	}()
 
-	rowData, err := db.r.Encode(buf.Bytes(), values)
+	buf, err := db.r.Encode(buf, values)
 	if err != nil {
 		return err
 	}
 
-	return db.db.Put(ctx, db.getRowKey(table, key), rowData)
+	return db.db.Put(ctx, db.getRowKey(table, key), buf)
 }
 
 func (db *rawDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {

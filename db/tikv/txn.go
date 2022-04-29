@@ -179,14 +179,16 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 	}
 
 	buf := db.bufPool.Get()
-	defer db.bufPool.Put(buf)
+	defer func() {
+		db.bufPool.Put(buf)
+	}()
 
-	rowData, err := db.r.Encode(buf.Bytes(), data)
+	buf, err = db.r.Encode(buf, data)
 	if err != nil {
 		return err
 	}
 
-	if err := tx.Set(rowKey, rowData); err != nil {
+	if err := tx.Set(rowKey, buf); err != nil {
 		return err
 	}
 
@@ -216,9 +218,11 @@ func (db *txnDB) BatchUpdate(ctx context.Context, table string, keys []string, v
 func (db *txnDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	// Simulate TiDB data
 	buf := db.bufPool.Get()
-	defer db.bufPool.Put(buf)
+	defer func() {
+		db.bufPool.Put(buf)
+	}()
 
-	rowData, err := db.r.Encode(buf.Bytes(), values)
+	buf, err := db.r.Encode(buf, values)
 	if err != nil {
 		return err
 	}
@@ -230,7 +234,7 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 
 	defer tx.Rollback()
 
-	if err = tx.Set(db.getRowKey(table, key), rowData); err != nil {
+	if err = tx.Set(db.getRowKey(table, key), buf); err != nil {
 		return err
 	}
 

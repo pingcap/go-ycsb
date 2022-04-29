@@ -14,7 +14,6 @@
 package util
 
 import (
-	"bytes"
 	"fmt"
 	"math/rand"
 	"os"
@@ -53,7 +52,7 @@ type BufPool struct {
 func NewBufPool() *BufPool {
 	p := &sync.Pool{
 		New: func() interface{} {
-			return new(bytes.Buffer)
+			return []byte(nil)
 		},
 	}
 	return &BufPool{
@@ -62,13 +61,13 @@ func NewBufPool() *BufPool {
 }
 
 // Get gets a buffer.
-func (b *BufPool) Get() *bytes.Buffer {
-	buf := b.p.Get().(*bytes.Buffer)
-	buf.Reset()
+func (b *BufPool) Get() []byte {
+	buf := b.p.Get().([]byte)
+	buf = buf[:0]
 	return buf
 }
 
 // Put returns a buffer.
-func (b *BufPool) Put(buf *bytes.Buffer) {
+func (b *BufPool) Put(buf []byte) {
 	b.p.Put(buf)
 }
