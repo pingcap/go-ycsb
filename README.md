@@ -224,7 +224,7 @@ Common configurations:
 
 |field|default value|description|
 |-|-|-|
-|mongodb.uri|"mongodb://127.0.0.1:27017"|MongoDB URI|
+|mongodb.url|"mongodb://127.0.0.1:27017"|MongoDB URI|
 |mongodb.namespace|"ycsb.ycsb"|Namespace to use|
 |mongodb.authdb|"admin"|Authentication database|
 |mongodb.username|N/A|Username for authentication|
