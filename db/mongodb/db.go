@@ -11,24 +11,24 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/x/network/connstring"
+	"go.mongodb.org/mongo-driver/x/mongo/driver/connstring"
 )
 
 const (
-	mongodbUrl        = "mongodb.url"
-	mongodbAuthdb     = "mongodb.authdb"
-	mongodbUsername   = "mongodb.username"
-	mongodbPassword   = "mongodb.password"
+	mongodbUrl      = "mongodb.url"
+	mongodbAuthdb   = "mongodb.authdb"
+	mongodbUsername = "mongodb.username"
+	mongodbPassword = "mongodb.password"
 
 	// see https://github.com/brianfrankcooper/YCSB/tree/master/mongodb#mongodb-configuration-parameters
-	mongodbUrlDefault        = "mongodb://127.0.0.1:27017/ycsb?w=1"
-	mongodbDatabaseDefault   = "ycsb"
-	mongodbAuthdbDefault     = "admin"
+	mongodbUrlDefault      = "mongodb://127.0.0.1:27017/ycsb?w=1"
+	mongodbDatabaseDefault = "ycsb"
+	mongodbAuthdbDefault   = "admin"
 )
 
 type mongoDB struct {
-	cli  *mongo.Client
-	db   *mongo.Database
+	cli *mongo.Client
+	db  *mongo.Database
 }
 
 func (db *mongoDB) ToSqlDB() *sql.DB {
@@ -162,8 +162,8 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	fmt.Println("Connected to MongoDB!")
 
 	m := &mongoDB{
-		cli:      cli,
-		db:       cli.Database(mongodbDatabaseDefault),
+		cli: cli,
+		db:  cli.Database(mongodbDatabaseDefault),
 	}
 	return m, nil
 }
