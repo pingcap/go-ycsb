@@ -232,20 +232,20 @@ func (db *mysqlDB) BatchRead(ctx context.Context, table string, keys []string, f
 	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
 	if len(fields) == 0 {
-		buf.WriteString(fmt.Sprintf(`SELECT * FROM %s %s WHERE YCSB_KEY IN (`, table, db.forceIndexKeyword))
+		buf = append(buf, fmt.Sprintf(`SELECT * FROM %s %s WHERE YCSB_KEY IN (`, table, db.forceIndexKeyword)...)
 	} else {
-		buf.WriteString(fmt.Sprintf(`SELECT %s FROM %s %s WHERE YCSB_KEY IN (`, strings.Join(fields, ","), table, db.forceIndexKeyword))
+		buf = append(buf, fmt.Sprintf(`SELECT %s FROM %s %s WHERE YCSB_KEY IN (`, strings.Join(fields, ","), table, db.forceIndexKeyword)...)
 	}
 	for i, key := range keys {
-		buf.WriteByte('?')
+		buf = append(buf, '?')
 		if i < len(keys)-1 {
-			buf.WriteByte(',')
+			buf = append(buf, ',')
 		}
 		args = append(args, key)
 	}
-	buf.WriteByte(')')
+	buf = append(buf, ')')
 
-	query := buf.String()
+	query := string(buf[:])
 	rows, err := db.queryRows(ctx, query, len(keys), args...)
 	db.clearCacheIfFailed(ctx, query, err)
 
@@ -362,21 +362,21 @@ func (db *mysqlDB) BatchInsert(ctx context.Context, table string, keys []string,
 	args := make([]interface{}, 0, (1+len(values))*len(keys))
 	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
-	buf.WriteString("INSERT IGNORE INTO ")
-	buf.WriteString(table)
-	buf.WriteString(" (YCSB_KEY")
+	buf = append(buf, "INSERT IGNORE INTO "...)
+	buf = append(buf, table...)
+	buf = append(buf, " (YCSB_KEY"...)
 
 	valueString := strings.Builder{}
 	valueString.WriteString("(?")
 	pairs := util.NewFieldPairs(values[0])
 	for _, p := range pairs {
-		buf.WriteString(" ,")
-		buf.WriteString(p.Field)
+		buf = append(buf, " ,"...)
+		buf = append(buf, p.Field...)
 
 		valueString.WriteString(" ,?")
 	}
 	// Example: INSERT IGNORE INTO table ([columns]) VALUES
-	buf.WriteString(") VALUES ")
+	buf = append(buf, ") VALUES "...)
 	// Example: (?, ?, ?, ....)
 	valueString.WriteByte(')')
 	valueStrings := make([]string, 0, len(keys))
@@ -384,7 +384,7 @@ func (db *mysqlDB) BatchInsert(ctx context.Context, table string, keys []string,
 		valueStrings = append(valueStrings, valueString.String())
 	}
 	// Example: INSERT IGNORE INTO table ([columns]) VALUES (?, ?, ?...), (?, ?, ?), ...
-	buf.WriteString(strings.Join(valueStrings, ","))
+	buf = append(buf, strings.Join(valueStrings, ",")...)
 
 	for i, key := range keys {
 		args = append(args, key)
@@ -394,7 +394,7 @@ func (db *mysqlDB) BatchInsert(ctx context.Context, table string, keys []string,
 		}
 	}
 
-	return db.execQuery(ctx, buf.String(), args...)
+	return db.execQuery(ctx, string(buf[:]), args...)
 }
 
 func (db *mysqlDB) Delete(ctx context.Context, table string, key string) error {
@@ -407,17 +407,17 @@ func (db *mysqlDB) BatchDelete(ctx context.Context, table string, keys []string)
 	args := make([]interface{}, 0, len(keys))
 	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
-	buf.WriteString(fmt.Sprintf("DELETE FROM %s WHERE YCSB_KEY IN (", table))
+	buf = append(buf, fmt.Sprintf("DELETE FROM %s WHERE YCSB_KEY IN (", table)...)
 	for i, key := range keys {
-		buf.WriteByte('?')
+		buf = append(buf, '?')
 		if i < len(keys)-1 {
-			buf.WriteByte(',')
+			buf = append(buf, ',')
 		}
 		args = append(args, key)
 	}
-	buf.WriteByte(')')
+	buf = append(buf, ')')
 
-	return db.execQuery(ctx, buf.String(), args...)
+	return db.execQuery(ctx, string(buf[:]), args...)
 }
 
 func (db *mysqlDB) Analyze(ctx context.Context, table string) error {
