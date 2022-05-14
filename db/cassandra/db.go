@@ -202,8 +202,10 @@ func (db *cassandraDB) execQuery(ctx context.Context, query string, args ...inte
 }
 
 func (db *cassandraDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	buf := db.bufPool.Get()
-	defer db.bufPool.Put(buf)
+	buf := bytes.NewBuffer(db.bufPool.Get())
+	defer func() {
+		db.bufPool.Put(buf.Bytes())
+	}()
 
 	buf.WriteString("UPDATE ")
 	buf.WriteString(fmt.Sprintf("%s.%s", db.keySpace, table))
@@ -233,8 +235,10 @@ func (db *cassandraDB) Insert(ctx context.Context, table string, key string, val
 	args := make([]interface{}, 0, 1+len(values))
 	args = append(args, key)
 
-	buf := db.bufPool.Get()
-	defer db.bufPool.Put(buf)
+	buf := bytes.NewBuffer(db.bufPool.Get())
+	defer func() {
+		db.bufPool.Put(buf.Bytes())
+	}()
 
 	buf.WriteString("INSERT INTO ")
 	buf.WriteString(fmt.Sprintf("%s.%s", db.keySpace, table))

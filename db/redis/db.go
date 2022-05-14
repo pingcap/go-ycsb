@@ -109,7 +109,7 @@ type redisCreator struct{}
 func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	rds := &redis{}
 
-	mode, _ := p.Get(redisMode)
+	mode := p.GetString(redisMode, redisModeDefault)
 	switch mode {
 	case "cluster":
 		rds.client = goredis.NewClusterClient(getOptionsCluster(p))
@@ -140,8 +140,11 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 const (
 	redisMode                  = "redis.mode"
+	redisModeDefault           = "single"
 	redisNetwork               = "redis.network"
+	redisNetworkDefault        = "tcp"
 	redisAddr                  = "redis.addr"
+	redisAddrDefault           = "localhost:6379"
 	redisPassword              = "redis.password"
 	redisDB                    = "redis.db"
 	redisMaxRedirects          = "redis.max_redirects"
@@ -183,8 +186,8 @@ func parseTLS(p *properties.Properties) *tls.Config {
 
 func getOptionsSingle(p *properties.Properties) *goredis.Options {
 	opts := &goredis.Options{}
-	opts.Network, _ = p.Get(redisNetwork)
-	opts.Addr, _ = p.Get(redisAddr)
+	opts.Network = p.GetString(redisNetwork, redisNetworkDefault)
+	opts.Addr = p.GetString(redisAddr, redisAddrDefault)
 	opts.Password, _ = p.Get(redisPassword)
 	opts.DB = p.GetInt(redisDB, 0)
 	opts.MaxRetries = p.GetInt(redisMaxRetries, 0)

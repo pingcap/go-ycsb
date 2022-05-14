@@ -78,7 +78,7 @@ Available Commands:
 
 ## Database Configuration
 
-You can pass the database configuraitons through `-p field=value` in the command line directly.
+You can pass the database configurations through `-p field=value` in the command line directly.
 
 Common configurations:
 
@@ -224,7 +224,7 @@ Common configurations:
 
 |field|default value|description|
 |-|-|-|
-|mongodb.uri|"mongodb://127.0.0.1:27017"|MongoDB URI|
+|mongodb.url|"mongodb://127.0.0.1:27017"|MongoDB URI|
 |mongodb.namespace|"ycsb.ycsb"|Namespace to use|
 |mongodb.authdb|"admin"|Authentication database|
 |mongodb.username|N/A|Username for authentication|

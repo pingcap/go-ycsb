@@ -223,13 +223,15 @@ func (db *badgerDB) Update(ctx context.Context, table string, key string, values
 		}
 
 		buf := db.bufPool.Get()
-		defer db.bufPool.Put(buf)
+		defer func() {
+			db.bufPool.Put(buf)
+		}()
 
-		rowData, err := db.r.Encode(buf.Bytes(), data)
+		buf, err = db.r.Encode(buf, data)
 		if err != nil {
 			return err
 		}
-		return txn.Set(rowKey, rowData)
+		return txn.Set(rowKey, buf)
 	})
 	return err
 }
@@ -239,13 +241,15 @@ func (db *badgerDB) Insert(ctx context.Context, table string, key string, values
 		rowKey := db.getRowKey(table, key)
 
 		buf := db.bufPool.Get()
-		defer db.bufPool.Put(buf)
+		defer func() {
+			db.bufPool.Put(buf)
+		}()
 
-		rowData, err := db.r.Encode(buf.Bytes(), values)
+		buf, err := db.r.Encode(buf, values)
 		if err != nil {
 			return err
 		}
-		return txn.Set(rowKey, rowData)
+		return txn.Set(rowKey, buf)
 	})
 
 	return err

@@ -236,14 +236,14 @@ func (db *rocksDB) Update(ctx context.Context, table string, key string, values 
 	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
 
-	rowData, err := db.r.Encode(buf.Bytes(), m)
+	buf, err := db.r.Encode(buf, m)
 	if err != nil {
 		return err
 	}
 
 	rowKey := db.getRowKey(table, key)
 
-	return db.db.Put(db.writeOpts, rowKey, rowData)
+	return db.db.Put(db.writeOpts, rowKey, buf)
 }
 
 func (db *rocksDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -252,11 +252,11 @@ func (db *rocksDB) Insert(ctx context.Context, table string, key string, values 
 	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
 
-	rowData, err := db.r.Encode(buf.Bytes(), values)
+	buf, err := db.r.Encode(buf, values)
 	if err != nil {
 		return err
 	}
-	return db.db.Put(db.writeOpts, rowKey, rowData)
+	return db.db.Put(db.writeOpts, rowKey, buf)
 }
 
 func (db *rocksDB) Delete(ctx context.Context, table string, key string) error {
