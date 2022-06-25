@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	goredis "github.com/go-redis/redis"
+	goredis "github.com/go-redis/redis/v8"
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
@@ -17,11 +17,11 @@ import (
 )
 
 type redisClient interface {
-	Get(key string) *goredis.StringCmd
-	Scan(cursor uint64, match string, count int64) *goredis.ScanCmd
-	Set(key string, value interface{}, expiration time.Duration) *goredis.StatusCmd
-	Del(keys ...string) *goredis.IntCmd
-	FlushDB() *goredis.StatusCmd
+	Get(ctx context.Context, key string) *goredis.StringCmd
+	Scan(ctx context.Context, cursor uint64, match string, count int64) *goredis.ScanCmd
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *goredis.StatusCmd
+	Del(ctx context.Context, keys ...string) *goredis.IntCmd
+	FlushDB(ctx context.Context) *goredis.StatusCmd
 	Close() error
 }
 
@@ -48,7 +48,7 @@ func (r *redis) CleanupThread(_ context.Context) {
 func (r *redis) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	data := make(map[string][]byte, len(fields))
 
-	res, err := r.client.Get(table + "/" + key).Result()
+	res, err := r.client.Get(ctx, table+"/"+key).Result()
 
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (r *redis) Scan(ctx context.Context, table string, startKey string, count i
 }
 
 func (r *redis) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	d, err := r.client.Get(table + "/" + key).Result()
+	d, err := r.client.Get(ctx, table+"/"+key).Result()
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (r *redis) Update(ctx context.Context, table string, key string, values map
 		return err
 	}
 
-	return r.client.Set(table+"/"+key, string(data), 0).Err()
+	return r.client.Set(ctx, table+"/"+key, string(data), 0).Err()
 }
 
 func (r *redis) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -97,11 +97,11 @@ func (r *redis) Insert(ctx context.Context, table string, key string, values map
 		return err
 	}
 
-	return r.client.Set(table+"/"+key, string(data), 0).Err()
+	return r.client.Set(ctx, table+"/"+key, string(data), 0).Err()
 }
 
 func (r *redis) Delete(ctx context.Context, table string, key string) error {
-	return r.client.Del(table + "/" + key).Err()
+	return r.client.Del(ctx, table+"/"+key).Err()
 }
 
 type redisCreator struct{}
@@ -115,7 +115,7 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		rds.client = goredis.NewClusterClient(getOptionsCluster(p))
 
 		if p.GetBool(prop.DropData, prop.DropDataDefault) {
-			err := rds.client.FlushDB().Err()
+			err := rds.client.FlushDB(context.Background()).Err()
 			if err != nil {
 				return nil, err
 			}
@@ -127,7 +127,7 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		rds.client = goredis.NewClient(getOptionsSingle(p))
 
 		if p.GetBool(prop.DropData, prop.DropDataDefault) {
-			err := rds.client.FlushDB().Err()
+			err := rds.client.FlushDB(context.Background()).Err()
 			if err != nil {
 				return nil, err
 			}
