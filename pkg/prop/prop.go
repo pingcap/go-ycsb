@@ -66,6 +66,8 @@ const (
 	ScanProportionDefault            = float64(0.0)
 	ReadModifyWriteProportion        = "readmodifywriteproportion"
 	ReadModifyWriteProportionDefault = float64(0.0)
+	IncrementalUpdate                = "incrementalupdate"
+	IncrementalUpdateDefault         = bool(false)
 	// "uniform", "zipfian", "latest"
 	RequestDistribution        = "requestdistribution"
 	RequestDistributionDefault = "uniform"

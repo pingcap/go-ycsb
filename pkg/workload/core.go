@@ -40,6 +40,10 @@ type coreState struct {
 	r *rand.Rand
 	// fieldNames is a copy of core.fieldNames to be goroutine-local
 	fieldNames []string
+
+	//used for incremental updates option
+	valSize     int  // increases by 8 everytime - can we use a custom generator for this ?
+	valInserted bool // to check if the first seed value has been inserted
 }
 
 type operationType int64
@@ -64,6 +68,7 @@ type core struct {
 	readAllFields        bool
 	writeAllFields       bool
 	dataIntegrity        bool
+	incrementalUpdate    bool
 
 	keySequence                  ycsb.Generator
 	operationChooser             *generator.Discrete
@@ -175,8 +180,10 @@ func (c *core) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	fieldNames := make([]string, len(c.fieldNames))
 	copy(fieldNames, c.fieldNames)
 	state := &coreState{
-		r:          r,
-		fieldNames: fieldNames,
+		r:           r,
+		fieldNames:  fieldNames,
+		valSize:     8,
+		valInserted: false,
 	}
 	return context.WithValue(ctx, stateKey, state)
 }
@@ -210,7 +217,13 @@ func (c *core) buildSingleValue(state *coreState, key string) map[string][]byte 
 	if c.dataIntegrity {
 		buf = c.buildDeterministicValue(state, key, fieldKey)
 	} else {
-		buf = c.buildRandomValue(state)
+		if c.incrementalUpdate {
+			buf = c.buildValueWithSize(state, state.valSize)
+			state.valSize += 8
+		} else {
+			buf = c.buildRandomValue(state)
+		}
+
 	}
 
 	values[fieldKey] = buf
@@ -226,6 +239,7 @@ func (c *core) buildValues(state *coreState, key string) map[string][]byte {
 		if c.dataIntegrity {
 			buf = c.buildDeterministicValue(state, key, fieldKey)
 		} else {
+
 			buf = c.buildRandomValue(state)
 		}
 
@@ -253,6 +267,14 @@ func (c *core) buildRandomValue(state *coreState) []byte {
 	// TODO: use pool for the buffer
 	r := state.r
 	buf := c.getValueBuffer(int(c.fieldLengthGenerator.Next(r)))
+	util.RandBytes(r, buf)
+	return buf
+}
+
+func (c *core) buildValueWithSize(state *coreState, size int) []byte {
+	// TODO: use pool for the buffer
+	r := state.r
+	buf := c.getValueBuffer(size)
 	util.RandBytes(r, buf)
 	return buf
 }
@@ -396,6 +418,11 @@ func (c *core) DoTransaction(ctx context.Context, db ycsb.DB) error {
 	case read:
 		return c.doTransactionRead(ctx, db, state)
 	case update:
+		//if incrementalUpdate is enabled, we first INSERT the seed key and then perform incremental updates on it
+		if c.incrementalUpdate && !state.valInserted {
+			db.Insert(ctx, c.table, "fixedKey", c.buildValues(state, "fixedKey"))
+			state.valInserted = true
+		}
 		return c.doTransactionUpdate(ctx, db, state)
 	case insert:
 		return c.doTransactionInsert(ctx, db, state)
@@ -547,7 +574,12 @@ func (c *core) doTransactionScan(ctx context.Context, db ycsb.DB, state *coreSta
 
 func (c *core) doTransactionUpdate(ctx context.Context, db ycsb.DB, state *coreState) error {
 	keyNum := c.nextKeyNum(state)
-	keyName := c.buildKeyName(keyNum)
+	var keyName string
+	if c.incrementalUpdate {
+		keyName = "fixedKey"
+	} else {
+		keyName = c.buildKeyName(keyNum)
+	}
 
 	var values map[string][]byte
 	if c.writeAllFields {
@@ -668,6 +700,8 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 	c.readAllFields = p.GetBool(prop.ReadAllFields, prop.ReadALlFieldsDefault)
 	c.writeAllFields = p.GetBool(prop.WriteAllFields, prop.WriteAllFieldsDefault)
 	c.dataIntegrity = p.GetBool(prop.DataIntegrity, prop.DataIntegrityDefault)
+	c.incrementalUpdate = p.GetBool(prop.IncrementalUpdate, prop.IncrementalUpdateDefault)
+
 	fieldLengthDistribution := p.GetString(prop.FieldLengthDistribution, prop.FieldLengthDistributionDefault)
 	if c.dataIntegrity && fieldLengthDistribution != "constant" {
 		util.Fatal("must have constant field size to check data integrity")

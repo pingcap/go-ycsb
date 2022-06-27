@@ -31,7 +31,7 @@ type DbWrapper struct {
 func measure(start time.Time, op string, err error) {
 	lan := time.Now().Sub(start)
 	if err != nil {
-		measurement.Measure(fmt.Sprintf("%s_ERROR", op), lan)
+		measurement.Measure(fmt.Sprintf("%s_ERROR : %s", op, err.Error()), lan)
 		return
 	}
 
