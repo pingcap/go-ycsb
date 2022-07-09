@@ -107,7 +107,8 @@ Common configurations:
 |tikv.type|"raw"|TiKV mode, "raw", "txn", or "coprocessor"|
 |tikv.conncount|128|gRPC connection count|
 |tikv.batchsize|128|Request batch size|
-
+|tikv.async_commit|true|Enalbe async commit or not|
+|tikv.one_pc|true|Enable one phase or not|
 
 ### FoundationDB
 
