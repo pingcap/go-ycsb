@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/tikv/client-go/v2/txnkv"
+	"github.com/tikv/client-go/v2/txnkv/transaction"
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
@@ -26,10 +27,21 @@ import (
 	tikverr "github.com/tikv/client-go/v2/error"
 )
 
+const (
+	tikvAsyncCommit = "tikv.async_commit"
+	tikvOnePC       = "tikv.one_pc"
+)
+
+type txnConfig struct {
+	asyncCommit bool
+	onePC       bool
+}
+
 type txnDB struct {
 	db      *txnkv.Client
 	r       *util.RowCodec
 	bufPool *util.BufPool
+	cfg     *txnConfig
 }
 
 func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
@@ -39,12 +51,19 @@ func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 		return nil, err
 	}
 
+	cfg := txnConfig{
+		asyncCommit: p.GetBool(tikvAsyncCommit, true),
+		onePC:       p.GetBool(tikvOnePC, true),
+	}
+
 	bufPool := util.NewBufPool()
 
 	return &txnDB{
 		db:      db,
 		r:       util.NewRowCodec(p),
-		bufPool: bufPool}, nil
+		bufPool: bufPool,
+		cfg:     &cfg,
+	}, nil
 }
 
 func (db *txnDB) Close() error {
@@ -60,6 +79,18 @@ func (db *txnDB) CleanupThread(ctx context.Context) {
 
 func (db *txnDB) getRowKey(table string, key string) []byte {
 	return util.Slice(fmt.Sprintf("%s:%s", table, key))
+}
+
+func (db *txnDB) beginTxn() (*transaction.KVTxn, error) {
+	txn, err := db.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	txn.SetEnableAsyncCommit(db.cfg.asyncCommit)
+	txn.SetEnable1PC(db.cfg.onePC)
+
+	return txn, err
 }
 
 func (db *txnDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
@@ -152,7 +183,7 @@ func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count 
 func (db *txnDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
 	rowKey := db.getRowKey(table, key)
 
-	tx, err := db.db.Begin()
+	tx, err := db.beginTxn()
 	if err != nil {
 		return err
 	}
@@ -192,7 +223,7 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 }
 
 func (db *txnDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	tx, err := db.db.Begin()
+	tx, err := db.beginTxn()
 	if err != nil {
 		return err
 	}
@@ -223,7 +254,7 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 		return err
 	}
 
-	tx, err := db.db.Begin()
+	tx, err := db.beginTxn()
 	if err != nil {
 		return err
 	}
@@ -238,7 +269,7 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 }
 
 func (db *txnDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	tx, err := db.db.Begin()
+	tx, err := db.beginTxn()
 	if err != nil {
 		return err
 	}
@@ -257,7 +288,7 @@ func (db *txnDB) BatchInsert(ctx context.Context, table string, keys []string, v
 }
 
 func (db *txnDB) Delete(ctx context.Context, table string, key string) error {
-	tx, err := db.db.Begin()
+	tx, err := db.beginTxn()
 	if err != nil {
 		return err
 	}
@@ -273,7 +304,7 @@ func (db *txnDB) Delete(ctx context.Context, table string, key string) error {
 }
 
 func (db *txnDB) BatchDelete(ctx context.Context, table string, keys []string) error {
-	tx, err := db.db.Begin()
+	tx, err := db.beginTxn()
 	if err != nil {
 		return err
 	}
