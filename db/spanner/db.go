@@ -16,7 +16,6 @@ package spanner
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 	"os/user"
@@ -224,10 +223,6 @@ func (db *spannerDB) Close() error {
 	}
 
 	db.client.Close()
-	return nil
-}
-
-func (db *spannerDB) ToSqlDB() *sql.DB {
 	return nil
 }
 

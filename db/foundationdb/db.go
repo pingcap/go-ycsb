@@ -11,13 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build foundationdb
 // +build foundationdb
 
 package foundationdb
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
@@ -57,10 +57,6 @@ func createDB(p *properties.Properties) (ycsb.DB, error) {
 		r:       util.NewRowCodec(p),
 		bufPool: bufPool,
 	}, nil
-}
-
-func (db *fDB) ToSqlDB() *sql.DB {
-	return nil
 }
 
 func (db *fDB) Close() error {

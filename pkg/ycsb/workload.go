@@ -27,9 +27,6 @@ type WorkloadCreator interface {
 
 // Workload defines different workload for YCSB.
 type Workload interface {
-	// Initialize the workload.
-	Init(db DB) error
-
 	// Close closes the workload.
 	Close() error
 

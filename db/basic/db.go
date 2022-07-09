@@ -33,7 +33,6 @@ package basic
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"fmt"
 	"math/rand"
 	"time"
@@ -85,10 +84,6 @@ func (db *basicDB) delay(ctx context.Context, state *basicState) {
 	case <-time.After(delayTime):
 	case <-ctx.Done():
 	}
-}
-
-func (db *basicDB) ToSqlDB() *sql.DB {
-	return nil
 }
 
 func (db *basicDB) InitThread(ctx context.Context, _ int, _ int) context.Context {

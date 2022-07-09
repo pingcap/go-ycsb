@@ -30,7 +30,6 @@ package boltdb
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 
@@ -108,10 +107,6 @@ func getOptions(p *properties.Properties) boltOptions {
 
 func (db *boltDB) Close() error {
 	return db.db.Close()
-}
-
-func (db *boltDB) ToSqlDB() *sql.DB {
-	return nil
 }
 
 func (db *boltDB) InitThread(ctx context.Context, _ int, _ int) context.Context {

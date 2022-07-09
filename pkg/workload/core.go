@@ -133,37 +133,6 @@ func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 	return operationChooser
 }
 
-// Init --create all schemas for ycsb workload
-func (c *core) Init(db ycsb.DB) error {
-	// need to redesign the relation btw workload and db interface later.
-	sqlDB := db.ToSqlDB()
-	if sqlDB != nil {
-		tableName := c.p.GetString(prop.TableName, prop.TableNameDefault)
-		if c.p.GetBool(prop.DropData, prop.DropDataDefault) && !c.p.GetBool(prop.DoTransactions, true) {
-			if _, err := sqlDB.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
-				return err
-			}
-		}
-
-		fieldCount := c.p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
-		fieldLength := c.p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
-
-		buf := new(bytes.Buffer)
-		s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(64) PRIMARY KEY", tableName)
-		buf.WriteString(s)
-
-		for i := int64(0); i < fieldCount; i++ {
-			buf.WriteString(fmt.Sprintf(", FIELD%d VARCHAR(%d)", i, fieldLength))
-		}
-
-		buf.WriteString(");")
-
-		_, err := sqlDB.Exec(buf.String())
-		return err
-	}
-	return nil
-}
-
 // Load implements the Workload Load interface.
 func (c *core) Load(ctx context.Context, db ycsb.DB, totalCount int64) error {
 	return nil

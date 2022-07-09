@@ -3,7 +3,6 @@ package redis
 import (
 	"context"
 	"crypto/tls"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -28,10 +27,6 @@ type redisClient interface {
 type redis struct {
 	client redisClient
 	mode   string
-}
-
-func (db *redis) ToSqlDB() *sql.DB {
-	return nil
 }
 
 func (r *redis) Close() error {

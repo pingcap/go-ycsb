@@ -45,7 +45,6 @@ package pegasus
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	_ "net/http/pprof"
 	"strings"
@@ -65,10 +64,6 @@ var (
 type pegasusDB struct {
 	client   *pegasus2.Client
 	sessions []pegasus.TableConnector
-}
-
-func (db *pegasusDB) ToSqlDB() *sql.DB {
-	return nil
 }
 
 func (db *pegasusDB) InitThread(ctx context.Context, threadId int, _ int) context.Context {
