@@ -2,7 +2,6 @@ package mongodb
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -29,10 +28,6 @@ const (
 type mongoDB struct {
 	cli *mongo.Client
 	db  *mongo.Database
-}
-
-func (db *mongoDB) ToSqlDB() *sql.DB {
-	return nil
 }
 
 func (m *mongoDB) Close() error {

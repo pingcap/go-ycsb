@@ -38,9 +38,12 @@ const (
 	mysqlDBName     = "mysql.db"
 	mysqlForceIndex = "mysql.force_index"
 	// TODO: support batch and auto commit
+
+	tidbClusterIndex = "tidb.cluster_index"
 )
 
 type mysqlCreator struct {
+	name string
 }
 
 type mysqlDB struct {
@@ -92,11 +95,41 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 	d.bufPool = util.NewBufPool()
 
+	if err := d.createTable(c.name); err != nil {
+		return nil, err
+	}
+
 	return d, nil
 }
 
-func (db *mysqlDB) ToSqlDB() *sql.DB {
-	return db.db
+func (db *mysqlDB) createTable(driverName string) error {
+	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
+	if db.p.GetBool(prop.DropData, prop.DropDataDefault) &&
+		!db.p.GetBool(prop.DoTransactions, true) {
+		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
+			return err
+		}
+	}
+
+	fieldCount := db.p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
+	fieldLength := db.p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
+
+	buf := new(bytes.Buffer)
+	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(64) PRIMARY KEY", tableName)
+	buf.WriteString(s)
+
+	if driverName == "tidb" && db.p.GetBool(tidbClusterIndex, true) {
+		buf.WriteString(" CLUSTERED")
+	}
+
+	for i := int64(0); i < fieldCount; i++ {
+		buf.WriteString(fmt.Sprintf(", FIELD%d VARCHAR(%d)", i, fieldLength))
+	}
+
+	buf.WriteString(");")
+
+	_, err := db.db.Exec(buf.String())
+	return err
 }
 
 func (db *mysqlDB) Close() error {
@@ -426,7 +459,7 @@ func (db *mysqlDB) Analyze(ctx context.Context, table string) error {
 }
 
 func init() {
-	ycsb.RegisterDBCreator("mysql", mysqlCreator{})
-	ycsb.RegisterDBCreator("tidb", mysqlCreator{})
-	ycsb.RegisterDBCreator("mariadb", mysqlCreator{})
+	ycsb.RegisterDBCreator("mysql", mysqlCreator{name: "mysql"})
+	ycsb.RegisterDBCreator("tidb", mysqlCreator{name: "tidb"})
+	ycsb.RegisterDBCreator("mariadb", mysqlCreator{name: "mariadb"})
 }

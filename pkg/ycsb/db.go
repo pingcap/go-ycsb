@@ -15,7 +15,6 @@ package ycsb
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/magiconair/properties"
@@ -28,9 +27,6 @@ type DBCreator interface {
 
 // DB is the layer to access the database to be benchmarked.
 type DB interface {
-	// ToSqlDB returns a sql.DB if it's possible.
-	ToSqlDB() *sql.DB
-
 	// Close closes the database layer.
 	Close() error
 

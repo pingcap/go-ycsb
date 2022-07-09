@@ -15,7 +15,6 @@ package client
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -36,10 +35,6 @@ func measure(start time.Time, op string, err error) {
 	}
 
 	measurement.Measure(op, lan)
-}
-
-func (db DbWrapper) ToSqlDB() *sql.DB {
-	return db.DB.ToSqlDB()
 }
 
 func (db DbWrapper) Close() error {

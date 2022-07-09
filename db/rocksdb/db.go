@@ -11,13 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build rocksdb
 // +build rocksdb
 
 package rocksdb
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 
@@ -161,10 +161,6 @@ func getOptions(p *properties.Properties) *gorocksdb.Options {
 	opts.SetBlockBasedTableFactory(getTableOptions(p))
 
 	return opts
-}
-
-func (db *rocksDB) ToSqlDB() *sql.DB {
-	return nil
 }
 
 func (db *rocksDB) Close() error {

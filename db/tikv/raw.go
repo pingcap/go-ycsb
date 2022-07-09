@@ -15,7 +15,6 @@ package tikv
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 
@@ -61,10 +60,6 @@ func (db *rawDB) CleanupThread(ctx context.Context) {
 
 func (db *rawDB) getRowKey(table string, key string) []byte {
 	return util.Slice(fmt.Sprintf("%s:%s", table, key))
-}
-
-func (db *rawDB) ToSqlDB() *sql.DB {
-	return nil
 }
 
 func (db *rawDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {

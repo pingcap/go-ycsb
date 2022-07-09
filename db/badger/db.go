@@ -15,7 +15,6 @@ package badger
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 
@@ -129,10 +128,6 @@ func getOptions(p *properties.Properties) badger.Options {
 	}
 
 	return opts
-}
-
-func (db *badgerDB) ToSqlDB() *sql.DB {
-	return nil
 }
 
 func (db *badgerDB) Close() error {
