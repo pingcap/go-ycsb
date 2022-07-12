@@ -23,7 +23,7 @@ require (
 	github.com/facebookgo/subset v0.0.0-20150612182917-8dac2c3c4870 // indirect
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/go-ini/ini v1.49.0 // indirect
-	github.com/go-redis/redis/v8 v8.11.5
+	github.com/go-redis/redis/v9 v9.0.0-beta.1
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gocql/gocql v0.0.0-20181124151448-70385f88b28b
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -40,7 +40,6 @@ require (
 	github.com/tikv/pd/client v0.0.0-20220222032342-97a35a18158c // indirect
 	github.com/yuin/gopher-lua v0.0.0-20181031023651-12c4817b42c5 // indirect
 	go.mongodb.org/mongo-driver v1.5.1
-	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
 	google.golang.org/api v0.69.0
 	google.golang.org/genproto v0.0.0-20220218161850-94dd64e39d7c
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
