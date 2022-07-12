@@ -96,9 +96,6 @@ func (r *redis) Read(ctx context.Context, table string, key string, fields []str
 				return
 			}
 			err = json.Unmarshal([]byte(res), &data)
-			if err != nil {
-				return
-			}
 			return
 		}
 	}
@@ -218,7 +215,7 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	switch mode {
 	case "cluster":
 		rds.client = goredis.NewClusterClient(getOptionsCluster(p))
-		goredis.NewClusterClient(getOptionsCluster(p)).Pipeline()
+
 		if p.GetBool(prop.DropData, prop.DropDataDefault) {
 			err := rds.client.FlushDB(context.Background()).Err()
 			if err != nil {
