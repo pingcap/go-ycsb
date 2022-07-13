@@ -246,7 +246,7 @@ const (
 	redisMode                  = "redis.mode"
 	redisModeDefault           = "single"
 	redisDatatype              = "redis.datatype"
-	redisDatatypeDefault       = "json"
+	redisDatatypeDefault       = "hash"
 	redisNetwork               = "redis.network"
 	redisNetworkDefault        = "tcp"
 	redisAddr                  = "redis.addr"
