@@ -5,6 +5,7 @@ TAGS =
 
 ifdef FDB_CHECK
 	TAGS += foundationdb
+	TAGS += tigris
 endif
 
 ifeq ($(ROCKSDB_CHECK), 0)

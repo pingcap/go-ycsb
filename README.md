@@ -75,6 +75,7 @@ Available Commands:
 - MongoDB
 - Redis and Redis Cluster
 - BoltDB
+- Tigris
 
 ## Database Configuration
 
@@ -269,6 +270,15 @@ Common configurations:
 |bolt.read_only|false|Open the database in read-only mode|
 |bolt.mmap_flags|0|Set the DB.MmapFlags flag before memory mapping the file|
 |bolt.initial_mmap_size|0|The initial mmap size of the database in bytes. If <= 0, the initial map size is 0. If the size is smaller than the previous database, it takes no effect|
+
+### Tigris
+
+|field|default value|description|
+|-|-|-|
+|tigris.host|"localhost"|The host of Tigris server|
+|tigris.port|8081|The port of Tigris server|
+|tigris.dbname|"ycsb_tigris"|The database name to use|
+
 
 ## TODO
 
