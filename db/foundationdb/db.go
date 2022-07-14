@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build foundationdb
 // +build foundationdb
 
 package foundationdb
@@ -27,7 +28,7 @@ import (
 )
 
 const (
-	fdbClusterFile = "fdb.cluster"
+	fdbClusterFile = "fdb.clusterfile"
 	fdbDatabase    = "fdb.dbname"
 	fdbAPIVersion  = "fdb.apiversion"
 )
@@ -39,9 +40,9 @@ type fDB struct {
 }
 
 func createDB(p *properties.Properties) (ycsb.DB, error) {
-	clusterFile := p.GetString(fdbClusterFile, "")
+	clusterFile := p.GetString(fdbClusterFile, "/etc/foundationdb/fdb.cluster")
 	database := p.GetString(fdbDatabase, "DB")
-	apiVersion := p.GetInt(fdbAPIVersion, 510)
+	apiVersion := p.GetInt(fdbAPIVersion, 710)
 
 	fdb.MustAPIVersion(apiVersion)
 
@@ -157,7 +158,7 @@ func (db *fDB) Update(ctx context.Context, table string, key string, values map[
 		buf := db.bufPool.Get()
 		defer db.bufPool.Put(buf)
 
-		buf, err := db.r.Encode(buf, data)
+		buf, err = db.r.Encode(buf, data)
 		if err != nil {
 			return nil, err
 		}
