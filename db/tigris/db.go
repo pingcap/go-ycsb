@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/magiconair/properties"
@@ -144,12 +145,18 @@ func (t *tigrisDB) Delete(ctx context.Context, table string, key string) error {
 
 func (c tigrisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	// TODO: implement properties
+	var conf *config.Database
 	ctx := context.Background()
 	dbName := p.GetString(tigrisDBName, "ycsb_tigris")
 	host := p.GetString(tigrisHost, "localhost")
 	port := p.GetInt(tigrisPort, 8081)
 	url := fmt.Sprintf("%s:%d", host, port)
-	conf := &config.Database{Driver: config.Driver{URL: url}}
+	token := os.Getenv("TIGRIS_ACCESS_TOKEN")
+	if token != "" {
+		conf = &config.Database{Driver: config.Driver{URL: url, Token: token}}
+	} else {
+		conf = &config.Database{Driver: config.Driver{URL: url}}
+	}
 	db, err := tigris.OpenDatabase(ctx, conf, dbName, &userTable{})
 	if err != nil {
 		return nil, fmt.Errorf("Error connecting to tigrisDB: %s", err.Error())
