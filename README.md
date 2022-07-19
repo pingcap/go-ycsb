@@ -9,12 +9,35 @@ go-ycsb is a Go port of [YCSB](https://github.com/brianfrankcooper/YCSB). It ful
 
 ## Getting Started
 
+### Download
+
+https://github.com/pingcap/go-ycsb/releases/latest
+
+**Linux**
+```
+wget -c https://github.com/pingcap/go-ycsb/releases/latest/download/go-ycsb-linux-amd64.tar.gz -O - | tar -xz
+
+# give it a try
+./go-ycsb --help
+```
+
+**OSX**
+```
+wget -c https://github.com/pingcap/go-ycsb/releases/latest/download/go-ycsb-darwin-amd64.tar.gz -O - | tar -xz
+
+# give it a try
+./go-ycsb --help
+```
+
+### Building from source
+
 ```bash
 git clone https://github.com/pingcap/go-ycsb.git
 cd go-ycsb
 make
 
-./bin/go-ycsb
+# give it a try
+./bin/go-ycsb  --help
 ```
 
 Notice:
@@ -25,7 +48,7 @@ Notice:
 
 ## Usage 
 
-Mostly, we can start from the offical document [Running-a-Workload](https://github.com/brianfrankcooper/YCSB/wiki/Running-a-Workload).
+Mostly, we can start from the official document [Running-a-Workload](https://github.com/brianfrankcooper/YCSB/wiki/Running-a-Workload).
 
 ### Shell
 
@@ -235,6 +258,7 @@ Common configurations:
 ### Redis
 |field|default value|description|
 |-|-|-|
+|redis.datatype|hash|"hash", "string" or "json" ("json" requires [RedisJSON](https://redis.io/docs/stack/json/) available)|
 |redis.mode|single|"single" or "cluster"|
 |redis.network|tcp|"tcp" or "unix"|
 |redis.addr||Redis server address(es) in "host:port" form, can be semi-colon `;` separated in cluster mode|
