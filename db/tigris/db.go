@@ -58,32 +58,18 @@ func (t *tigrisDB) CleanupThread(ctx context.Context) {
 }
 
 func (t *tigrisDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
-	res := make(map[string][]byte)
 	readMap := make(map[string]bool)
-	var record *userTable
 
 	read := tigris_fields.ReadBuilder()
 	for _, fieldName := range fields {
 		readMap[fieldName] = true
 	}
 
-	record, err := collection.ReadOne(ctx, filter.Eq("Key", key), read)
+	_, err := collection.ReadOne(ctx, filter.Eq("Key", key), read)
 	if err != nil {
 		return nil, fmt.Errorf("Error while reading key %s.", key)
 	}
-	// TODO make this nicer
-	res["key"] = []byte(record.Key)
-	res["field0"] = record.Field0
-	res["field1"] = record.Field1
-	res["field2"] = record.Field2
-	res["field3"] = record.Field3
-	res["field4"] = record.Field4
-	res["field5"] = record.Field5
-	res["field6"] = record.Field6
-	res["field7"] = record.Field7
-	res["field8"] = record.Field8
-	res["field9"] = record.Field9
-	return res, nil
+	return nil, nil
 }
 
 func (t *tigrisDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
@@ -144,7 +130,6 @@ func (t *tigrisDB) Delete(ctx context.Context, table string, key string) error {
 }
 
 func (c tigrisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
-	// TODO: implement properties
 	var conf *config.Database
 	ctx := context.Background()
 	dbName := p.GetString(tigrisDBName, "ycsb_tigris")

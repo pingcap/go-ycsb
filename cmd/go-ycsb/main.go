@@ -15,6 +15,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -24,17 +25,13 @@ import (
 	"time"
 
 	"github.com/magiconair/properties"
-
-	// Register workload
-
-	"fmt"
-
 	"github.com/pingcap/go-ycsb/pkg/client"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	_ "github.com/pingcap/go-ycsb/pkg/workload"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
+	"github.com/pkg/profile"
 	"github.com/spf13/cobra"
 
 	// Register basic database
@@ -130,6 +127,10 @@ func initialGlobal(dbName string, onProperties func()) {
 }
 
 func main() {
+	if os.Getenv("YCSB_MEMPROFILE") != "" {
+		defer profile.Start(profile.MemProfile).Stop()
+	}
+
 	globalContext, globalCancel = context.WithCancel(context.Background())
 
 	sc := make(chan os.Signal, 1)
