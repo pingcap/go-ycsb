@@ -65,11 +65,10 @@ func (t *tigrisDB) Read(ctx context.Context, table string, key string, fields []
 		readMap[fieldName] = true
 	}
 
-	it, err := collection.Read(ctx, filter.Eq("Key", key), read)
+	_, err := collection.ReadOne(ctx, filter.Eq("Key", key), read)
 	if err != nil {
 		return nil, fmt.Errorf("Error while reading key %s.", key)
 	}
-	it.Close()
 	return nil, nil
 }
 
