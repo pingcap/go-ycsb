@@ -2,6 +2,17 @@
 
 # Entrypoint script to run the workload
 
+TIGRIS_HOST=tigris-http
+TIGRIS_PORT=80
+if [ -n "$TIGRIS_URL" ]; then
+	HASPORT=$(echo "$TIGRIS_URL" | grep ':' | wc -l)
+	if [ "$HASPORT" -eq 0 ]; then
+		echo "incorrectly formatted TIGRIS_URL $TIGRIS_URL"
+		exit 1
+	fi
+	TIGRIS_HOST=$(echo "$TIGRIS_URL" | cut -d: -f1)
+	TIGRIS_PORT=$(echo "$TIGRIS_URL" | cut -d: -f1)
+fi 
 TEST_DB="ycsb_tigris"
 RECORDCOUNT=${RECORDCOUNT:-1000000} # 1G database
 OPERATIONCOUNT=${OPERATIONCOUNT:-10000000}
@@ -40,9 +51,9 @@ do
 	DB_EXISTS=$?
 done
 
-/go-ycsb load tigris -p tigris.host=tigris-http -p tigris.port=80 -P workloads/dynamic -p threadcount=${LOADTHREADCOUNT}
+/go-ycsb load tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -P workloads/dynamic -p threadcount=${LOADTHREADCOUNT}
 
 while true
 do
-	/go-ycsb run tigris -p tigris.host=tigris-http -p tigris.port=80 -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
+	/go-ycsb run tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
 done
