@@ -17,9 +17,11 @@ require (
 	github.com/mattn/go-sqlite3 v2.0.1+incompatible
 	github.com/minio/minio-go v6.0.14+incompatible
 	github.com/pingcap/errors v0.11.5-0.20211224045212-9687c2b0f87c
+	github.com/pingcap/kvproto v0.0.0-20220705053936-aa9c2d20cd2a
+	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
-	github.com/tikv/client-go/v2 v2.0.0-rc.0.20220222033436-79b962a84d18
+	github.com/tikv/client-go/v2 v2.0.1-0.20220720064224-aa9ded37d17d
 	go.mongodb.org/mongo-driver v1.5.1
 	google.golang.org/api v0.87.0
 	google.golang.org/genproto v0.0.0-20220718134204-073382fd740c
@@ -56,7 +58,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
-	github.com/google/btree v1.0.0 // indirect
+	github.com/google/btree v1.1.2 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.1.0 // indirect
@@ -71,9 +73,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pingcap/failpoint v0.0.0-20210918120811-547c13e3eb00 // indirect
-	github.com/pingcap/kvproto v0.0.0-20220106070556-3fa8fa04f898 // indirect
 	github.com/pingcap/log v0.0.0-20211215031037-e024ba4eb0ee // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.26.0 // indirect
@@ -81,8 +81,9 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
+	github.com/stathat/consistent v1.0.0 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
-	github.com/tikv/pd/client v0.0.0-20220222032342-97a35a18158c // indirect
+	github.com/tikv/pd/client v0.0.0-20220307081149-841fa61e9710 // indirect
 	github.com/twmb/murmur3 v1.1.3 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.0.2 // indirect
