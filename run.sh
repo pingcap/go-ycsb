@@ -11,7 +11,7 @@ if [ -n "$TIGRIS_URL" ]; then
 		exit 1
 	fi
 	TIGRIS_HOST=$(echo "$TIGRIS_URL" | cut -d: -f1)
-	TIGRIS_PORT=$(echo "$TIGRIS_URL" | cut -d: -f1)
+	TIGRIS_PORT=$(echo "$TIGRIS_URL" | cut -d: -f2)
 fi 
 TEST_DB="ycsb_tigris"
 RECORDCOUNT=${RECORDCOUNT:-1000000} # 1G database
