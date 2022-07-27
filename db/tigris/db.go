@@ -116,6 +116,7 @@ func (t *tigrisDB) Insert(ctx context.Context, _ string, key string, values map[
 	)
 
 	if err != nil {
+		fmt.Println("Got error: ", err.Error())
 		return fmt.Errorf("Got error during insert %s!", err.Error())
 	}
 	return nil
