@@ -13,7 +13,8 @@ if [ -n "$TIGRIS_URL" ]; then
 	TIGRIS_HOST=$(echo "$TIGRIS_URL" | cut -d: -f1)
 	TIGRIS_PORT=$(echo "$TIGRIS_URL" | cut -d: -f2)
 fi 
-TEST_DB="ycsb_tigris"
+
+TEST_DB="${TEST_DB:-ycsb_tigris}"
 RECORDCOUNT=${RECORDCOUNT:-1000000} # 1G database
 OPERATIONCOUNT=${OPERATIONCOUNT:-10000000}
 READALLFIELDS=${READALLFIELDS:-true}
