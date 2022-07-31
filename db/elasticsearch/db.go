@@ -3,6 +3,7 @@ package elastic
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/cenkalti/backoff/v4"
@@ -12,6 +13,8 @@ import (
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
+	"net"
+	"net/http"
 	"runtime"
 	"strings"
 	"time"
@@ -20,6 +23,10 @@ import (
 const (
 	elasticUrl                                 = "es.hosts.list"
 	elasticUrlDefault                          = "http://127.0.0.1:9200"
+	elasticInsecureSSLProp                     = "es.insecure.ssl"
+	elasticInsecureSSLPropDefault              = false
+	elasticExitOnIndexCreateFailureProp        = "es.exit.on.index.create.fail"
+	elasticExitOnIndexCreateFailurePropDefault = false
 	elasticShardCountProp                      = "es.number_of_shards"
 	elasticShardCountPropDefault               = 1
 	elasticReplicaCountProp                    = "es.number_of_replicas"
@@ -220,6 +227,8 @@ func (c elasticCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	elasticShardCount := p.GetInt(elasticShardCountProp, elasticShardCountPropDefault)
 
 	addressesS := p.GetString(elasticUrl, elasticUrlDefault)
+	insecureSSL := p.GetBool(elasticInsecureSSLProp, elasticInsecureSSLPropDefault)
+	failOnCreate := p.GetBool(elasticExitOnIndexCreateFailureProp, elasticExitOnIndexCreateFailurePropDefault)
 	esUser := p.GetString(elasticUsername, elasticUsernameDefault)
 	esPass := p.GetString(elasticPassword, elasticPasswordPropDefault)
 	command, _ := p.Get(prop.Command)
@@ -228,15 +237,19 @@ func (c elasticCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	addresses := strings.Split(addressesS, ",")
 
 	retryBackoff := backoff.NewExponentialBackOff()
+	//
+	//// Get the SystemCertPool, continue with an empty pool on error
+	//rootCAs, _ := x509.SystemCertPool()
+	//if rootCAs == nil {
+	//	rootCAs = x509.NewCertPool()
+	//}
 
 	cfg := elasticsearch.Config{
 		Addresses: addresses,
 		// Retry on 429 TooManyRequests statuses
-		//
 		RetryOnStatus: []int{502, 503, 504, 429},
 
 		// Configure the backoff function
-		//
 		RetryBackoff: func(i int) time.Duration {
 			if i == 1 {
 				retryBackoff.Reset()
@@ -246,10 +259,22 @@ func (c elasticCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		MaxRetries: elasticMaxRetries,
 		Username:   esUser,
 		Password:   esPass,
+		// Transport / SSL
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost:   10,
+			ResponseHeaderTimeout: time.Second,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: insecureSSL,
+			},
+		},
 	}
 	es, err := elasticsearch.NewClient(cfg)
 	if err != nil {
-		fmt.Println("Error creating the elastic client: %s", err)
+		fmt.Println(fmt.Sprintf("Error creating the elastic client: %s", err))
 		return nil, err
 	}
 	fmt.Println("Connected to elastic!")
@@ -281,7 +306,7 @@ func (c elasticCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		// Re-create the index
 		var res *esapi.Response
 		if res, err = es.Indices.Delete([]string{iname}, es.Indices.Delete.WithIgnoreUnavailable(true)); err != nil || res.IsError() {
-			fmt.Println("Cannot delete index: %s", err)
+			fmt.Println(fmt.Sprintf("Cannot delete index: %s", err))
 			return nil, err
 		}
 		res.Body.Close()
@@ -291,17 +316,17 @@ func (c elasticCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		data, err := json.Marshal(mapping)
 		if err != nil {
 			if verbose {
-				fmt.Println("Cannot encode index mapping %v: %s", mapping, err)
+				fmt.Println(fmt.Sprintf("Cannot encode index mapping %v: %s", mapping, err))
 			}
 			return nil, err
 		}
 		res, err = es.Indices.Create(iname, es.Indices.Create.WithBody(strings.NewReader(string(data))))
-		if err != nil {
-			fmt.Println("Cannot create index: %s", err)
+		if err != nil && failOnCreate {
+			fmt.Println(fmt.Sprintf("Cannot create index: %s", err))
 			return nil, err
 		}
-		if res.IsError() {
-			fmt.Println("Cannot create index: %s", res)
+		if res.IsError() && failOnCreate {
+			fmt.Println(fmt.Sprintf("Cannot create index: %s", res))
 			return nil, fmt.Errorf("Cannot create index: %s", res)
 		}
 		res.Body.Close()
