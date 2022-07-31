@@ -6,3 +6,4 @@ log
 .vscode
 vendor
 tool/tool
+.DS_Store
