@@ -19,10 +19,10 @@ import (
 	"strings"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/errors"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/pingcap/kvproto/pkg/kvrpcpb"
-	"github.com/pkg/errors"
 	"github.com/tikv/client-go/v2/rawkv"
 )
 
@@ -34,15 +34,13 @@ type rawDB struct {
 
 func createRawDB(p *properties.Properties) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	apiVersionInt := p.GetInt(tikvAPIVersion, 1)
-	if apiVersionInt < 1 || apiVersionInt > 2 {
-		return nil, errors.Errorf("Invalid tikv apiversion %d, only support 1 or 2.", apiVersionInt)
+	apiVersionStr := strings.ToUpper(p.GetString(tikvAPIVersion, "V1"))
+	apiVersion, ok := kvrpcpb.APIVersion_value[apiVersionStr]
+	if !ok {
+		return nil, errors.Errorf("Invalid tikv apiversion %s.", apiVersionStr)
 	}
-	apiVersion := kvrpcpb.APIVersion_V1
-	if apiVersionInt == 2 {
-		apiVersion = kvrpcpb.APIVersion_V2
-	}
-	db, err := rawkv.NewClientWithOpts(context.Background(), strings.Split(pdAddr, ","), rawkv.WithAPIVersion(apiVersion))
+	db, err := rawkv.NewClientWithOpts(context.Background(), strings.Split(pdAddr, ","),
+		rawkv.WithAPIVersion(kvrpcpb.APIVersion(apiVersion)))
 	if err != nil {
 		return nil, err
 	}
