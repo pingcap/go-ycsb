@@ -133,7 +133,7 @@ Common configurations:
 |tikv.batchsize|128|Request batch size|
 |tikv.async_commit|true|Enalbe async commit or not|
 |tikv.one_pc|true|Enable one phase or not|
-|tikv.apiversion|V1|[api-version](https://docs.pingcap.com/tidb/stable/tikv-configuration-file#api-version-new-in-v610) of tikv server, V1, V1TTL or V2|
+|tikv.apiversion|"V1"|[api-version](https://docs.pingcap.com/tidb/stable/tikv-configuration-file#api-version-new-in-v610) of tikv server, "V1" or "V2"|
 
 ### FoundationDB
 
