@@ -150,7 +150,7 @@ Common configurations:
 |pg.host|"127.0.0.1"|PostgreSQL Host|
 |pg.port|5432|PostgreSQL Port|
 |pg.user|"root"|PostgreSQL User|
-|pg.passowrd||PostgreSQL Password|
+|pg.password||PostgreSQL Password|
 |pg.db|"test"|PostgreSQL Database|
 |pg.sslmode|"disable|PostgreSQL ssl mode|
 
