@@ -259,6 +259,7 @@ Common configurations:
 ### Redis
 |field|default value|description|
 |-|-|-|
+|redis.datatype|hash|"hash", "string" or "json" ("json" requires [RedisJSON](https://redis.io/docs/stack/json/) available)|
 |redis.mode|single|"single" or "cluster"|
 |redis.network|tcp|"tcp" or "unix"|
 |redis.addr||Redis server address(es) in "host:port" form, can be semi-colon `;` separated in cluster mode|
