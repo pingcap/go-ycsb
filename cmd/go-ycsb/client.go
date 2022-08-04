@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool) {
+func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool, command string) {
 	dbName := args[0]
 
 	initialGlobal(dbName, func() {
@@ -33,6 +33,7 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 			doTransFlag = "false"
 		}
 		globalProps.Set(prop.DoTransactions, doTransFlag)
+		globalProps.Set(prop.Command, command)
 
 		if cmd.Flags().Changed("threads") {
 			// We set the threadArg via command line.
@@ -63,11 +64,11 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 }
 
 func runLoadCommandFunc(cmd *cobra.Command, args []string) {
-	runClientCommandFunc(cmd, args, false)
+	runClientCommandFunc(cmd, args, false, "load")
 }
 
 func runTransCommandFunc(cmd *cobra.Command, args []string) {
-	runClientCommandFunc(cmd, args, true)
+	runClientCommandFunc(cmd, args, true, "run")
 }
 
 var (
