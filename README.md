@@ -91,7 +91,7 @@ Available Commands:
 - Badger
 - Cassandra / ScyllaDB
 - Pegasus
-- PostgreSQL / CockroachDB
+- PostgreSQL / CockroachDB / AlloyDB / Yugabyte
 - RocksDB
 - Spanner
 - Sqlite
@@ -143,7 +143,7 @@ Common configurations:
 |fdb.dbname|"DB"|The cluster database name|
 |fdb.apiversion|510|API version, now only 5.1 is supported|
 
-### PostgreSQL
+### PostgreSQL & CockroachDB & AlloyDB & Yugabyte
 
 |field|default value|description|
 |-|-|-|
