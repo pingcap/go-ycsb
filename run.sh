@@ -44,15 +44,11 @@ echo "${WORKLOAD}" > workloads/dynamic
 tigris list databases | grep ${TEST_DB} > /dev/null 2>&1
 DB_EXISTS=$?
 
-while [ ${DB_EXISTS} -eq 0 ]
-do
-	echo "Attempting to drop the existing database"
-	tigris drop database ${TEST_DB}
-	tigris list databases | grep ${TEST_DB} > /dev/null 2>&1
-	DB_EXISTS=$?
-done
-
-/go-ycsb load tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${LOADTHREADCOUNT}
+if [ ${DB_EXISTS} -eq 0 ]
+then
+	echo "No database is available for benchmarking, please create and load ${TEST_DB}"
+	sleep 3600
+fi
 
 while true
 do
