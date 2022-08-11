@@ -20,7 +20,7 @@ require (
 	github.com/pkg/profile v1.6.0
 	github.com/spf13/cobra v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
-	github.com/tigrisdata/tigris-client-go v1.0.0-alpha.21
+	github.com/tigrisdata/tigris-client-go v1.0.0-alpha.22
 	github.com/tikv/client-go/v2 v2.0.0-rc.0.20220222033436-79b962a84d18
 	go.mongodb.org/mongo-driver v1.5.1
 	google.golang.org/api v0.75.0
