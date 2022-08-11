@@ -57,15 +57,18 @@ func (t *tigrisDB) InitThread(ctx context.Context, threadID int, threadCount int
 func (t *tigrisDB) CleanupThread(ctx context.Context) {
 }
 
-func (t *tigrisDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
-	readMap := make(map[string]bool)
-
-	read := tigris_fields.ReadBuilder()
+func getReadFields(fields []string) *tigris_fields.Read {
+	readFields := tigris_fields.ReadBuilder()
 	for _, fieldName := range fields {
-		readMap[fieldName] = true
+		readFields.Include(fieldName)
 	}
+	return readFields
+}
 
-	_, err := collection.ReadOne(ctx, filter.Eq("Key", key), read)
+func (t *tigrisDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
+	readFields := getReadFields(fields)
+
+	_, err := collection.ReadOne(ctx, filter.Eq("Key", key), readFields)
 	if err != nil {
 		return nil, fmt.Errorf("Error while reading key %s.", key)
 	}
@@ -73,7 +76,23 @@ func (t *tigrisDB) Read(ctx context.Context, table string, key string, fields []
 }
 
 func (t *tigrisDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
-	panic("Implement this")
+	readFields := getReadFields(fields)
+
+	it, err := collection.Read(ctx, filter.Gt("Key", startKey), readFields)
+	if err != nil {
+		return nil, fmt.Errorf("Error during scan from %s", startKey)
+	}
+	defer it.Close()
+
+	var readValue userTable
+	i := 0
+	for it.Next(&readValue) {
+		i++
+		if i <= count {
+			break
+		}
+	}
+	return nil, nil
 }
 
 func (t *tigrisDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -90,14 +109,7 @@ func (t *tigrisDB) Update(ctx context.Context, table string, key string, values 
 }
 
 func (t *tigrisDB) Insert(ctx context.Context, _ string, key string, values map[string][]byte) error {
-	//var fields []userField
 	coll := tigris.GetCollection[userTable](t.db)
-	//for fieldName, fieldValue := range values {
-	//	err := append(fields, userField{key: fieldName, value: fieldValue})
-	//	if err != nil {
-	//		return fmt.Errorf("Failed to append field name %s value %s", fieldName, fieldValue)
-	//	}
-	//}
 	_, err := coll.Insert(ctx,
 		&userTable{
 			Key: key,

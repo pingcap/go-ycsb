@@ -15,7 +15,7 @@ if [ -n "$TIGRIS_URL" ]; then
 fi 
 
 TEST_DB="${TEST_DB:-ycsb_tigris}"
-RECORDCOUNT=${RECORDCOUNT:-1000000} # 1G database
+RECORDCOUNT=${RECORDCOUNT:-10000000} # 10G database
 OPERATIONCOUNT=${OPERATIONCOUNT:-10000000}
 READALLFIELDS=${READALLFIELDS:-true}
 READPROPORTION=${READPROPORTION:-0.5}
@@ -41,14 +41,10 @@ requestdistribution=${REQUESTDISTRIBUTION}"
 
 echo "${WORKLOAD}" > workloads/dynamic
 
-tigris list databases | grep ${TEST_DB} > /dev/null 2>&1
-DB_EXISTS=$?
+tigris drop database ycsb_tigris
+sleep 60
 
-if [ ${DB_EXISTS} -eq 0 ]
-then
-	echo "No database is available for benchmarking, please create and load ${TEST_DB}"
-	sleep 3600
-fi
+/go-ycsb load tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${LOADTHREADCOUNT}
 
 while true
 do
