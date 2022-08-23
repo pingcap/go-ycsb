@@ -78,20 +78,12 @@ func (t *tigrisDB) Read(ctx context.Context, table string, key string, fields []
 func (t *tigrisDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	readFields := getReadFields(fields)
 
-	it, err := collection.Read(ctx, filter.Gt("Key", startKey), readFields)
+	it, err := collection.ReadWithOptions(ctx, filter.Gt("Key", startKey), readFields, &tigris.ReadOptions{Limit: int64(count)})
 	if err != nil {
 		return nil, fmt.Errorf("Error during scan from %s", startKey)
 	}
 	defer it.Close()
 
-	var readValue userTable
-	i := 0
-	for it.Next(&readValue) {
-		i++
-		if i <= count {
-			break
-		}
-	}
 	return nil, nil
 }
 
