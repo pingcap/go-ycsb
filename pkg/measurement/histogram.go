@@ -14,34 +14,32 @@
 package measurement
 
 import (
-	"bytes"
-	"fmt"
 	"sort"
 	"time"
 
+	hdrhistogram "github.com/HdrHistogram/hdrhistogram-go"
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
-	hdrhistogram "github.com/HdrHistogram/hdrhistogram-go"
 )
 
 type histogram struct {
-	boundCounts   util.ConcurrentMap
-	startTime     time.Time
-	hist *hdrhistogram.Histogram
+	boundCounts util.ConcurrentMap
+	startTime   time.Time
+	hist        *hdrhistogram.Histogram
 }
 
 // Metric name.
 const (
-	ELAPSED                 = "ELAPSED"
-	COUNT                   = "COUNT"
-	QPS                     = "QPS"
-	AVG                     = "AVG"
-	MIN                     = "MIN"
-	MAX                     = "MAX"
-	PER99TH                 = "PER99TH"
-	PER999TH                = "PER999TH"
-	PER9999TH               = "PER9999TH"
+	ELAPSED   = "ELAPSED"
+	COUNT     = "COUNT"
+	QPS       = "QPS"
+	AVG       = "AVG"
+	MIN       = "MIN"
+	MAX       = "MAX"
+	PER99TH   = "PER99TH"
+	PER999TH  = "PER999TH"
+	PER9999TH = "PER9999TH"
 )
 
 func (h *histogram) Info() ycsb.MeasurementInfo {
@@ -61,21 +59,20 @@ func (h *histogram) Measure(latency time.Duration) {
 	h.hist.RecordValue(latency.Microseconds())
 }
 
-func (h *histogram) Summary() string {
+func (h *histogram) Summary() []string {
 	res := h.getInfo()
 
-	buf := new(bytes.Buffer)
-	buf.WriteString(fmt.Sprintf("Takes(s): %.1f, ", res[ELAPSED]))
-	buf.WriteString(fmt.Sprintf("Count: %d, ", res[COUNT]))
-	buf.WriteString(fmt.Sprintf("OPS: %.1f, ", res[QPS]))
-	buf.WriteString(fmt.Sprintf("Avg(us): %d, ", res[AVG]))
-	buf.WriteString(fmt.Sprintf("Min(us): %d, ", res[MIN]))
-	buf.WriteString(fmt.Sprintf("Max(us): %d, ", res[MAX]))
-	buf.WriteString(fmt.Sprintf("99th(us): %d, ", res[PER99TH]))
-	buf.WriteString(fmt.Sprintf("99.9th(us): %d, ", res[PER999TH]))
-	buf.WriteString(fmt.Sprintf("99.99th(us): %d", res[PER9999TH]))
-
-	return buf.String()
+	return []string{
+		util.FloatToOneString(res[ELAPSED]),
+		util.IntToString(res[COUNT]),
+		util.FloatToOneString(res[QPS]),
+		util.IntToString(res[AVG]),
+		util.IntToString(res[MIN]),
+		util.IntToString(res[MAX]),
+		util.IntToString(res[PER99TH]),
+		util.IntToString(res[PER999TH]),
+		util.IntToString(res[PER9999TH]),
+	}
 }
 
 func (h *histogram) getInfo() map[string]interface{} {
