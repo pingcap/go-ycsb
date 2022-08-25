@@ -84,7 +84,24 @@ func (t *tigrisDB) Scan(ctx context.Context, table string, startKey string, coun
 	}
 	defer it.Close()
 
-	return nil, nil
+	var result userTable
+	var queryRes []map[string][]byte
+	for it.Next(&result) {
+		queryRes = append(queryRes, map[string][]byte{
+			"Key":    []byte(result.Key),
+			"Field0": result.Field0,
+			"Field1": result.Field1,
+			"Field2": result.Field2,
+			"Field3": result.Field3,
+			"Field4": result.Field4,
+			"Field5": result.Field5,
+			"Field6": result.Field6,
+			"Field7": result.Field7,
+			"Field8": result.Field8,
+			"Field9": result.Field9,
+		})
+	}
+	return queryRes, nil
 }
 
 func (t *tigrisDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
