@@ -53,7 +53,7 @@ then
 	 else
 	 	# authentication on
 		/go-ycsb load tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -p tigris.appid="$TIGRIS_APPLICATION_ID" -p tigris.appsecret="$TIGRIS_APPLICATION_SECRET" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
-
+	fi
 fi
 
 while true
