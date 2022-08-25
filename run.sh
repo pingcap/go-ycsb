@@ -2,8 +2,6 @@
 
 # Entrypoint script to run the workload
 
-TIGRIS_HOST=tigris-http
-TIGRIS_PORT=80
 if [ -n "$TIGRIS_URL" ]; then
 	HASPORT=$(echo "$TIGRIS_URL" | grep ':' | wc -l)
 	if [ "$HASPORT" -eq 0 ]; then
@@ -15,16 +13,17 @@ if [ -n "$TIGRIS_URL" ]; then
 fi 
 
 TEST_DB="${TEST_DB:-ycsb_tigris}"
-RECORDCOUNT=${RECORDCOUNT:-1000000} # 1G database
-OPERATIONCOUNT=${OPERATIONCOUNT:-10000000}
+RECORDCOUNT=${RECORDCOUNT:-5000}
+OPERATIONCOUNT=${OPERATIONCOUNT:-10000}
 READALLFIELDS=${READALLFIELDS:-true}
 READPROPORTION=${READPROPORTION:-0.4}
 UPDATEPROPORTION=${UPDATEPROPORTION:-0.4}
 SCANPROPORTION=${SCANPROPORTION:-0.2}
 INSERTPROPORTION=${INSERTPROPORTION:-0}
 REQUESTDISTRIBUTION=${REQUESTDISTRIBUTION:-uniform}
-LOADTHREADCOUNT=${LOADTHREADCOUNT:-8}
-RUNTHREADCOUNT=${RUNTHREADCOUNT:-16}
+LOADTHREADCOUNT=${LOADTHREADCOUNT:-1}
+RUNTHREADCOUNT=${RUNTHREADCOUNT:-1}
+DROPANDLOAD=${DROPANDLOAD:0}
 
 WORKLOAD="recordcount=${RECORDCOUNT}
 operationcount=${OPERATIONCOUNT}
@@ -41,12 +40,33 @@ requestdistribution=${REQUESTDISTRIBUTION}"
 
 echo "${WORKLOAD}" > workloads/dynamic
 
-tigris drop database ycsb_tigris
-sleep 60
+if [ ${DROPANDLOAD} -gt 0 ]
+then
+	echo "Dropping test database"
+	tigris drop database $TEST_DB
+	sleep 10
+	echo "Loading new database"
+	if [ "x${TIGRIS_APPLICATION_ID}" == "x" ]
+	then
+		# authentication off
+		/go-ycsb load tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
+	 else
+	 	# authentication on
+		/go-ycsb load tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -p tigris.appid="$TIGRIS_APPLICATION_ID" -p tigris.appsecret="$TIGRIS_APPLICATION_SECRET" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
 
-/go-ycsb load tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${LOADTHREADCOUNT}
+fi
 
 while true
 do
-	/go-ycsb run tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
+	echo "Running benchmark"
+	if [ "x${TIGRIS_APPLICATION_ID}" == "x" ]
+	then
+		# authentication off
+		/go-ycsb run tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
+	else
+		# authentication on
+		/go-ycsb run tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -p tigris.appid="$TIGRIS_APPLICATION_ID" -p tigris.appsecret="$TIGRIS_APPLICATION_SECRET" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
+	fi
+	echo "Run completed, sleeping before running again"
+	sleep 20
 done
