@@ -34,13 +34,14 @@ import (
 
 // Sqlite properties
 const (
-	sqliteDBPath       = "sqlite.db"
-	sqliteMode         = "sqlite.mode"
-	sqliteJournalMode  = "sqlite.journalmode"
-	sqliteCache        = "sqlite.cache"
-	sqliteMaxOpenConns = "sqlite.maxopenconns"
-	sqliteMaxIdleConns = "sqlite.maxidleconns"
-	sqliteOptimistic   = "sqlite.optimistic"
+	sqliteDBPath              = "sqlite.db"
+	sqliteMode                = "sqlite.mode"
+	sqliteJournalMode         = "sqlite.journalmode"
+	sqliteCache               = "sqlite.cache"
+	sqliteMaxOpenConns        = "sqlite.maxopenconns"
+	sqliteMaxIdleConns        = "sqlite.maxidleconns"
+	sqliteOptimistic          = "sqlite.optimistic"
+	sqliteOptimisticBackoffMs = "sqlite.optimistic_backoff_ms"
 )
 
 type sqliteCreator struct {
@@ -51,6 +52,7 @@ type sqliteDB struct {
 	db         *sql.DB
 	verbose    bool
 	optimistic bool
+	backoffMs  int
 
 	bufPool *util.BufPool
 }
@@ -86,6 +88,7 @@ func (c sqliteCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	db.SetMaxIdleConns(maxIdleConns)
 
 	d.optimistic = p.GetBool(sqliteOptimistic, false)
+	d.backoffMs = p.GetInt(sqliteOptimisticBackoffMs, 5)
 	d.verbose = p.GetBool(prop.Verbose, prop.VerboseDefault)
 	d.db = db
 
@@ -144,20 +147,20 @@ func (db *sqliteDB) optimisticTx(ctx context.Context, f func(tx *sql.Tx) error) 
 		if err != nil {
 			return err
 		}
-		err = f(tx)
-		if err == nil {
-			err = tx.Commit()
-			if err != nil && db.optimistic {
-				if err, ok := err.(sqlite3.Error); ok && (err.Code == sqlite3.ErrBusy ||
-					err.ExtendedCode == sqlite3.ErrIoErrUnlock) {
-					time.Sleep(5 * time.Millisecond)
-					continue
-				}
-			}
+
+		if err = f(tx); err != nil {
+			tx.Rollback()
 			return err
 		}
 
-		tx.Rollback()
+		err = tx.Commit()
+		if err != nil && db.optimistic {
+			if err, ok := err.(sqlite3.Error); ok && (err.Code == sqlite3.ErrBusy ||
+				err.ExtendedCode == sqlite3.ErrIoErrUnlock) {
+				time.Sleep(time.Duration(db.backoffMs) * time.Millisecond)
+				continue
+			}
+		}
 		return err
 	}
 }
