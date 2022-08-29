@@ -153,7 +153,7 @@ func (db *fDB) Update(ctx context.Context, table string, key string, values map[
 		buf := db.bufPool.Get()
 		defer db.bufPool.Put(buf)
 
-		buf, err := db.r.Encode(buf, data)
+		buf, err = db.r.Encode(buf, data)
 		if err != nil {
 			return nil, err
 		}
