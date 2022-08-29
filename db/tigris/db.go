@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/magiconair/properties"
@@ -15,11 +16,9 @@ import (
 )
 
 const (
-	tigrisDBName    = "tigris.dbname"
-	tigrisHost      = "tigris.host"
-	tigrisPort      = "tigris.port"
-	tigrisAppId     = "tigris.appid"
-	tigrisAppSecret = "tigris.appsecret"
+	tigrisDBName = "tigris.dbname"
+	tigrisHost   = "tigris.host"
+	tigrisPort   = "tigris.port"
 )
 
 type userTable struct {
@@ -157,8 +156,8 @@ func (c tigrisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	dbName := p.GetString(tigrisDBName, "ycsb_tigris")
 	host := p.GetString(tigrisHost, "localhost")
 	port := p.GetInt(tigrisPort, 8081)
-	appId := p.GetString(tigrisAppId, "")
-	appSecret := p.GetString(tigrisAppSecret, "")
+	appId := os.Getenv("TIGRIS_APPLICATION_ID")
+	appSecret := os.Getenv("TIGRIS_APPLICATION_SECRET")
 	url := fmt.Sprintf("%s:%d", host, port)
 	if appId != "" && appSecret != "" {
 		conf = &config.Database{Driver: config.Driver{

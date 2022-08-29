@@ -46,27 +46,13 @@ then
 	tigris drop database $TEST_DB
 	sleep 10
 	echo "Loading new database"
-	if [ "x${TIGRIS_APPLICATION_ID}" == "x" ]
-	then
-		# authentication off
 		/go-ycsb load tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
-	 else
-	 	# authentication on
-		/go-ycsb load tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -p tigris.appid="$TIGRIS_APPLICATION_ID" -p tigris.appsecret="$TIGRIS_APPLICATION_SECRET" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
-	fi
 fi
 
 while true
 do
 	echo "Running benchmark"
-	if [ "x${TIGRIS_APPLICATION_ID}" == "x" ]
-	then
-		# authentication off
 		/go-ycsb run tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
-	else
-		# authentication on
-		/go-ycsb run tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -p tigris.appid="$TIGRIS_APPLICATION_ID" -p tigris.appsecret="$TIGRIS_APPLICATION_SECRET" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
-	fi
 	echo "Run completed, sleeping before running again"
 	sleep 20
 done
