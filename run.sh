@@ -43,16 +43,16 @@ echo "${WORKLOAD}" > workloads/dynamic
 if [ ${DROPANDLOAD} -gt 0 ]
 then
 	echo "Dropping test database"
-	tigris drop database $TEST_DB
+	${CLI_PATH}tigris drop database $TEST_DB
 	sleep 10
 	echo "Loading new database"
-		/go-ycsb load tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
+		${BIN_PATH}/go-ycsb load tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
 fi
 
 while true
 do
 	echo "Running benchmark"
-		/go-ycsb run tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
+		${BIN_PATH}/go-ycsb run tigris -p tigris.host="$TIGRIS_HOST" -p tigris.port="$TIGRIS_PORT" -p tigris.dbname="$TEST_DB" -P workloads/dynamic -p threadcount=${RUNTHREADCOUNT}
 	echo "Run completed, sleeping before running again"
 	sleep 20
 done

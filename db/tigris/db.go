@@ -2,6 +2,7 @@ package tigris
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"os"
@@ -10,15 +11,17 @@ import (
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/tigrisdata/tigris-client-go/config"
+	"github.com/tigrisdata/tigris-client-go/driver"
 	tigris_fields "github.com/tigrisdata/tigris-client-go/fields"
 	"github.com/tigrisdata/tigris-client-go/filter"
 	"github.com/tigrisdata/tigris-client-go/tigris"
 )
 
 const (
-	tigrisDBName = "tigris.dbname"
-	tigrisHost   = "tigris.host"
-	tigrisPort   = "tigris.port"
+	tigrisDBName   = "tigris.dbname"
+	tigrisHost     = "tigris.host"
+	tigrisPort     = "tigris.port"
+	tigrisProtocol = "tigris.protocol"
 )
 
 type userTable struct {
@@ -159,14 +162,22 @@ func (c tigrisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	appId := os.Getenv("TIGRIS_APPLICATION_ID")
 	appSecret := os.Getenv("TIGRIS_APPLICATION_SECRET")
 	url := fmt.Sprintf("%s:%d", host, port)
-	if appId != "" && appSecret != "" {
-		conf = &config.Database{Driver: config.Driver{
-			URL:               url,
-			ApplicationId:     appId,
-			ApplicationSecret: appSecret,
-		}}
-	} else {
-		conf = &config.Database{Driver: config.Driver{URL: url}}
+	conf = &config.Database{Driver: config.Driver{
+		URL:               url,
+		ApplicationId:     appId,
+		ApplicationSecret: appSecret,
+	}}
+	proto := p.GetString(tigrisProtocol, "grpc")
+	if proto == "" {
+		proto = os.Getenv("TIGRIS_PROTOCOL")
+	}
+	if strings.ToLower(proto) == "grpc" {
+		driver.DefaultProtocol = driver.GRPC
+	} else if strings.ToLower(proto) == "http" {
+		driver.DefaultProtocol = driver.HTTP
+	} else if strings.ToLower(proto) == "https" {
+		driver.DefaultProtocol = driver.HTTP
+		conf.TLS = &tls.Config{}
 	}
 	db, err := tigris.OpenDatabase(ctx, conf, dbName, &userTable{})
 	if err != nil {
