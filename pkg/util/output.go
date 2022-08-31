@@ -17,6 +17,7 @@ const (
 	OutputStyleJson  = "json"
 )
 
+// RenderString renders headers and values according to the format provided
 func RenderString(format string, headers []string, values [][]string) {
 	if len(values) == 0 {
 		return
@@ -33,6 +34,7 @@ func RenderString(format string, headers []string, values [][]string) {
 	fmt.Print(buf.String())
 }
 
+// RenderTable will use given headers and values to render a table style output
 func RenderTable(headers []string, values [][]string) {
 	if len(values) == 0 {
 		return
@@ -43,6 +45,7 @@ func RenderTable(headers []string, values [][]string) {
 	tb.Render()
 }
 
+// RnederJson will combine the headers and values and print a json string
 func RenderJson(headers []string, values [][]string) {
 	if len(values) == 0 {
 		return
@@ -63,10 +66,12 @@ func RenderJson(headers []string, values [][]string) {
 	fmt.Println(string(outStr))
 }
 
+// IntToString formats int value to string
 func IntToString(i interface{}) string {
 	return fmt.Sprintf("%d", i)
 }
 
+// FloatToOneString formats float into string with one digit after dot
 func FloatToOneString(f interface{}) string {
 	return fmt.Sprintf("%.1f", f)
 }
