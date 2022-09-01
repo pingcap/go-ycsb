@@ -110,4 +110,6 @@ const (
 	LogInterval = "measurement.interval"
 
 	Command = "command"
+
+	OutputStyle = "outputstyle"
 )

@@ -14,7 +14,6 @@
 package measurement
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -22,8 +21,11 @@ import (
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/prop"
+	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
+
+var header = []string{"Operation", "Takes(s)", "Count", "OPS", "Avg(us)", "Min(us)", "Max(us)", "99th(us)", "99.9th(us)", "99.99th(us)"}
 
 type measurement struct {
 	sync.RWMutex
@@ -59,8 +61,23 @@ func (m *measurement) output() {
 	}
 	sort.Strings(keys)
 
+	lines := [][]string{}
 	for _, op := range keys {
-		fmt.Printf("%-6s - %s\n", op, m.opMeasurement[op].Summary())
+		line := []string{op}
+		line = append(line, m.opMeasurement[op].Summary()...)
+		lines = append(lines, line)
+	}
+
+	outputStyle := m.p.GetString(prop.OutputStyle, util.OutputStylePlain)
+	switch outputStyle {
+	case util.OutputStylePlain:
+		util.RenderString("%-6s - %s\n", header, lines)
+	case util.OutputStyleJson:
+		util.RenderJson(header, lines)
+	case util.OutputStyleTable:
+		util.RenderTable(header, lines)
+	default:
+		panic("unsupported outputstyle: " + outputStyle)
 	}
 }
 
