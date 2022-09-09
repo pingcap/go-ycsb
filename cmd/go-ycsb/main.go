@@ -15,6 +15,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -28,7 +29,7 @@ import (
 
 	// Register workload
 
-	"fmt"
+	"github.com/spf13/cobra"
 
 	"github.com/pingcap/go-ycsb/pkg/client"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
@@ -36,7 +37,6 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/util"
 	_ "github.com/pingcap/go-ycsb/pkg/workload"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
-	"github.com/spf13/cobra"
 
 	// Register basic database
 	_ "github.com/pingcap/go-ycsb/db/basic"
@@ -70,6 +70,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/minio"
 	// Register elastic
 	_ "github.com/pingcap/go-ycsb/db/elasticsearch"
+	// Register etcd
+	_ "github.com/pingcap/go-ycsb/db/etcd"
 )
 
 var (
