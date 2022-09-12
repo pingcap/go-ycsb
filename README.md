@@ -98,6 +98,7 @@ Available Commands:
 - MongoDB
 - Redis and Redis Cluster
 - BoltDB
+- etcd
 
 ## Database Configuration
 
