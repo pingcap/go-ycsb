@@ -98,6 +98,7 @@ Available Commands:
 - MongoDB
 - Redis and Redis Cluster
 - BoltDB
+- etcd
 
 ## Database Configuration
 
@@ -298,6 +299,17 @@ Common configurations:
 |bolt.read_only|false|Open the database in read-only mode|
 |bolt.mmap_flags|0|Set the DB.MmapFlags flag before memory mapping the file|
 |bolt.initial_mmap_size|0|The initial mmap size of the database in bytes. If <= 0, the initial map size is 0. If the size is smaller than the previous database, it takes no effect|
+
+### etcd
+
+|field|default value|description|
+|-|-|-|
+|etcd.endpoints|"localhost:2379"|The etcd endpoint(s), multiple endpoints can be passed separated by comma.|
+|etcd.dial_timeout|"2s"|The dial timeout duration passed into the client config.|
+|etcd.cert_file|""|When using secure etcd, this should point to the crt file.|
+|etcd.key_file|""|When using secure etcd, this should point to the pem file.|
+|etcd.cacert_file|""|When using secure etcd, this should point to the ca file.|
+
 
 ## TODO
 
