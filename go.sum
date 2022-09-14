@@ -590,8 +590,8 @@ github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c/go.mod h1:ahpPrc7
 github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
 github.com/tidwall/pretty v1.2.0 h1:RWIZEg2iJ8/g6fDDYzMpobmaoGh5OLl4AXtGUGPcqCs=
 github.com/tidwall/pretty v1.2.0/go.mod h1:ITEVvHYasfjBbM0u2Pg8T2nJnzm8xPwvNhhsoaGGjNU=
-github.com/tigrisdata/tigris-client-go v1.0.0-alpha.28 h1:3RS363YRoUH7e1U82HaLEqCGKKqbyx+77lcjN/l18PA=
-github.com/tigrisdata/tigris-client-go v1.0.0-alpha.28/go.mod h1:qAR1FQJXnEoeJPoG89oiR7Heu6b33JKvJTNLbwWo0Dc=
+github.com/tigrisdata/tigris-client-go v1.0.0-alpha.29 h1:laQkHeygF+UtccF/kvra2S+l+uR32KCWpwhn8bZLuIY=
+github.com/tigrisdata/tigris-client-go v1.0.0-alpha.29/go.mod h1:qAR1FQJXnEoeJPoG89oiR7Heu6b33JKvJTNLbwWo0Dc=
 github.com/tikv/client-go/v2 v2.0.0-rc.0.20220222033436-79b962a84d18 h1:eT0g0fVopbJvqI1PJdX1LBPTVH3qd9cZn5oy+EBatNs=
 github.com/tikv/client-go/v2 v2.0.0-rc.0.20220222033436-79b962a84d18/go.mod h1:gaHSp8rnxZ0w36qb6QPPNPh9P0Mu5vAEwCQcc0Brni4=
 github.com/tikv/pd/client v0.0.0-20220216070739-26c668271201/go.mod h1:fEvI5fhAuJn1Fn87VJF8ByE9Vc16EzWGoePZB21/nL8=
