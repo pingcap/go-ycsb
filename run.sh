@@ -40,6 +40,16 @@ requestdistribution=${REQUESTDISTRIBUTION}"
 
 echo "${WORKLOAD}" > workloads/dynamic
 
+# Check if the client works
+echo "Checking if tigris client is ok"
+${CLI_PATH}tigris list databases
+if [ $? -ne 0 ]
+then
+	echo "Tigris client has problems"
+	sleep 5
+	exit 1
+fi
+
 if [ ${DROPANDLOAD} -gt 0 ]
 then
 	echo "Dropping test database"
