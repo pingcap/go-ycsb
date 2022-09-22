@@ -46,7 +46,7 @@ ${CLI_PATH}tigris list databases
 if [ $? -ne 0 ]
 then
 	echo "Tigris client has problems"
-	sleep 5
+	sleep 600
 	exit 1
 fi
 
