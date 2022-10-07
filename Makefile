@@ -1,6 +1,6 @@
 FDB_CHECK := $(shell command -v fdbcli 2> /dev/null)
 ROCKSDB_CHECK := $(shell echo "int main() { return 0; }" | gcc -lrocksdb -x c++ -o /dev/null - 2>/dev/null; echo $$?)
-SQLITE_CHECK := $(shell echo "int main() { return 0; }" | gcc -lsqlite3 -o /dev/null - 2>/dev/null; echo $$?)
+SQLITE_CHECK := $(shell echo "int main() { return 0; }" | gcc -lsqlite3 -x c++ -o /dev/null - 2>/dev/null; echo $$?)
 
 TAGS =
 
@@ -8,7 +8,7 @@ ifdef FDB_CHECK
 	TAGS += foundationdb
 endif
 
-ifdef SQLITE_CHECK
+ifeq ($(SQLITE_CHECK), 0)
 	TAGS += libsqlite3
 endif
 
