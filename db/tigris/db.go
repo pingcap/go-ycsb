@@ -73,6 +73,9 @@ func (t *tigrisDB) Read(ctx context.Context, table string, key string, fields []
 
 	_, err := collection.ReadOne(ctx, filter.Eq("Key", key), readFields)
 	if err != nil {
+		if os.Getenv("TIGRIS_PRINT_ERRORS") != "" {
+			fmt.Println("Got error from tigris during read: ", err.Error())
+		}
 		return nil, fmt.Errorf("Error while reading key %s.", key)
 	}
 	return nil, nil
@@ -83,6 +86,9 @@ func (t *tigrisDB) Scan(ctx context.Context, table string, startKey string, coun
 
 	it, err := collection.ReadWithOptions(ctx, filter.Gt("Key", startKey), readFields, &tigris.ReadOptions{Limit: int64(count)})
 	if err != nil {
+		if os.Getenv("TIGRIS_PRINT_ERRORS") != "" {
+			fmt.Println("Got error from tigris during scan: ", err.Error())
+		}
 		return nil, fmt.Errorf("Error during scan from %s", startKey)
 	}
 	defer it.Close()
@@ -115,6 +121,9 @@ func (t *tigrisDB) Update(ctx context.Context, table string, key string, values 
 	}
 	_, err := collection.Update(ctx, filter.Eq("Key", key), update)
 	if err != nil {
+		if os.Getenv("TIGRIS_PRINT_ERRORS") != "" {
+			fmt.Println("Got error from tigris during update: ", err.Error())
+		}
 		return fmt.Errorf("Error while updating key %s", key)
 	}
 	return nil
@@ -140,6 +149,9 @@ func (t *tigrisDB) Insert(ctx context.Context, _ string, key string, values map[
 	)
 
 	if err != nil {
+		if os.Getenv("TIGRIS_PRINT_ERRORS") != "" {
+			fmt.Println("Got error from tigris during insert: ", err.Error())
+		}
 		return fmt.Errorf("Got error during insert %s!", err.Error())
 	}
 	return nil
@@ -148,6 +160,9 @@ func (t *tigrisDB) Insert(ctx context.Context, _ string, key string, values map[
 func (t *tigrisDB) Delete(ctx context.Context, table string, key string) error {
 	_, err := collection.Delete(ctx, filter.Eq("Key", key))
 	if err != nil {
+		if os.Getenv("TIGRIS_PRINT_ERRORS") != "" {
+			fmt.Println("Got error from tigris during delete: ", err.Error())
+		}
 		return fmt.Errorf("Error while deleting key %s", key)
 	}
 	return nil
@@ -181,6 +196,9 @@ func (c tigrisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	}
 	db, err := tigris.OpenDatabase(ctx, conf, dbName, &userTable{})
 	if err != nil {
+		if os.Getenv("TIGRIS_PRINT_ERRORS") != "" {
+			fmt.Println("Got error from tigris during create: ", err.Error())
+		}
 		return nil, fmt.Errorf("Error connecting to tigrisDB: %s", err.Error())
 	}
 	t := &tigrisDB{
