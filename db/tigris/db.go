@@ -174,13 +174,15 @@ func (c tigrisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	dbName := p.GetString(tigrisDBName, "ycsb_tigris")
 	host := p.GetString(tigrisHost, "localhost")
 	port := p.GetInt(tigrisPort, 8081)
-	appId := os.Getenv("TIGRIS_APPLICATION_ID")
-	appSecret := os.Getenv("TIGRIS_APPLICATION_SECRET")
+	clientId := os.Getenv("TIGRIS_CLIENT_ID")
+	clientSecret := os.Getenv("TIGRIS_CLIENT_SECRET")
+	token := os.Getenv("TIGRIS_TOKEN")
 	url := fmt.Sprintf("%s:%d", host, port)
 	conf = &config.Database{Driver: config.Driver{
-		URL:               url,
-		ApplicationId:     appId,
-		ApplicationSecret: appSecret,
+		URL:          url,
+		ClientID:     clientId,
+		ClientSecret: clientSecret,
+		Token:        token,
 	}}
 	proto := p.GetString(tigrisProtocol, "grpc")
 	if proto == "" {
