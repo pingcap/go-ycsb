@@ -8,6 +8,15 @@ ifdef FDB_CHECK
 	TAGS += foundationdb
 endif
 
+ifneq ($(shell go env GOOS), $(shell go env GOHOSTOS))
+	CROSS_COMPILE := 1
+endif
+ifneq ($(shell go env GOARCH), $(shell go env GOHOSTARCH))
+	CROSS_COMPILE := 1
+endif
+
+ifndef CROSS_COMPILE
+
 ifeq ($(SQLITE_CHECK), 0)
 	TAGS += libsqlite3
 endif
@@ -16,6 +25,8 @@ ifeq ($(ROCKSDB_CHECK), 0)
 	TAGS += rocksdb
 	CGO_CXXFLAGS := "${CGO_CXXFLAGS} -std=c++11"
 	CGO_FLAGS += CGO_CXXFLAGS=$(CGO_CXXFLAGS)
+endif
+
 endif
 
 default: build
