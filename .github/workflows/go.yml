@@ -33,7 +33,7 @@ jobs:
           tar -C bin -zcf go-ycsb-$GOOS-$GOARCH.tar.gz go-ycsb
 
       - name: Release latest build
-        # if: github.event_name == 'push'
+        if: github.event_name == 'push'
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
