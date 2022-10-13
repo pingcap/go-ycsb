@@ -18,6 +18,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -33,12 +35,22 @@ jobs:
           tar -C bin -zcf go-ycsb-$GOOS-$GOARCH.tar.gz go-ycsb
 
       - name: Release latest build
+        uses: softprops/action-gh-release@v1
         if: github.event_name == 'push'
-        uses: "marvinpinto/action-automatic-releases@latest"
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "latest"
-          prerelease: true
-          title: "Latest Build"
+          name: Latest Build
+          tag_name: latest-${{ github.sha }}
           files: |
             *.tar.gz
+      - name: Clean legacy latest releases
+        uses: actions/github-script@v6
+        if: github.event_name == 'push'
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const releases = (await github.rest.repos.listReleases({ owner, repo })).data.filter(r => r.draft && r.tag_name.startsWith('latest'));
+            for (const r of releases) { await github.rest.repos.deleteRelease({ owner, repo, release_id: r.id }).catch(_ => {}); }
+      - name: Clean legacy latest tags
+        if: github.event_name == 'push'
+        run: |
+          git tag -l | grep latest | grep -v latest-${{ github.sha }} | xargs -I{} git push -d origin {} || true
