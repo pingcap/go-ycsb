@@ -310,6 +310,18 @@ Common configurations:
 |etcd.key_file|""|When using secure etcd, this should point to the pem file.|
 |etcd.cacert_file|""|When using secure etcd, this should point to the ca file.|
 
+### DynamoDB
+
+|field|default value|description|
+|-|-|-|
+|dynamodb.tablename|"ycsb"|The database tablename|
+|dynamodb.primarykey|"_key"|The table primary key fieldname|
+|dynamodb.rc.units|10|Read request units throughput|
+|dynamodb.wc.units|10|Write request units throughput|
+|dynamodb.ensure.clean.table|true|On load mode ensure that the table is clean at the begining. In case of true and if the table previously exists it will be deleted and recreated|
+|dynamodb.endpoint|""|Used endpoint for connection. If empty will use the default loaded configs|
+|dynamodb.region|""|Used region for connection ( should match endpoint ). If empty will use the default loaded configs|
+
 
 ## TODO
 

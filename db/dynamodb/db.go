@@ -11,8 +11,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -178,24 +180,55 @@ func (r dynamoDbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	rds.primarykeyPtr = aws.String(rds.primarykey)
 	rds.readCapacityUnits = p.GetInt64(readCapacityUnitsFieldName, readCapacityUnitsFieldNameDefault)
 	rds.writeCapacityUnits = p.GetInt64(writeCapacityUnitsFieldName, writeCapacityUnitsFieldNameDefault)
+	endpoint := p.GetString(endpointField, endpointFieldDefault)
+	region := p.GetString(regionField, regionFieldDefault)
+	command, _ := p.Get(prop.Command)
 	var err error = nil
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	var cfg aws.Config
+	if strings.Contains(endpoint, "localhost") && strings.Compare(region, "localhost") != 0 {
+		log.Printf("given you're using dynamodb local endpoint you need to specify -p %s='localhost'. Ignoring %s and enforcing -p %s='localhost'\n", regionField, region, regionField)
+		region = "localhost"
+	}
+	if strings.Compare(endpoint, endpointFieldDefault) == 0 {
+		if strings.Compare(region, regionFieldDefault) != 0 {
+			// if endpoint is default but we have region
+			cfg, err = config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
+		} else {
+			// if both endpoint and region are default
+			cfg, err = config.LoadDefaultConfig(context.TODO())
+		}
+	} else {
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithRegion(region),
+			config.WithEndpointResolver(aws.EndpointResolverFunc(
+				func(service, region string) (aws.Endpoint, error) {
+					return aws.Endpoint{URL: endpoint, SigningRegion: region}, nil
+				})),
+		)
+	}
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}
 	// Create DynamoDB client
 	rds.client = dynamodb.NewFromConfig(cfg)
 	exists, err := rds.tableExists()
-	if !exists {
-		_, err = rds.createTable()
-	} else {
-		ensureCleanTable := p.GetBool(ensureCleanTableFieldName, ensureCleanTableFieldNameDefault)
-		if ensureCleanTable {
-			log.Printf("dynamo table named %s already existed. Deleting it...\n", *rds.tablename)
-			_ = rds.deleteTable()
+
+	if strings.Compare("load", command) == 0 {
+		if !exists {
 			_, err = rds.createTable()
 		} else {
-			log.Printf("dynamo table named %s already existed. Skipping table creation.\n", *rds.tablename)
+			ensureCleanTable := p.GetBool(ensureCleanTableFieldName, ensureCleanTableFieldNameDefault)
+			if ensureCleanTable {
+				log.Printf("dynamo table named %s already existed. Deleting it...\n", *rds.tablename)
+				_ = rds.deleteTable()
+				_, err = rds.createTable()
+			} else {
+				log.Printf("dynamo table named %s already existed. Skipping table creation.\n", *rds.tablename)
+			}
+		}
+	} else {
+		if !exists {
+			log.Fatalf("dynamo table named %s does not exist. You need to run the load stage previous than '%s'...\n", *rds.tablename, "run")
 		}
 	}
 	return rds, err
@@ -228,6 +261,10 @@ const (
 	writeCapacityUnitsFieldNameDefault = 10
 	ensureCleanTableFieldName          = "dynamodb.ensure.clean.table"
 	ensureCleanTableFieldNameDefault   = true
+	endpointField                      = "dynamodb.endpoint"
+	endpointFieldDefault               = ""
+	regionField                        = "dynamodb.region"
+	regionFieldDefault                 = ""
 )
 
 func init() {
