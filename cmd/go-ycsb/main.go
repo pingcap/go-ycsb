@@ -72,6 +72,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/elasticsearch"
 	// Register etcd
 	_ "github.com/pingcap/go-ycsb/db/etcd"
+	// Register dynamodb
+	_ "github.com/pingcap/go-ycsb/db/dynamodb"
 )
 
 var (
