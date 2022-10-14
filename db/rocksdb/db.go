@@ -12,7 +12,6 @@
 // limitations under the License.
 
 //go:build rocksdb
-// +build rocksdb
 
 package rocksdb
 
