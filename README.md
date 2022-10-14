@@ -99,6 +99,7 @@ Available Commands:
 - Redis and Redis Cluster
 - BoltDB
 - etcd
+- DynamoDB
 
 ## Database Configuration
 
