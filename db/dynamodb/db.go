@@ -25,6 +25,7 @@ type dynamodbWrapper struct {
 	primarykeyPtr      *string
 	readCapacityUnits  int64
 	writeCapacityUnits int64
+	consistentRead     bool
 }
 
 func (r *dynamodbWrapper) Close() error {
@@ -42,8 +43,9 @@ func (r *dynamodbWrapper) Read(ctx context.Context, table string, key string, fi
 	data = make(map[string][]byte, len(fields))
 
 	response, err := r.client.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		Key:       r.GetKey(key),
-		TableName: r.tablename,
+		Key:            r.GetKey(key),
+		TableName:      r.tablename,
+		ConsistentRead: aws.Bool(r.consistentRead),
 	})
 	if err != nil {
 		log.Printf("Couldn't get info about %v. Here's why: %v\n", key, err)
@@ -180,6 +182,7 @@ func (r dynamoDbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	rds.primarykeyPtr = aws.String(rds.primarykey)
 	rds.readCapacityUnits = p.GetInt64(readCapacityUnitsFieldName, readCapacityUnitsFieldNameDefault)
 	rds.writeCapacityUnits = p.GetInt64(writeCapacityUnitsFieldName, writeCapacityUnitsFieldNameDefault)
+	rds.consistentRead = p.GetBool(consistentReadFieldName, consistentReadFieldNameDefault)
 	endpoint := p.GetString(endpointField, endpointFieldDefault)
 	region := p.GetString(regionField, regionFieldDefault)
 	command, _ := p.Get(prop.Command)
@@ -265,6 +268,11 @@ const (
 	endpointFieldDefault               = ""
 	regionField                        = "dynamodb.region"
 	regionFieldDefault                 = ""
+	// GetItem provides an eventually consistent read by default.
+	// If your application requires a strongly consistent read, set ConsistentRead to true.
+	// Although a strongly consistent read might take more time than an eventually consistent read, it always returns the last updated value.
+	consistentReadFieldName        = "dynamodb.consistent.reads"
+	consistentReadFieldNameDefault = false
 )
 
 func init() {
