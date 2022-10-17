@@ -26,10 +26,22 @@ type dynamodbWrapper struct {
 	readCapacityUnits  int64
 	writeCapacityUnits int64
 	consistentRead     bool
+	deleteAfterRun     bool
+	command            string
 }
 
 func (r *dynamodbWrapper) Close() error {
-	return nil
+	var err error = nil
+	if strings.Compare("run", r.command) == 0 {
+		log.Printf("Ensuring that the table is deleted after the run stage...\n")
+		if r.deleteAfterRun {
+			err = r.deleteTable()
+			if err != nil {
+				log.Printf("Couldn't delete table after run. Here's why: %v\n", err)
+			}
+		}
+	}
+	return err
 }
 
 func (r *dynamodbWrapper) InitThread(ctx context.Context, _ int, _ int) context.Context {
@@ -183,9 +195,10 @@ func (r dynamoDbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	rds.readCapacityUnits = p.GetInt64(readCapacityUnitsFieldName, readCapacityUnitsFieldNameDefault)
 	rds.writeCapacityUnits = p.GetInt64(writeCapacityUnitsFieldName, writeCapacityUnitsFieldNameDefault)
 	rds.consistentRead = p.GetBool(consistentReadFieldName, consistentReadFieldNameDefault)
+	rds.deleteAfterRun = p.GetBool(deleteTableAfterRunFieldName, deleteTableAfterRunFieldNameDefault)
 	endpoint := p.GetString(endpointField, endpointFieldDefault)
 	region := p.GetString(regionField, regionFieldDefault)
-	command, _ := p.Get(prop.Command)
+	rds.command, _ = p.Get(prop.Command)
 	var err error = nil
 	var cfg aws.Config
 	if strings.Contains(endpoint, "localhost") && strings.Compare(region, "localhost") != 0 {
@@ -216,7 +229,7 @@ func (r dynamoDbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	rds.client = dynamodb.NewFromConfig(cfg)
 	exists, err := rds.tableExists()
 
-	if strings.Compare("load", command) == 0 {
+	if strings.Compare("load", rds.command) == 0 {
 		if !exists {
 			_, err = rds.createTable()
 		} else {
@@ -271,8 +284,10 @@ const (
 	// GetItem provides an eventually consistent read by default.
 	// If your application requires a strongly consistent read, set ConsistentRead to true.
 	// Although a strongly consistent read might take more time than an eventually consistent read, it always returns the last updated value.
-	consistentReadFieldName        = "dynamodb.consistent.reads"
-	consistentReadFieldNameDefault = false
+	consistentReadFieldName             = "dynamodb.consistent.reads"
+	consistentReadFieldNameDefault      = false
+	deleteTableAfterRunFieldName        = "dynamodb.delete.after.run.stage"
+	deleteTableAfterRunFieldNameDefault = false
 )
 
 func init() {
