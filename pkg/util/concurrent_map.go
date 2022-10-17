@@ -19,7 +19,7 @@ type ConcurrentMap struct {
 
 // A "thread" safe int to int64 map.
 type ConcurrentMapShared struct {
-	items map[int]int64
+	items        map[int]int64
 	sync.RWMutex // Read Write mutex, guards access to internal map.
 }
 

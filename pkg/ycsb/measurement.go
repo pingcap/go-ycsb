@@ -29,7 +29,7 @@ type Measurement interface {
 	// Measure measures the operation latency.
 	Measure(latency time.Duration)
 	// Summary returns the summary of the measurement.
-	Summary() string
+	Summary() []string
 	// Info returns the MeasurementInfo of the measurement.
 	Info() MeasurementInfo
 }

@@ -1,4 +1,4 @@
-# go-ycsb 
+# go-ycsb
 
 go-ycsb is a Go port of [YCSB](https://github.com/brianfrankcooper/YCSB). It fully supports all YCSB generators and the Core workload so we can do the basic CRUD benchmarks with Go.
 
@@ -9,12 +9,35 @@ go-ycsb is a Go port of [YCSB](https://github.com/brianfrankcooper/YCSB). It ful
 
 ## Getting Started
 
+### Download
+
+https://github.com/pingcap/go-ycsb/releases/latest
+
+**Linux**
+```
+wget -c https://github.com/pingcap/go-ycsb/releases/latest/download/go-ycsb-linux-amd64.tar.gz -O - | tar -xz
+
+# give it a try
+./go-ycsb --help
+```
+
+**OSX**
+```
+wget -c https://github.com/pingcap/go-ycsb/releases/latest/download/go-ycsb-darwin-amd64.tar.gz -O - | tar -xz
+
+# give it a try
+./go-ycsb --help
+```
+
+### Building from source
+
 ```bash
 git clone https://github.com/pingcap/go-ycsb.git
 cd go-ycsb
 make
 
-./bin/go-ycsb
+# give it a try
+./bin/go-ycsb  --help
 ```
 
 Notice:
@@ -23,9 +46,9 @@ Notice:
 + To use FoundationDB, you must install [client](https://www.foundationdb.org/download/) library at first, now the supported version is 6.2.11.
 + To use RocksDB, you must follow [INSTALL](https://github.com/facebook/rocksdb/blob/master/INSTALL.md) to install RocksDB at first.
 
-## Usage 
+## Usage
 
-Mostly, we can start from the offical document [Running-a-Workload](https://github.com/brianfrankcooper/YCSB/wiki/Running-a-Workload).
+Mostly, we can start from the official document [Running-a-Workload](https://github.com/brianfrankcooper/YCSB/wiki/Running-a-Workload).
 
 ### Shell
 
@@ -63,18 +86,20 @@ Available Commands:
 
 - MySQL / TiDB
 - TiKV
-- FoundationDB 
+- FoundationDB
 - Aerospike
 - Badger
 - Cassandra / ScyllaDB
 - Pegasus
-- PostgreSQL / CockroachDB
+- PostgreSQL / CockroachDB / AlloyDB / Yugabyte
 - RocksDB
 - Spanner
 - Sqlite
 - MongoDB
 - Redis and Redis Cluster
 - BoltDB
+- etcd
+- DynamoDB
 
 ## Database Configuration
 
@@ -110,6 +135,7 @@ Common configurations:
 |tikv.batchsize|128|Request batch size|
 |tikv.async_commit|true|Enalbe async commit or not|
 |tikv.one_pc|true|Enable one phase or not|
+|tikv.apiversion|"V1"|[api-version](https://docs.pingcap.com/tidb/stable/tikv-configuration-file#api-version-new-in-v610) of tikv server, "V1" or "V2"|
 
 ### FoundationDB
 
@@ -119,14 +145,14 @@ Common configurations:
 |fdb.dbname|"DB"|The cluster database name|
 |fdb.apiversion|510|API version, now only 5.1 is supported|
 
-### PostgreSQL
+### PostgreSQL & CockroachDB & AlloyDB & Yugabyte
 
 |field|default value|description|
 |-|-|-|
 |pg.host|"127.0.0.1"|PostgreSQL Host|
 |pg.port|5432|PostgreSQL Port|
 |pg.user|"root"|PostgreSQL User|
-|pg.passowrd||PostgreSQL Password|
+|pg.password||PostgreSQL Password|
 |pg.db|"test"|PostgreSQL Database|
 |pg.sslmode|"disable|PostgreSQL ssl mode|
 
@@ -196,7 +222,7 @@ Common configurations:
 |rocksdb.index_type|kBinarySearch|Sets the index type used for this table. __kBinarySearch__: A space efficient index block that is optimized for binary-search-based index. __kHashSearch__: The hash index, if enabled, will do the hash lookup when `Options.prefix_extractor` is provided. __kTwoLevelIndexSearch__: A two-level index implementation. Both levels are binary search indexes|
 |rocksdb.block_align|false|Enable/Disable align data blocks on lesser of page size and block size|
 
-### Spanner 
+### Spanner
 
 |field|default value|description|
 |-|-|-|
@@ -212,7 +238,7 @@ Common configurations:
 |sqlite.journalmode|"DELETE"|Journal mode: DELETE, TRUNCSTE, PERSIST, MEMORY, WAL, OFF|
 |sqlite.cache|"Shared"|Cache: shared, private|
 
-### Cassandra 
+### Cassandra
 
 |field|default value|description|
 |-|-|-|
@@ -227,6 +253,8 @@ Common configurations:
 |field|default value|description|
 |-|-|-|
 |mongodb.url|"mongodb://127.0.0.1:27017"|MongoDB URI|
+|mongodb.tls_skip_verify|false|Enable/disable server ca certificate verification|
+|mongodb.tls_ca_file|""|Path to mongodb server ca certificate file|
 |mongodb.namespace|"ycsb.ycsb"|Namespace to use|
 |mongodb.authdb|"admin"|Authentication database|
 |mongodb.username|N/A|Username for authentication|
@@ -235,6 +263,7 @@ Common configurations:
 ### Redis
 |field|default value|description|
 |-|-|-|
+|redis.datatype|hash|"hash", "string" or "json" ("json" requires [RedisJSON](https://redis.io/docs/stack/json/) available)|
 |redis.mode|single|"single" or "cluster"|
 |redis.network|tcp|"tcp" or "unix"|
 |redis.addr||Redis server address(es) in "host:port" form, can be semi-colon `;` separated in cluster mode|
@@ -271,6 +300,29 @@ Common configurations:
 |bolt.read_only|false|Open the database in read-only mode|
 |bolt.mmap_flags|0|Set the DB.MmapFlags flag before memory mapping the file|
 |bolt.initial_mmap_size|0|The initial mmap size of the database in bytes. If <= 0, the initial map size is 0. If the size is smaller than the previous database, it takes no effect|
+
+### etcd
+
+|field|default value|description|
+|-|-|-|
+|etcd.endpoints|"localhost:2379"|The etcd endpoint(s), multiple endpoints can be passed separated by comma.|
+|etcd.dial_timeout|"2s"|The dial timeout duration passed into the client config.|
+|etcd.cert_file|""|When using secure etcd, this should point to the crt file.|
+|etcd.key_file|""|When using secure etcd, this should point to the pem file.|
+|etcd.cacert_file|""|When using secure etcd, this should point to the ca file.|
+
+### DynamoDB
+
+|field|default value|description|
+|-|-|-|
+|dynamodb.tablename|"ycsb"|The database tablename|
+|dynamodb.primarykey|"_key"|The table primary key fieldname|
+|dynamodb.rc.units|10|Read request units throughput|
+|dynamodb.wc.units|10|Write request units throughput|
+|dynamodb.ensure.clean.table|true|On load mode ensure that the table is clean at the begining. In case of true and if the table previously exists it will be deleted and recreated|
+|dynamodb.endpoint|""|Used endpoint for connection. If empty will use the default loaded configs|
+|dynamodb.region|""|Used region for connection ( should match endpoint ). If empty will use the default loaded configs|
+
 
 ## TODO
 

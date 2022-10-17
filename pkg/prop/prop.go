@@ -108,4 +108,8 @@ const (
 	KeyPrefixDefault = "user"
 
 	LogInterval = "measurement.interval"
+
+	Command = "command"
+
+	OutputStyle = "outputstyle"
 )

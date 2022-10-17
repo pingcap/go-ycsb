@@ -24,9 +24,10 @@ import (
 const (
 	tikvPD = "tikv.pd"
 	// raw, txn, or coprocessor
-	tikvType      = "tikv.type"
-	tikvConnCount = "tikv.conncount"
-	tikvBatchSize = "tikv.batchsize"
+	tikvType       = "tikv.type"
+	tikvConnCount  = "tikv.conncount"
+	tikvBatchSize  = "tikv.batchsize"
+	tikvAPIVersion = "tikv.apiversion"
 )
 
 type tikvCreator struct {
