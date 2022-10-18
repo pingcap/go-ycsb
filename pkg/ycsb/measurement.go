@@ -24,8 +24,18 @@ type MeasurementInfo interface {
 	Get(metricName string) interface{}
 }
 
-// Measurement measures the operations metrics.
 type Measurement interface {
+	Measure(op string, start time.Time, latency time.Duration)
+
+	Summary() map[string][]string
+
+	Info() map[string]MeasurementInfo
+
+	OpNames() []string
+}
+
+// OpMeasurement measures the operations metrics.
+type OpMeasurement interface {
 	// Measure measures the operation latency.
 	Measure(latency time.Duration)
 	// Summary returns the summary of the measurement.

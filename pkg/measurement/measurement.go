@@ -32,30 +32,23 @@ type measurement struct {
 
 	p *properties.Properties
 
-	opMeasurement map[string]ycsb.Measurement
+	opMeasurement ycsb.Measurement
 }
 
-func (m *measurement) measure(op string, lan time.Duration) {
-	m.RLock()
-	opM, ok := m.opMeasurement[op]
-	m.RUnlock()
-
-	if !ok {
-		opM = newHistogram(m.p)
-		m.Lock()
-		m.opMeasurement[op] = opM
-		m.Unlock()
-	}
-
-	opM.Measure(lan)
+func (m *measurement) measure(op string, start time.Time, lan time.Duration) {
+	m.Lock()
+	m.opMeasurement.Measure(op, start, lan)
+	m.Unlock()
 }
 
 func (m *measurement) output() {
 	m.RLock()
 	defer m.RUnlock()
-	keys := make([]string, len(m.opMeasurement))
+
+	summaries := m.opMeasurement.Summary()
+	keys := make([]string, 0, len(summaries))
 	var i = 0
-	for k := range m.opMeasurement {
+	for k := range summaries {
 		keys[i] = k
 		i += 1
 	}
@@ -64,7 +57,7 @@ func (m *measurement) output() {
 	lines := [][]string{}
 	for _, op := range keys {
 		line := []string{op}
-		line = append(line, m.opMeasurement[op].Summary()...)
+		line = append(line, summaries[op]...)
 		lines = append(lines, line)
 	}
 
@@ -85,29 +78,21 @@ func (m *measurement) info() map[string]ycsb.MeasurementInfo {
 	m.RLock()
 	defer m.RUnlock()
 
-	opMeasurementInfo := make(map[string]ycsb.MeasurementInfo, len(m.opMeasurement))
-	for op, opM := range m.opMeasurement {
-		opMeasurementInfo[op] = opM.Info()
-	}
-	return opMeasurementInfo
+	return m.opMeasurement.Info()
 }
 
 func (m *measurement) getOpName() []string {
 	m.RLock()
 	defer m.RUnlock()
 
-	res := make([]string, 0, len(m.opMeasurement))
-	for op := range m.opMeasurement {
-		res = append(res, op)
-	}
-	return res
+	return m.opMeasurement.OpNames()
 }
 
 // InitMeasure initializes the global measurement.
 func InitMeasure(p *properties.Properties) {
 	globalMeasure = new(measurement)
 	globalMeasure.p = p
-	globalMeasure.opMeasurement = make(map[string]ycsb.Measurement, 16)
+	globalMeasure.opMeasurement = InitHistograms(p)
 	EnableWarmUp(p.GetInt64(prop.WarmUpTime, 0) > 0)
 }
 
@@ -131,9 +116,9 @@ func IsWarmUpFinished() bool {
 }
 
 // Measure measures the operation.
-func Measure(op string, lan time.Duration) {
+func Measure(op string, start time.Time, lan time.Duration) {
 	if IsWarmUpFinished() {
-		globalMeasure.measure(op, lan)
+		globalMeasure.measure(op, start, lan)
 	}
 }
 
