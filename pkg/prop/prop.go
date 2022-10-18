@@ -109,6 +109,9 @@ const (
 
 	LogInterval = "measurement.interval"
 
+	MeasurementType          = "measurementtype"
+	MeasurementRawOutputfile = "measurement.raw.output_file"
+
 	Command = "command"
 
 	OutputStyle = "outputstyle"

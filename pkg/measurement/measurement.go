@@ -92,7 +92,13 @@ func (m *measurement) getOpName() []string {
 func InitMeasure(p *properties.Properties) {
 	globalMeasure = new(measurement)
 	globalMeasure.p = p
-	globalMeasure.opMeasurement = InitHistograms(p)
+	measurementType := p.GetString(prop.MeasurementType, "")
+	switch measurementType {
+	case "histogram":
+		globalMeasure.opMeasurement = InitHistograms(p)
+	default:
+		panic("unsupported measurement type: " + measurementType)
+	}
 	EnableWarmUp(p.GetInt64(prop.WarmUpTime, 0) > 0)
 }
 
