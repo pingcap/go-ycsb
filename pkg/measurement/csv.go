@@ -5,7 +5,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
@@ -17,13 +16,11 @@ type csventry struct {
 }
 
 type csvs struct {
-	p    *properties.Properties
 	csvs map[string][]csventry
 }
 
-func InitCSV(p *properties.Properties) *csvs {
+func InitCSV() *csvs {
 	return &csvs{
-		p:    p,
 		csvs: make(map[string][]csventry, 16),
 	}
 }

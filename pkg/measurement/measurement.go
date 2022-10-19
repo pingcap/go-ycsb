@@ -67,7 +67,7 @@ func InitMeasure(p *properties.Properties) {
 	case "histogram":
 		globalMeasure.opMeasurement = InitHistograms(p)
 	case "raw", "csv":
-		globalMeasure.opMeasurement = InitCSV(p)
+		globalMeasure.opMeasurement = InitCSV()
 	default:
 		panic("unsupported measurement type: " + measurementType)
 	}
