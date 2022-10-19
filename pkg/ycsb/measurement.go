@@ -28,8 +28,6 @@ type MeasurementInfo interface {
 type Measurement interface {
 	Measure(op string, start time.Time, latency time.Duration)
 
-	Info() map[string]MeasurementInfo
-
 	Output(w io.Writer) error
 
 	OpNames() []string

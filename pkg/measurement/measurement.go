@@ -51,13 +51,6 @@ func (m *measurement) output() {
 	}
 }
 
-func (m *measurement) info() map[string]ycsb.MeasurementInfo {
-	m.RLock()
-	defer m.RUnlock()
-
-	return m.opMeasurement.Info()
-}
-
 func (m *measurement) getOpName() []string {
 	m.RLock()
 	defer m.RUnlock()
@@ -105,12 +98,6 @@ func Measure(op string, start time.Time, lan time.Duration) {
 	if IsWarmUpFinished() {
 		globalMeasure.measure(op, start, lan)
 	}
-}
-
-// Info returns all the operations MeasurementInfo.
-// The key of returned map is the operation name.
-func Info() map[string]ycsb.MeasurementInfo {
-	return globalMeasure.info()
 }
 
 // GetOpNames returns a string slice which contains all the operation name measured.
