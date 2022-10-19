@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"time"
-
-	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
 type csventry struct {
@@ -23,14 +21,6 @@ func InitCSV() *csvs {
 	return &csvs{
 		opCsv: make(map[string][]csventry),
 	}
-}
-
-func (c *csvs) Info() map[string]ycsb.MeasurementInfo {
-	info := make(map[string]ycsb.MeasurementInfo, len(c.opCsv))
-	for op, _ := range c.opCsv {
-		info[op] = nil
-	}
-	return info
 }
 
 func (c *csvs) Measure(op string, start time.Time, lan time.Duration) {

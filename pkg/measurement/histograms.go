@@ -8,7 +8,6 @@ import (
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
-	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
 type histograms struct {
@@ -62,14 +61,6 @@ func (h *histograms) Output(w io.Writer) error {
 		panic("unsupported outputstyle: " + outputStyle)
 	}
 	return nil
-}
-
-func (h *histograms) Info() map[string]ycsb.MeasurementInfo {
-	opMeasurementInfo := make(map[string]ycsb.MeasurementInfo, len(h.histograms))
-	for op, opM := range h.histograms {
-		opMeasurementInfo[op] = opM.Info()
-	}
-	return opMeasurementInfo
 }
 
 func InitHistograms(p *properties.Properties) *histograms {
