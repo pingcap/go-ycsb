@@ -14,7 +14,7 @@
 package measurement
 
 import (
-	"io"
+	"bufio"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -46,20 +46,25 @@ func (m *measurement) output() {
 	defer m.RUnlock()
 
 	outFile := m.p.GetString(prop.MeasurementRawOutputFile, "")
-	var w io.Writer
+	var w *bufio.Writer
 	if outFile == "" {
-		w = os.Stdout
+		w = bufio.NewWriter(os.Stdout)
 	} else {
 		f, err := os.Create(outFile)
 		if err != nil {
 			panic("failed to create output file: " + err.Error())
 		}
-		w = f
+		w = bufio.NewWriter(f)
 	}
 
 	err := globalMeasure.measurer.Output(w)
 	if err != nil {
 		panic("failed to write output: " + err.Error())
+	}
+
+	err = w.Flush()
+	if err != nil {
+		panic("failed to flush output: " + err.Error())
 	}
 }
 
