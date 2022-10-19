@@ -26,7 +26,7 @@ func (h *histograms) Measure(op string, start time.Time, lan time.Duration) {
 	opM.Measure(lan)
 }
 
-func (h *histograms) Summary() map[string][]string {
+func (h *histograms) summary() map[string][]string {
 	summaries := make(map[string][]string, len(h.histograms))
 	for op, opM := range h.histograms {
 		summaries[op] = opM.Summary()
@@ -35,7 +35,7 @@ func (h *histograms) Summary() map[string][]string {
 }
 
 func (h *histograms) Output(w io.Writer) error {
-	summaries := h.Summary()
+	summaries := h.summary()
 	keys := make([]string, 0, len(summaries))
 	for k := range summaries {
 		keys = append(keys, k)
