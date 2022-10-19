@@ -47,10 +47,8 @@ func (m *measurement) output() {
 
 	summaries := m.opMeasurement.Summary()
 	keys := make([]string, 0, len(summaries))
-	var i = 0
 	for k := range summaries {
-		keys[i] = k
-		i += 1
+		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
@@ -92,7 +90,7 @@ func (m *measurement) getOpName() []string {
 func InitMeasure(p *properties.Properties) {
 	globalMeasure = new(measurement)
 	globalMeasure.p = p
-	measurementType := p.GetString(prop.MeasurementType, "")
+	measurementType := p.GetString(prop.MeasurementType, prop.MeasurementTypeDefault)
 	switch measurementType {
 	case "histogram":
 		globalMeasure.opMeasurement = InitHistograms(p)
