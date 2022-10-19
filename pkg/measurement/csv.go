@@ -1,6 +1,8 @@
 package measurement
 
 import (
+	"fmt"
+	"io"
 	"time"
 
 	"github.com/magiconair/properties"
@@ -8,37 +10,59 @@ import (
 )
 
 type csventry struct {
-	op    string
-	start time.Time
-	lan   time.Duration
+	// start time of the operation in us from unix epoch
+	start_us int64
+	// latency of the operation in us
+	latency_us int64
 }
 
-type csv struct {
+type csvs struct {
 	p    *properties.Properties
-	data []csventry
+	csvs map[string][]csventry
 }
 
-func InitCSV(p *properties.Properties) *csv {
-	return &csv{
-		p: p,
+func InitCSV(p *properties.Properties) *csvs {
+	return &csvs{
+		p:    p,
+		csvs: make(map[string][]csventry, 16),
 	}
 }
 
-func (c *csv) Info() map[string]ycsb.MeasurementInfo {
-	opMeasurementInfo := make(map[string]ycsb.MeasurementInfo)
-	return opMeasurementInfo
+func (c *csvs) Info() map[string]ycsb.MeasurementInfo {
+	info := make(map[string]ycsb.MeasurementInfo, len(c.csvs))
+	for op, _ := range c.csvs {
+		info[op] = nil
+	}
+	return info
 }
 
-func (c *csv) Measure(op string, start time.Time, lan time.Duration) {
-	c.data = append(c.data, csventry{op, start, lan})
+func (c *csvs) Measure(op string, start time.Time, lan time.Duration) {
+	c.csvs[op] = append(c.csvs[op], csventry{
+		start_us:   start.UnixMicro(),
+		latency_us: lan.Microseconds(),
+	})
 }
 
-func (c *csv) Summary() map[string][]string {
-	summaries := make(map[string][]string)
-	return summaries
+func (c *csvs) Output(w io.Writer) error {
+	_, err := fmt.Fprintln(w, "operation,timestamp_us,latency_us")
+	if err != nil {
+		return err
+	}
+	for op, entries := range c.csvs {
+		for _, entry := range entries {
+			_, err := fmt.Fprintf(w, "%s,%d,%d\n", op, entry.start_us, entry.latency_us)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
-func (c *csv) OpNames() []string {
-	opNames := make([]string, 0)
-	return opNames
+func (c *csvs) OpNames() []string {
+	names := make([]string, 0, len(c.csvs))
+	for op := range c.csvs {
+		names = append(names, op)
+	}
+	return names
 }

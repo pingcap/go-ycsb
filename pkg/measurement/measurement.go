@@ -14,14 +14,13 @@
 package measurement
 
 import (
-	"sort"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/prop"
-	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
@@ -45,30 +44,10 @@ func (m *measurement) output() {
 	m.RLock()
 	defer m.RUnlock()
 
-	summaries := m.opMeasurement.Summary()
-	keys := make([]string, 0, len(summaries))
-	for k := range summaries {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	lines := [][]string{}
-	for _, op := range keys {
-		line := []string{op}
-		line = append(line, summaries[op]...)
-		lines = append(lines, line)
-	}
-
-	outputStyle := m.p.GetString(prop.OutputStyle, util.OutputStylePlain)
-	switch outputStyle {
-	case util.OutputStylePlain:
-		util.RenderString("%-6s - %s\n", header, lines)
-	case util.OutputStyleJson:
-		util.RenderJson(header, lines)
-	case util.OutputStyleTable:
-		util.RenderTable(header, lines)
-	default:
-		panic("unsupported outputstyle: " + outputStyle)
+	w := os.Stdout
+	err := globalMeasure.opMeasurement.Output(w)
+	if err != nil {
+		panic("failed to write output: " + err.Error())
 	}
 }
 

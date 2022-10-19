@@ -14,6 +14,7 @@
 package ycsb
 
 import (
+	"io"
 	"time"
 )
 
@@ -27,9 +28,9 @@ type MeasurementInfo interface {
 type Measurement interface {
 	Measure(op string, start time.Time, latency time.Duration)
 
-	Summary() map[string][]string
-
 	Info() map[string]MeasurementInfo
+
+	Output(w io.Writer) error
 
 	OpNames() []string
 }

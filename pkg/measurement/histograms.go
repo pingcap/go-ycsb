@@ -1,9 +1,13 @@
 package measurement
 
 import (
+	"io"
+	"sort"
 	"time"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/prop"
+	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
@@ -29,6 +33,35 @@ func (h *histograms) Summary() map[string][]string {
 		summaries[op] = opM.Summary()
 	}
 	return summaries
+}
+
+func (h *histograms) Output(w io.Writer) error {
+	summaries := h.Summary()
+	keys := make([]string, 0, len(summaries))
+	for k := range summaries {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	lines := [][]string{}
+	for _, op := range keys {
+		line := []string{op}
+		line = append(line, summaries[op]...)
+		lines = append(lines, line)
+	}
+
+	outputStyle := h.p.GetString(prop.OutputStyle, util.OutputStylePlain)
+	switch outputStyle {
+	case util.OutputStylePlain:
+		util.RenderString(w, "%-6s - %s\n", header, lines)
+	case util.OutputStyleJson:
+		util.RenderJson(w, header, lines)
+	case util.OutputStyleTable:
+		util.RenderTable(w, header, lines)
+	default:
+		panic("unsupported outputstyle: " + outputStyle)
+	}
+	return nil
 }
 
 func (h *histograms) Info() map[string]ycsb.MeasurementInfo {

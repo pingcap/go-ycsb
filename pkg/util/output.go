@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
@@ -18,7 +18,7 @@ const (
 )
 
 // RenderString renders headers and values according to the format provided
-func RenderString(format string, headers []string, values [][]string) {
+func RenderString(w io.Writer, format string, headers []string, values [][]string) {
 	if len(values) == 0 {
 		return
 	}
@@ -31,22 +31,22 @@ func RenderString(format string, headers []string, values [][]string) {
 		}
 		buf.WriteString(fmt.Sprintf(format, value[0], strings.Join(args, ", ")))
 	}
-	fmt.Print(buf.String())
+	fmt.Fprint(w, buf.String())
 }
 
 // RenderTable will use given headers and values to render a table style output
-func RenderTable(headers []string, values [][]string) {
+func RenderTable(w io.Writer, headers []string, values [][]string) {
 	if len(values) == 0 {
 		return
 	}
-	tb := tablewriter.NewWriter(os.Stdout)
+	tb := tablewriter.NewWriter(w)
 	tb.SetHeader(headers)
 	tb.AppendBulk(values)
 	tb.Render()
 }
 
 // RnederJson will combine the headers and values and print a json string
-func RenderJson(headers []string, values [][]string) {
+func RenderJson(w io.Writer, headers []string, values [][]string) {
 	if len(values) == 0 {
 		return
 	}
@@ -60,10 +60,10 @@ func RenderJson(headers []string, values [][]string) {
 	}
 	outStr, err := json.Marshal(data)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(w, err)
 		return
 	}
-	fmt.Println(string(outStr))
+	fmt.Fprintln(w, string(outStr))
 }
 
 // IntToString formats int value to string
