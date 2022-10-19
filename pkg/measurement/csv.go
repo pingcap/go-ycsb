@@ -16,25 +16,25 @@ type csventry struct {
 }
 
 type csvs struct {
-	csvs map[string][]csventry
+	opCsv map[string][]csventry
 }
 
 func InitCSV() *csvs {
 	return &csvs{
-		csvs: make(map[string][]csventry, 16),
+		opCsv: make(map[string][]csventry),
 	}
 }
 
 func (c *csvs) Info() map[string]ycsb.MeasurementInfo {
-	info := make(map[string]ycsb.MeasurementInfo, len(c.csvs))
-	for op, _ := range c.csvs {
+	info := make(map[string]ycsb.MeasurementInfo, len(c.opCsv))
+	for op, _ := range c.opCsv {
 		info[op] = nil
 	}
 	return info
 }
 
 func (c *csvs) Measure(op string, start time.Time, lan time.Duration) {
-	c.csvs[op] = append(c.csvs[op], csventry{
+	c.opCsv[op] = append(c.opCsv[op], csventry{
 		start_us:   start.UnixMicro(),
 		latency_us: lan.Microseconds(),
 	})
@@ -45,7 +45,7 @@ func (c *csvs) Output(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for op, entries := range c.csvs {
+	for op, entries := range c.opCsv {
 		for _, entry := range entries {
 			_, err := fmt.Fprintf(w, "%s,%d,%d\n", op, entry.start_us, entry.latency_us)
 			if err != nil {
