@@ -14,6 +14,7 @@
 package measurement
 
 import (
+	"io"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -44,7 +45,18 @@ func (m *measurement) output() {
 	m.RLock()
 	defer m.RUnlock()
 
-	w := os.Stdout
+	outFile := m.p.GetString(prop.MeasurementRawOutputFile, "")
+	var w io.Writer
+	if outFile == "" {
+		w = os.Stdout
+	} else {
+		f, err := os.Create(outFile)
+		if err != nil {
+			panic("failed to create output file: " + err.Error())
+		}
+		w = f
+	}
+
 	err := globalMeasure.measurer.Output(w)
 	if err != nil {
 		panic("failed to write output: " + err.Error())
