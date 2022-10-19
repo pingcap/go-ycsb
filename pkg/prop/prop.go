@@ -110,6 +110,7 @@ const (
 	LogInterval = "measurement.interval"
 
 	MeasurementType          = "measurementtype"
+	MeasurementTypeDefault   = "histogram"
 	MeasurementRawOutputfile = "measurement.raw.output_file"
 
 	Command = "command"
