@@ -101,6 +101,13 @@ Available Commands:
 - etcd
 - DynamoDB
 
+## Output configuration
+
+|field|default value|description|
+|-|-|-|
+|measurementtype|"histogram"|The mechanism for recording measurements, one of `histogram`, `raw` or `csv`|
+|measurement.raw.output_file|""|File to write output to, default writes to stdout|
+
 ## Database Configuration
 
 You can pass the database configurations through `-p field=value` in the command line directly.
