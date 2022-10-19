@@ -8,9 +8,9 @@ import (
 
 type csventry struct {
 	// start time of the operation in us from unix epoch
-	start_us int64
+	startUs int64
 	// latency of the operation in us
-	latency_us int64
+	latencyUs int64
 }
 
 type csvs struct {
@@ -25,8 +25,8 @@ func InitCSV() *csvs {
 
 func (c *csvs) Measure(op string, start time.Time, lan time.Duration) {
 	c.opCsv[op] = append(c.opCsv[op], csventry{
-		start_us:   start.UnixMicro(),
-		latency_us: lan.Microseconds(),
+		startUs:   start.UnixMicro(),
+		latencyUs: lan.Microseconds(),
 	})
 }
 
@@ -37,7 +37,7 @@ func (c *csvs) Output(w io.Writer) error {
 	}
 	for op, entries := range c.opCsv {
 		for _, entry := range entries {
-			_, err := fmt.Fprintf(w, "%s,%d,%d\n", op, entry.start_us, entry.latency_us)
+			_, err := fmt.Fprintf(w, "%s,%d,%d\n", op, entry.startUs, entry.latencyUs)
 			if err != nil {
 				return err
 			}
