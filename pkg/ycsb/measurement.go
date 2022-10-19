@@ -25,6 +25,7 @@ type MeasurementInfo interface {
 	Get(metricName string) interface{}
 }
 
+// Measurer is used to capture measurements.
 type Measurer interface {
 	// Measure measures the latency of an operation.
 	Measure(op string, start time.Time, latency time.Duration)
