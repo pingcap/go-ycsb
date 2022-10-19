@@ -25,20 +25,10 @@ type MeasurementInfo interface {
 	Get(metricName string) interface{}
 }
 
-type Measurement interface {
+type Measurer interface {
+	// Measure measures the latency of an operation.
 	Measure(op string, start time.Time, latency time.Duration)
 
+	// Output writes the measurement results to the specified writer.
 	Output(w io.Writer) error
-
-	OpNames() []string
-}
-
-// OpMeasurement measures the operations metrics.
-type OpMeasurement interface {
-	// Measure measures the operation latency.
-	Measure(latency time.Duration)
-	// Summary returns the summary of the measurement.
-	Summary() []string
-	// Info returns the MeasurementInfo of the measurement.
-	Info() MeasurementInfo
 }

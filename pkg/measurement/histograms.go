@@ -72,14 +72,6 @@ func (h *histograms) Info() map[string]ycsb.MeasurementInfo {
 	return opMeasurementInfo
 }
 
-func (h *histograms) OpNames() []string {
-	opNames := make([]string, 0, len(h.histograms))
-	for op := range h.histograms {
-		opNames = append(opNames, op)
-	}
-	return opNames
-}
-
 func InitHistograms(p *properties.Properties) *histograms {
 	return &histograms{
 		p:          p,

@@ -31,12 +31,12 @@ type measurement struct {
 
 	p *properties.Properties
 
-	opMeasurement ycsb.Measurement
+	measurer ycsb.Measurer
 }
 
 func (m *measurement) measure(op string, start time.Time, lan time.Duration) {
 	m.Lock()
-	m.opMeasurement.Measure(op, start, lan)
+	m.measurer.Measure(op, start, lan)
 	m.Unlock()
 }
 
@@ -45,17 +45,10 @@ func (m *measurement) output() {
 	defer m.RUnlock()
 
 	w := os.Stdout
-	err := globalMeasure.opMeasurement.Output(w)
+	err := globalMeasure.measurer.Output(w)
 	if err != nil {
 		panic("failed to write output: " + err.Error())
 	}
-}
-
-func (m *measurement) getOpName() []string {
-	m.RLock()
-	defer m.RUnlock()
-
-	return m.opMeasurement.OpNames()
 }
 
 // InitMeasure initializes the global measurement.
@@ -65,9 +58,9 @@ func InitMeasure(p *properties.Properties) {
 	measurementType := p.GetString(prop.MeasurementType, prop.MeasurementTypeDefault)
 	switch measurementType {
 	case "histogram":
-		globalMeasure.opMeasurement = InitHistograms(p)
+		globalMeasure.measurer = InitHistograms(p)
 	case "raw", "csv":
-		globalMeasure.opMeasurement = InitCSV()
+		globalMeasure.measurer = InitCSV()
 	default:
 		panic("unsupported measurement type: " + measurementType)
 	}
@@ -98,11 +91,6 @@ func Measure(op string, start time.Time, lan time.Duration) {
 	if IsWarmUpFinished() {
 		globalMeasure.measure(op, start, lan)
 	}
-}
-
-// GetOpNames returns a string slice which contains all the operation name measured.
-func GetOpNames() []string {
-	return globalMeasure.getOpName()
 }
 
 var globalMeasure *measurement

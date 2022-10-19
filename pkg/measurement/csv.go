@@ -55,11 +55,3 @@ func (c *csvs) Output(w io.Writer) error {
 	}
 	return nil
 }
-
-func (c *csvs) OpNames() []string {
-	names := make([]string, 0, len(c.csvs))
-	for op := range c.csvs {
-		names = append(names, op)
-	}
-	return names
-}
