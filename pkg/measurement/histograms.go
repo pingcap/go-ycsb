@@ -20,7 +20,7 @@ type histograms struct {
 func (h *histograms) Measure(op string, start time.Time, lan time.Duration) {
 	opM, ok := h.histograms[op]
 	if !ok {
-		opM = newHistogram(h.p)
+		opM = newHistogram()
 		h.histograms[op] = opM
 	}
 

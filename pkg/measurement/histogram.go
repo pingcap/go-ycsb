@@ -18,7 +18,6 @@ import (
 	"time"
 
 	hdrhistogram "github.com/HdrHistogram/hdrhistogram-go"
-	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
@@ -48,7 +47,7 @@ func (h *histogram) Info() ycsb.MeasurementInfo {
 	return newHistogramInfo(res)
 }
 
-func newHistogram(p *properties.Properties) *histogram {
+func newHistogram() *histogram {
 	h := new(histogram)
 	h.startTime = time.Now()
 	h.hist = hdrhistogram.New(1, 24*60*60*1000*1000, 3)
