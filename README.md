@@ -106,7 +106,7 @@ Available Commands:
 |field|default value|description|
 |-|-|-|
 |measurementtype|"histogram"|The mechanism for recording measurements, one of `histogram`, `raw` or `csv`|
-|measurement.raw.output_file|""|File to write output to, default writes to stdout|
+|measurement.output_file|""|File to write output to, default writes to stdout|
 
 ## Database Configuration
 

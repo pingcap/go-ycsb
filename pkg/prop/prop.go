@@ -111,7 +111,7 @@ const (
 
 	MeasurementType          = "measurementtype"
 	MeasurementTypeDefault   = "histogram"
-	MeasurementRawOutputFile = "measurement.raw.output_file"
+	MeasurementRawOutputFile = "measurement.output_file"
 
 	Command = "command"
 
