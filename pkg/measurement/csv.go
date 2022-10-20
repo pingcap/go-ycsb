@@ -45,3 +45,7 @@ func (c *csvs) Output(w io.Writer) error {
 	}
 	return nil
 }
+
+func (c *csvs) Summary() {
+	// do nothing as csvs don't keep a summary
+}

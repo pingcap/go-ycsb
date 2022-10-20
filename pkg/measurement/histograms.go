@@ -2,6 +2,7 @@ package measurement
 
 import (
 	"io"
+	"os"
 	"sort"
 	"time"
 
@@ -32,6 +33,10 @@ func (h *histograms) summary() map[string][]string {
 		summaries[op] = opM.Summary()
 	}
 	return summaries
+}
+
+func (h *histograms) Summary() {
+	h.Output(os.Stdout)
 }
 
 func (h *histograms) Output(w io.Writer) error {

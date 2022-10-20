@@ -23,6 +23,9 @@ type Measurer interface {
 	// Measure measures the latency of an operation.
 	Measure(op string, start time.Time, latency time.Duration)
 
+	// Summary writes a summary of the current measurement results to stdout.
+	Summary()
+
 	// Output writes the measurement results to the specified writer.
 	Output(w io.Writer) error
 }

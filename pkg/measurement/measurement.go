@@ -68,6 +68,12 @@ func (m *measurement) output() {
 	}
 }
 
+func (m *measurement) summary() {
+	m.RLock()
+	globalMeasure.measurer.Summary()
+	m.RUnlock()
+}
+
 // InitMeasure initializes the global measurement.
 func InitMeasure(p *properties.Properties) {
 	globalMeasure = new(measurement)
@@ -84,9 +90,14 @@ func InitMeasure(p *properties.Properties) {
 	EnableWarmUp(p.GetInt64(prop.WarmUpTime, 0) > 0)
 }
 
-// Output prints the measurement summary.
+// Output prints the complete measurements.
 func Output() {
 	globalMeasure.output()
+}
+
+// Summary prints the measurement summary.
+func Summary() {
+	globalMeasure.summary()
 }
 
 // EnableWarmUp sets whether to enable warm-up.
