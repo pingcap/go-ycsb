@@ -54,6 +54,7 @@ func (m *measurement) output() {
 		if err != nil {
 			panic("failed to create output file: " + err.Error())
 		}
+		defer f.Close()
 		w = bufio.NewWriter(f)
 	}
 
