@@ -232,7 +232,7 @@ func (db *rocksDB) Update(ctx context.Context, table string, key string, values 
 	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
 
-	buf, err := db.r.Encode(buf, m)
+	buf, err = db.r.Encode(buf, m)
 	if err != nil {
 		return err
 	}
