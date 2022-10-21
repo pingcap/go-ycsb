@@ -18,9 +18,7 @@ import (
 	"time"
 
 	hdrhistogram "github.com/HdrHistogram/hdrhistogram-go"
-	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
-	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
 type histogram struct {
@@ -42,13 +40,7 @@ const (
 	PER9999TH = "PER9999TH"
 )
 
-func (h *histogram) Info() ycsb.MeasurementInfo {
-	res := h.getInfo()
-	delete(res, ELAPSED)
-	return newHistogramInfo(res)
-}
-
-func newHistogram(p *properties.Properties) *histogram {
+func newHistogram() *histogram {
 	h := new(histogram)
 	h.startTime = time.Now()
 	h.hist = hdrhistogram.New(1, 24*60*60*1000*1000, 3)
@@ -102,19 +94,4 @@ func (h *histogram) getInfo() map[string]interface{} {
 	res[PER9999TH] = per9999
 
 	return res
-}
-
-type histogramInfo struct {
-	info map[string]interface{}
-}
-
-func newHistogramInfo(info map[string]interface{}) *histogramInfo {
-	return &histogramInfo{info: info}
-}
-
-func (hi *histogramInfo) Get(metricName string) interface{} {
-	if value, ok := hi.info[metricName]; ok {
-		return value
-	}
-	return nil
 }
