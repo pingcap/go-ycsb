@@ -264,6 +264,7 @@ const (
 	redisReadTimeout           = "redis.read_timeout"
 	redisWriteTimeout          = "redis.write_timeout"
 	redisPoolSize              = "redis.pool_size"
+	redisPoolSizeDefault              = 0
 	redisMinIdleConns          = "redis.min_idle_conns"
 	redisMaxConnAge            = "redis.max_conn_age"
 	redisPoolTimeout           = "redis.pool_timeout"
@@ -292,23 +293,28 @@ func parseTLS(p *properties.Properties) *tls.Config {
 
 func getOptionsSingle(p *properties.Properties) *goredis.Options {
 	opts := &goredis.Options{}
-	opts.Network = p.GetString(redisNetwork, redisNetworkDefault)
+
 	opts.Addr = p.GetString(redisAddr, redisAddrDefault)
-	opts.Password, _ = p.Get(redisPassword)
 	opts.DB = p.GetInt(redisDB, 0)
+	opts.Network = p.GetString(redisNetwork, redisNetworkDefault)
+	opts.Password, _ = p.Get(redisPassword)
 	opts.MaxRetries = p.GetInt(redisMaxRetries, 0)
 	opts.MinRetryBackoff = p.GetDuration(redisMinRetryBackoff, time.Millisecond*8)
 	opts.MaxRetryBackoff = p.GetDuration(redisMaxRetryBackoff, time.Millisecond*512)
 	opts.DialTimeout = p.GetDuration(redisDialTimeout, time.Second*5)
 	opts.ReadTimeout = p.GetDuration(redisReadTimeout, time.Second*3)
 	opts.WriteTimeout = p.GetDuration(redisWriteTimeout, opts.ReadTimeout)
-	opts.PoolSize = p.GetInt(redisPoolSize, 10)
+	opts.PoolSize = p.GetInt(redisPoolSize, redisPoolSizeDefault)
+	threadCount := p.MustGetInt("threadcount")
+	if opts.PoolSize == 0 {
+		opts.PoolSize = threadCount
+		fmt.Println(fmt.Sprintf("Setting %s=%d (from <threadcount>) given you haven't specified a value.", redisPoolSize, opts.PoolSize))
+	}
 	opts.MinIdleConns = p.GetInt(redisMinIdleConns, 0)
 	opts.MaxConnAge = p.GetDuration(redisMaxConnAge, 0)
 	opts.PoolTimeout = p.GetDuration(redisPoolTimeout, time.Second+opts.ReadTimeout)
 	opts.IdleTimeout = p.GetDuration(redisIdleTimeout, time.Minute*5)
 	opts.IdleCheckFrequency = p.GetDuration(redisIdleCheckFreq, time.Minute)
-
 	opts.TLSConfig = parseTLS(p)
 
 	return opts
@@ -330,7 +336,12 @@ func getOptionsCluster(p *properties.Properties) *goredis.ClusterOptions {
 	opts.DialTimeout = p.GetDuration(redisDialTimeout, time.Second*5)
 	opts.ReadTimeout = p.GetDuration(redisReadTimeout, time.Second*3)
 	opts.WriteTimeout = p.GetDuration(redisWriteTimeout, opts.ReadTimeout)
-	opts.PoolSize = p.GetInt(redisPoolSize, 10)
+	opts.PoolSize = p.GetInt(redisPoolSize, redisPoolSizeDefault)
+	threadCount := p.MustGetInt("threadcount")
+	if opts.PoolSize == 0 {
+		opts.PoolSize = threadCount
+		fmt.Println(fmt.Sprintf("Setting %s=%d (from <threadcount>) given you haven't specified a value.", redisPoolSize, opts.PoolSize))
+	}
 	opts.MinIdleConns = p.GetInt(redisMinIdleConns, 0)
 	opts.MaxConnAge = p.GetDuration(redisMaxConnAge, 0)
 	opts.PoolTimeout = p.GetDuration(redisPoolTimeout, time.Second+opts.ReadTimeout)
