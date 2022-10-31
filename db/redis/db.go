@@ -264,7 +264,7 @@ const (
 	redisReadTimeout           = "redis.read_timeout"
 	redisWriteTimeout          = "redis.write_timeout"
 	redisPoolSize              = "redis.pool_size"
-	redisPoolSizeDefault              = 0
+	redisPoolSizeDefault       = 0
 	redisMinIdleConns          = "redis.min_idle_conns"
 	redisMaxConnAge            = "redis.max_conn_age"
 	redisPoolTimeout           = "redis.pool_timeout"
