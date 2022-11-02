@@ -322,6 +322,9 @@ Common configurations:
 |dynamodb.ensure.clean.table|true|On load mode ensure that the table is clean at the begining. In case of true and if the table previously exists it will be deleted and recreated|
 |dynamodb.endpoint|""|Used endpoint for connection. If empty will use the default loaded configs|
 |dynamodb.region|""|Used region for connection ( should match endpoint ). If empty will use the default loaded configs|
+|dynamodb.consistent.reads|false|Reads on DynamoDB provide an eventually consistent read by default. If your benchmark/use-case requires a strongly consistent read, set this option to true|
+|dynamodb.delete.after.run.stage|false|Detele the database table after the run stage|
+
 
 
 ## TODO
