@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -142,28 +143,30 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	defer cancel()
 
 	cliOpts := options.Client().ApplyURI(uri)
-	if len(connString.Hosts) > 0 {
-		servername := strings.Split(connString.Hosts[0], ":")[0]
-		fmt.Printf("using server name for tls: %s\n", servername)
-		cliOpts.TLSConfig.ServerName = servername
-	}
-	if tlsSkipVerify {
-		fmt.Println("skipping tls cert validation")
-		cliOpts.TLSConfig.InsecureSkipVerify = true
-	}
-
-	if caFile != "" {
-		// Load CA cert
-		caCert, err := ioutil.ReadFile(caFile)
-		if err != nil {
-			log.Fatal(err)
+	if cliOpts.TLSConfig != nil {
+		if len(connString.Hosts) > 0 {
+			servername := strings.Split(connString.Hosts[0], ":")[0]
+			fmt.Printf("using server name for tls: %s\n", servername)
+			cliOpts.TLSConfig.ServerName = servername
 		}
-		caCertPool := x509.NewCertPool()
-		if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
-			log.Fatalf("certifacte %s could not be parsed", caFile)
+		if tlsSkipVerify {
+			fmt.Println("skipping tls cert validation")
+			cliOpts.TLSConfig.InsecureSkipVerify = true
 		}
 
-		cliOpts.TLSConfig.RootCAs = caCertPool
+		if caFile != "" {
+			// Load CA cert
+			caCert, err := ioutil.ReadFile(caFile)
+			if err != nil {
+				log.Fatal(err)
+			}
+			caCertPool := x509.NewCertPool()
+			if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
+				log.Fatalf("certifacte %s could not be parsed", caFile)
+			}
+
+			cliOpts.TLSConfig.RootCAs = caCertPool
+		}
 	}
 
 	username, usrExist := p.Get(mongodbUsername)
@@ -193,6 +196,16 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	m := &mongoDB{
 		cli: cli,
 		db:  cli.Database(mongodbDatabaseDefault),
+	}
+
+	dropData := p.GetBool(prop.DropData, prop.DropDataDefault)
+	if dropData {
+		tableName := p.GetString(prop.TableName, prop.TableNameDefault)
+
+		if err := m.db.Collection(tableName).Drop(ctx); err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
 	}
 	return m, nil
 }
