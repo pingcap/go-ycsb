@@ -165,8 +165,8 @@ func (db *mysqlDB) createTable(driverName string) error {
 	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(64) PRIMARY KEY", tableName)
 	buf.WriteString(s)
 
-	if driverName == "tidb" && db.p.GetBool(tidbClusterIndex, true) {
-		buf.WriteString(" CLUSTERED")
+	if (driverName == "tidb" || driverName == "mysql") && db.p.GetBool(tidbClusterIndex, true) {
+		buf.WriteString(" /*T![clustered_index] CLUSTERED */")
 	}
 
 	for i := int64(0); i < fieldCount; i++ {
