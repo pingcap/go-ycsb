@@ -335,6 +335,14 @@ Common configurations:
 
 
 
+### YDB
+
+|field|default value|description|
+|-|-|-|
+|ydb.dsn|"grpc://localhost:2136/local"|Connection string (data source name) for connect to YDB cluster|
+|ydb.explain|false|Execute queries in explain mode for checking query graph. This option must use only for debug queries.|
+|ydb.force|true|Enables blind writes (UPSERT) instead safety writes (INSERT or UPDATE)|
+
 ## TODO
 
 - [ ] Support more measurement, like HdrHistogram
