@@ -702,4 +702,5 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 
 func init() {
 	ycsb.RegisterWorkloadCreator("core", coreCreator{})
+	ycsb.RegisterWorkloadCreator("site.ycsb.workloads.CoreWorkload", coreCreator{})
 }
