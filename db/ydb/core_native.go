@@ -3,17 +3,17 @@ package ydb
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
+	"time"
 )
 
 type driverNative struct {
-	db ydb.Connection
+	db  ydb.Connection
+	dsn string
 }
 
 var (
@@ -95,18 +95,14 @@ func (d *driverNative) executeDataQuery(ctx context.Context, query string, param
 func openNative(ctx context.Context, dsn string, limit int) (*driverNative, error) {
 	db, err := ydb.Open(ctx, dsn,
 		ydb.WithSessionPoolSizeLimit(limit+10),
+		ydb.WithDialTimeout(time.Minute),
 	)
 	if err != nil {
 		fmt.Printf("failed to open native ydb driver: %v", err)
 		return nil, err
 	}
-	go func() {
-		for {
-			fmt.Printf("Stats: %+v\n", db.Table().Stats())
-			time.Sleep(time.Second)
-		}
-	}()
 	return &driverNative{
-		db: db,
+		db:  db,
+		dsn: dsn,
 	}, nil
 }

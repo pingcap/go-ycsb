@@ -35,21 +35,23 @@ const (
 	truncatedThreshold = 1000
 )
 
-type driverCore interface {
-	executeSchemeQuery(ctx context.Context, query string) error
-	queryRows(ctx context.Context, query string, count int, params *table.QueryParameters) ([]map[string][]byte, error)
-	executeDataQuery(ctx context.Context, query string, params *table.QueryParameters) error
-	close() error
-}
+type (
+	driverCore interface {
+		executeSchemeQuery(ctx context.Context, query string) error
+		queryRows(ctx context.Context, query string, count int, params *table.QueryParameters) ([]map[string][]byte, error)
+		executeDataQuery(ctx context.Context, query string, params *table.QueryParameters) error
+		close() error
+	}
+	driver struct {
+		p           *properties.Properties
+		cores       []driverCore
+		verbose     bool
+		forceUpsert bool
 
-type driver struct {
-	p           *properties.Properties
-	core        driverCore
-	verbose     bool
-	forceUpsert bool
-
-	buildersPool buildersPool
-}
+		buildersPool buildersPool
+	}
+	ctxThreadIDKey struct{}
+)
 
 var (
 	_ ycsb.DB      = (*driver)(nil)
@@ -83,7 +85,7 @@ func (d *driver) createTable() error {
 	tableName := d.p.GetString(prop.TableName, prop.TableNameDefault)
 
 	if d.p.GetBool(prop.DropData, prop.DropDataDefault) {
-		_ = d.core.executeSchemeQuery(ctx, "DROP TABLE "+tableName)
+		_ = d.cores[0].executeSchemeQuery(ctx, "DROP TABLE "+tableName)
 	}
 
 	fieldCount := d.p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
@@ -154,15 +156,20 @@ func (d *driver) createTable() error {
 		fmt.Println(strings.ReplaceAll(query, "\n", " "))
 	}
 
-	return d.core.executeSchemeQuery(ctx, query)
+	return d.cores[0].executeSchemeQuery(ctx, query)
 }
 
 func (d *driver) Close() error {
-	return d.core.close()
+	for i := range d.cores {
+		if err := d.cores[i].close(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (d *driver) InitThread(ctx context.Context, _ int, _ int) context.Context {
-	return ctx
+func (d *driver) InitThread(ctx context.Context, threadID int, threadCount int) context.Context {
+	return context.WithValue(ctx, ctxThreadIDKey{}, threadID)
 }
 
 func (d *driver) CleanupThread(context.Context) {
@@ -172,11 +179,20 @@ var (
 	txControlReadOnly = table.TxControl(table.BeginTx(table.WithSnapshotReadOnly()), table.CommitTx())
 )
 
-func (d *driver) queryRows(ctx context.Context, query string, count int, params *table.QueryParameters) ([]map[string][]byte, error) {
+func (d *driver) queryRows(ctx context.Context, query string, count int, params *table.QueryParameters) (_ []map[string][]byte, err error) {
+	defer func() {
+		if err != nil {
+			fmt.Printf("queryRows failed: %v\n", err)
+		}
+	}()
 	if d.verbose {
 		fmt.Println(strings.ReplaceAll(query, "\n", " "))
 	}
-	return d.core.queryRows(ctx, query, count, params)
+	threadID, has := ctx.Value(ctxThreadIDKey{}).(int)
+	if !has {
+		return nil, fmt.Errorf("context not contains threadID identifier")
+	}
+	return d.cores[threadID%len(d.cores)].queryRows(ctx, query, count, params)
 }
 
 func (d *driver) Read(ctx context.Context, tableName string, id string, fields []string) (map[string][]byte, error) {
@@ -262,12 +278,20 @@ func (d *driver) Scan(ctx context.Context, tableName string, startKey string, co
 	return rows, nil
 }
 
-func (d *driver) execQuery(ctx context.Context, query string, params *table.QueryParameters) error {
+func (d *driver) execQuery(ctx context.Context, query string, params *table.QueryParameters) (err error) {
+	defer func() {
+		if err != nil {
+			fmt.Printf("execQuery failed: %v\n", err)
+		}
+	}()
 	if d.verbose {
 		fmt.Println(strings.ReplaceAll(query, "\n", " "))
 	}
-
-	return d.core.executeDataQuery(ctx, query, params)
+	threadID, has := ctx.Value(ctxThreadIDKey{}).(int)
+	if !has {
+		return fmt.Errorf("context not contains threadID identifier")
+	}
+	return d.cores[threadID%len(d.cores)].executeDataQuery(ctx, query, params)
 }
 
 func (d *driver) insertOrUpsert(ctx context.Context, op string, tableName string, id string, values map[string][]byte) error {

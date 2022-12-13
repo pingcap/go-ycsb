@@ -340,8 +340,14 @@ Common configurations:
 |field|default value|description|
 |-|-|-|
 |ydb.dsn|"grpc://localhost:2136/local"|Connection string (data source name) for connect to YDB cluster|
-|ydb.explain|false|Execute queries in explain mode for checking query graph. This option must use only for debug queries.|
-|ydb.force|true|Enables blind writes (UPSERT) instead safety writes (INSERT or UPDATE)|
+|ydb.compression|false|Use compression for all columns|
+|ydb.auto.partitioning|true|Automatically calculates min number of partitions and split options|
+|ydb.max.part.size.mb|2000|Maximum size of partition in MB before split|
+|ydb.max.parts.count|50|Maximum number of partitions, see [AUTO_PARTITIONING_MAX_PARTITIONS_COUNT](https://ydb.tech/en/docs/concepts/datamodel#auto_partitioning_max_partitions_count)|
+|ydb.split.by.load|true|Split parts when they're overloaded, see [AUTO_PARTITIONING_BY_LOAD](https://ydb.tech/en/docs/concepts/datamodel#auto_partitioning_by_load)|
+|ydb.split.by.size|true|Split parts when they're overloaded, see [AUTO_PARTITIONING_BY_SIZE](https://ydb.tech/en/docs/concepts/datamodel#auto_partitioning_by_size)|
+|ydb.force.upsert|true|Both Insert() and Update() use UPSERT, i.e. blind writes|
+|ydb.driver.type|native|Type of driver implementation ("native" or "database/sql")|
 
 ## TODO
 

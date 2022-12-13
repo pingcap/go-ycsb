@@ -26,6 +26,11 @@ const (
 	ydbForceUpsert        = "ydb.force.upsert"
 	ydbForceUpsertDefault = false
 
-	ydbNativeDriver        = "ydb.native.driver"
-	ydbNativeDriverDefault = true
+	ydbDriverType        = "ydb.driver.type"
+	ydbDriverTypeNative  = "native"
+	ydbDriverTypeSql     = "database/sql"
+	ydbDriverTypeDefault = ydbDriverTypeNative
+
+	ydbDriversCount        = "ydb.drivers.count"
+	ydbDriversCountDefault = 10
 )

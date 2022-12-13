@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
-
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -92,12 +90,6 @@ func openSql(ctx context.Context, dsn string, limit int) (*driverSql, error) {
 	}
 	db.SetMaxIdleConns(limit + 1)
 	db.SetMaxOpenConns(limit * 2)
-	go func() {
-		for {
-			fmt.Printf("Stats: %+v\n", db.Stats())
-			time.Sleep(time.Second)
-		}
-	}()
 	return &driverSql{
 		db: db,
 	}, db.PingContext(ctx)

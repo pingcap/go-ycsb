@@ -14,9 +14,16 @@
 package ydb
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"strings"
 	"sync"
 
+	"github.com/magiconair/properties"
+
+	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
@@ -39,4 +46,53 @@ func (p buildersPool) Put(b *strings.Builder) {
 
 func init() {
 	ycsb.RegisterDBCreator("ydb", creator{})
+}
+
+type creator struct{}
+
+var (
+	_ ycsb.DBCreator = (*creator)(nil)
+)
+
+func (c creator) Create(p *properties.Properties) (_ ycsb.DB, err error) {
+	go func() {
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			panic(err)
+		}
+	}()
+
+	dsn := p.GetString(ydbDSN, ydbDSNDefault)
+
+	ctx := context.Background()
+
+	threadCount := int(p.GetInt64(prop.ThreadCount, prop.ThreadCountDefault))
+	driverType := p.GetString(ydbDriverType, ydbDriverTypeNative)
+	driversCount := p.GetInt(ydbDriversCount, ydbDriversCountDefault)
+
+	d := &driver{
+		p:           p,
+		verbose:     p.GetBool(prop.Verbose, prop.VerboseDefault),
+		forceUpsert: p.GetBool(ydbForceUpsert, ydbForceUpsertDefault),
+		cores:       make([]driverCore, driversCount),
+	}
+
+	for i := range d.cores {
+		var core driverCore
+		switch driverType {
+		case ydbDriverTypeNative:
+			core, err = openNative(ctx, dsn, threadCount/driversCount+1)
+		case ydbDriverTypeSql:
+			core, err = openSql(ctx, dsn, threadCount/driversCount+1)
+		default:
+			return nil, fmt.Errorf("unknown driver type '%s'. allowed: [%s, %s]",
+				driverType, ydbDriverTypeNative, ydbDriverTypeSql,
+			)
+		}
+		if err != nil {
+			return nil, err
+		}
+		d.cores[i] = core
+	}
+
+	return d, d.createTable()
 }
