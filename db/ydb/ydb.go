@@ -66,7 +66,7 @@ func (c creator) Create(p *properties.Properties) (_ ycsb.DB, err error) {
 	ctx := context.Background()
 
 	threadCount := int(p.GetInt64(prop.ThreadCount, prop.ThreadCountDefault))
-	driverType := p.GetString(ydbDriverType, ydbDriverTypeNative)
+	driverType := p.GetString(ydbDriverType, ydbDriverTypeDefault)
 	driversCount := p.GetInt(ydbDriversCount, ydbDriversCountDefault)
 
 	d := &driver{

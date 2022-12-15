@@ -32,5 +32,5 @@ const (
 	ydbDriverTypeDefault = ydbDriverTypeNative
 
 	ydbDriversCount        = "ydb.drivers.count"
-	ydbDriversCountDefault = 10
+	ydbDriversCountDefault = 1
 )

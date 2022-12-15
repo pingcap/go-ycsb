@@ -577,10 +577,10 @@ github.com/xdg-go/stringprep v1.0.2 h1:6iq84/ryjjeRmMJwxutI51F2GIPlP5BfTvXHeYjyh
 github.com/xdg-go/stringprep v1.0.2/go.mod h1:8F9zXuvzgwmyT5DUm4GUfZGDdT3W+LCvS6+da4O5kxM=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
-github.com/ydb-platform/ydb-go-genproto v0.0.0-20220922065549-66df47a830ba h1:htUAISxEY5MfCLmubsf2EMgN+H62cQTNcTseK5F4cJ0=
-github.com/ydb-platform/ydb-go-genproto v0.0.0-20220922065549-66df47a830ba/go.mod h1:Er+FePu1dNUieD+XTMDduGpQuCPssK5Q4BjF+IIXJ3I=
-github.com/ydb-platform/ydb-go-sdk/v3 v3.40.2-rc0 h1:BMTbWJxsG4lxqEB4Cu4GTaApVVCtQxWMJcANQRMRaVo=
-github.com/ydb-platform/ydb-go-sdk/v3 v3.40.2-rc0/go.mod h1:hJqWSE2NZ2o2c9geHtRJee+xwiHgEfQX9koBZPLTfHY=
+github.com/ydb-platform/ydb-go-genproto v0.0.0-20221215182650-986f9d10542f h1:BBczNIM1MJHT7XkIUA8pThXWxJvxoBjcWvne3xwe2RI=
+github.com/ydb-platform/ydb-go-genproto v0.0.0-20221215182650-986f9d10542f/go.mod h1:Er+FePu1dNUieD+XTMDduGpQuCPssK5Q4BjF+IIXJ3I=
+github.com/ydb-platform/ydb-go-sdk/v3 v3.41.0 h1:2Kfj7I9EtQ8/o6gLB0mbShrZ/tC3/GFyjVE9z5CCLA0=
+github.com/ydb-platform/ydb-go-sdk/v3 v3.41.0/go.mod h1:4bSfSb2PyBtmbFYsaVg96YxK1NjYBA3opn2o6IYvgZ8=
 github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d h1:splanxYIlg+5LfHAM6xpdFEAYOk8iySO56hMFq6uLyA=
 github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d/go.mod h1:rHwXgn7JulP+udvsHwJoVG1YGAP6VLg4y9I5dyZdqmA=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
