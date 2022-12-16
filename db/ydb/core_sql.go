@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/retry"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -83,11 +84,15 @@ func (d *driverSql) executeSchemeQuery(ctx context.Context, query string) error 
 }
 
 func openSql(ctx context.Context, dsn string, limit int) (*driverSql, error) {
-	db, err := sql.Open("ydb", dsn)
+	cc, err := openYdb(ctx, dsn, limit)
 	if err != nil {
-		fmt.Printf("failed to open database/sql ydb driver: %v", err)
 		return nil, err
 	}
+	connector, err := ydb.Connector(cc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database/sql driver: %w", err)
+	}
+	db := sql.OpenDB(connector)
 	db.SetMaxIdleConns(limit + 1)
 	db.SetMaxOpenConns(limit * 2)
 	return &driverSql{

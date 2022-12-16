@@ -3,12 +3,14 @@ package ydb
 import (
 	"context"
 	"fmt"
+	"time"
+
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
-	"time"
 )
 
 type driverNative struct {
@@ -92,14 +94,18 @@ func (d *driverNative) executeDataQuery(ctx context.Context, query string, param
 	}, table.WithIdempotent())
 }
 
-func openNative(ctx context.Context, dsn string, limit int) (*driverNative, error) {
-	db, err := ydb.Open(ctx, dsn,
+func openYdb(ctx context.Context, dsn string, limit int) (_ ydb.Connection, err error) {
+	return ydb.Open(ctx, dsn,
+		environ.WithEnvironCredentials(ctx),
 		ydb.WithSessionPoolSizeLimit(limit+10),
 		ydb.WithDialTimeout(time.Minute),
 	)
+}
+
+func openNative(ctx context.Context, dsn string, limit int) (*driverNative, error) {
+	db, err := openYdb(ctx, dsn, limit)
 	if err != nil {
-		fmt.Printf("failed to open native ydb driver: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to open native driver: %w", err)
 	}
 	return &driverNative{
 		db:  db,

@@ -23,6 +23,8 @@ import (
 
 	"github.com/magiconair/properties"
 
+	_ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
+
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
