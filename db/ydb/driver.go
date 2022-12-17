@@ -16,6 +16,7 @@ package ydb
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"math"
 	"strings"
 
@@ -43,11 +44,11 @@ type (
 		close() error
 	}
 	driver struct {
-		p           *properties.Properties
-		cores       []driverCore
-		verbose     bool
-		forceUpsert bool
-
+		p            *properties.Properties
+		cores        []driverCore
+		verbose      bool
+		forceUpsert  bool
+		useHash      bool
 		buildersPool buildersPool
 	}
 	ctxThreadIDKey struct{}
@@ -96,7 +97,15 @@ func (d *driver) createTable() error {
 
 	builder.WriteString("CREATE TABLE ")
 	builder.WriteString(tableName)
-	builder.WriteString(" (id Text NOT NULL")
+	builder.WriteString(" (")
+	if d.useHash {
+		builder.WriteString("hash Uint32 NOT NULL")
+		if doCompression {
+			builder.WriteString(" default")
+		}
+		builder.WriteString(",")
+	}
+	builder.WriteString(" id Text NOT NULL")
 
 	if doCompression {
 		builder.WriteString(" default")
@@ -109,7 +118,11 @@ func (d *driver) createTable() error {
 		}
 	}
 
-	builder.WriteString(", PRIMARY KEY (id)")
+	builder.WriteString(", PRIMARY KEY (")
+	if d.useHash {
+		builder.WriteString("hash, ")
+	}
+	builder.WriteString("id)")
 
 	if doCompression {
 		builder.WriteString(`, FAMILY default ( DATA = "ssd", COMPRESSION = "lz4")`)
@@ -121,23 +134,22 @@ func (d *driver) createTable() error {
 		avgRowSize := d.calculateAvgRowSize()
 		recordCount := d.p.GetInt64(prop.RecordCount, prop.RecordCountDefault)
 		maxPartSizeMB := d.p.GetInt64(ydbMaxPartSizeMb, ydbMaxPartSizeMbDefault)
-		maxParts := d.p.GetInt64(ydbMaxPartCount, ydbMaxPartCountDefault)
-		minParts := maxParts
+		maxShards := d.p.GetInt64(ydbMaxPartCount, ydbMaxPartCountDefault)
 
 		approximateDataSize := avgRowSize * recordCount
-		avgPartSizeMB := int64(math.Max(float64(approximateDataSize)/float64(maxParts)/1000000, 1))
+		avgPartSizeMB := int64(math.Max(float64(approximateDataSize)/float64(maxShards)/1000000, 1))
 		partSizeMB := int64(math.Min(float64(avgPartSizeMB), float64(maxPartSizeMB)))
 
 		splitByLoad := d.p.GetBool(ydbSplitByLoad, ydbSplitByLoadDefault)
 		splitBySize := d.p.GetBool(ydbSplitBySize, ydbSplitBySizeDefault)
 		fmt.Printf("After partitioning for %d records with avg row size %d: "+
 			"minParts=%d, maxParts=%d, partSize=%d MB, splitByLoad=%t, splitBySize=%t\n",
-			recordCount, avgRowSize, minParts, maxParts, partSizeMB, splitByLoad, splitBySize,
+			recordCount, avgRowSize, maxShards, maxShards, partSizeMB, splitByLoad, splitBySize,
 		)
 
 		builder.WriteString(" WITH (")
-		builder.WriteString(fmt.Sprintf("AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = %d", minParts))
-		builder.WriteString(fmt.Sprintf(", AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = %d", maxParts))
+		builder.WriteString(fmt.Sprintf("AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = %d", maxShards))
+		builder.WriteString(fmt.Sprintf(", AUTO_PARTITIONING_MAX_PARTITIONS_COUNT = %d", maxShards))
 		if splitByLoad {
 			builder.WriteString(", AUTO_PARTITIONING_BY_LOAD = ENABLED")
 		}
@@ -302,7 +314,14 @@ func (d *driver) insertOrUpsert(ctx context.Context, op string, tableName string
 	)
 	defer d.buildersPool.Put(builder)
 
-	paramOptions = append(paramOptions, table.ValueParam("$id", types.TextValue(id)))
+	if d.useHash {
+		paramOptions = append(paramOptions,
+			table.ValueParam("$hash", types.Uint32Value(d.hash(id))),
+		)
+	}
+	paramOptions = append(paramOptions,
+		table.ValueParam("$id", types.TextValue(id)),
+	)
 	for _, p := range pairs {
 		paramOptions = append(paramOptions, table.ValueParam("$"+p.Field, types.BytesValue(p.Value)))
 	}
@@ -319,12 +338,20 @@ func (d *driver) insertOrUpsert(ctx context.Context, op string, tableName string
 	builder.WriteString(op)
 	builder.WriteString(" INTO ")
 	builder.WriteString(tableName)
-	builder.WriteString(" (id")
+	builder.WriteString(" (")
+	if d.useHash {
+		builder.WriteString("hash, ")
+	}
+	builder.WriteString("id")
 	for _, p := range pairs {
 		builder.WriteByte(',')
 		builder.WriteString(p.Field)
 	}
-	builder.WriteString(")\nVALUES ($id")
+	builder.WriteString(")\nVALUES (")
+	if d.useHash {
+		builder.WriteString("$hash, ")
+	}
+	builder.WriteString("$id")
 
 	for _, p := range pairs {
 		builder.WriteString(fmt.Sprintf(",$%s", p.Field))
@@ -368,6 +395,12 @@ func (d *driver) Delete(ctx context.Context, tableName string, id string) error 
 	))
 }
 
+func (d *driver) hash(s string) uint32 {
+	v := fnv.New32a()
+	v.Write([]byte(s))
+	return v.Sum32()
+}
+
 func (d *driver) batchInsertOrUpsert(ctx context.Context, op string, tableName string, ids []string, values []map[string][]byte) error {
 	var (
 		builder = d.buildersPool.Get()
@@ -378,7 +411,14 @@ func (d *driver) batchInsertOrUpsert(ctx context.Context, op string, tableName s
 	rows := make([]types.Value, 0, len(ids))
 	for i, rowValues := range values {
 		row := make([]types.StructValueOption, 0, 1+len(rowValues))
-		row = append(row, types.StructFieldValue("id", types.TextValue(ids[i])))
+		if d.useHash {
+			row = append(row,
+				types.StructFieldValue("hash", types.Uint32Value(d.hash(ids[i]))),
+			)
+		}
+		row = append(row,
+			types.StructFieldValue("id", types.TextValue(ids[i])),
+		)
 		for _, field := range pairs {
 			row = append(row, types.StructFieldValue(field.Field, types.BytesValue(field.Value)))
 		}

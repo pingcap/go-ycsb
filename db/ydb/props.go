@@ -26,6 +26,9 @@ const (
 	ydbForceUpsert        = "ydb.force.upsert"
 	ydbForceUpsertDefault = false
 
+	ydbUseHash        = "ydb.use.hash"
+	ydbUseHashDefault = true
+
 	ydbDriverType        = "ydb.driver.type"
 	ydbDriverTypeNative  = "native"
 	ydbDriverTypeSql     = "database/sql"

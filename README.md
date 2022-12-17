@@ -348,6 +348,7 @@ Common configurations:
 |ydb.split.by.size|true|Split parts when they're overloaded, see [AUTO_PARTITIONING_BY_SIZE](https://ydb.tech/en/docs/concepts/datamodel#auto_partitioning_by_size)|
 |ydb.force.upsert|true|Both Insert() and Update() use UPSERT, i.e. blind writes|
 |ydb.driver.type|native|Type of driver implementation ("native" or "database/sql")|
+|ydb.use.hash|true|Use additional column with hash of id for uniform distribution of rows between shards|
 
 ## TODO
 

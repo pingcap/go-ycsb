@@ -75,6 +75,7 @@ func (c creator) Create(p *properties.Properties) (_ ycsb.DB, err error) {
 		p:           p,
 		verbose:     p.GetBool(prop.Verbose, prop.VerboseDefault),
 		forceUpsert: p.GetBool(ydbForceUpsert, ydbForceUpsertDefault),
+		useHash:     p.GetBool(ydbUseHash, ydbUseHashDefault),
 		cores:       make([]driverCore, driversCount),
 	}
 
