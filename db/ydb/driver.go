@@ -23,6 +23,7 @@ import (
 	"github.com/magiconair/properties"
 
 	// ydb package
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
@@ -204,7 +205,12 @@ func (d *driver) queryRows(ctx context.Context, query string, count int, params 
 	if !has {
 		return nil, fmt.Errorf("context not contains threadID identifier")
 	}
-	return d.cores[threadID%len(d.cores)].queryRows(ctx, query, count, params)
+	rows, err := d.cores[threadID%len(d.cores)].queryRows(ctx, query, count, params)
+	if ydb.IsTimeoutError(err) {
+		return rows, nil
+	}
+	return rows, err
+
 }
 
 func (d *driver) Read(ctx context.Context, tableName string, id string, fields []string) (map[string][]byte, error) {
@@ -303,7 +309,11 @@ func (d *driver) execQuery(ctx context.Context, query string, params *table.Quer
 	if !has {
 		return fmt.Errorf("context not contains threadID identifier")
 	}
-	return d.cores[threadID%len(d.cores)].executeDataQuery(ctx, query, params)
+	err = d.cores[threadID%len(d.cores)].executeDataQuery(ctx, query, params)
+	if ydb.IsTimeoutError(err) {
+		return nil
+	}
+	return err
 }
 
 func (d *driver) insertOrUpsert(ctx context.Context, op string, tableName string, id string, values map[string][]byte) error {
