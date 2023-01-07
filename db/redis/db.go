@@ -254,6 +254,7 @@ const (
 	redisNetworkDefault        = "tcp"
 	redisAddr                  = "redis.addr"
 	redisAddrDefault           = "localhost:6379"
+	redisUsername              = "redis.username"
 	redisPassword              = "redis.password"
 	redisDB                    = "redis.db"
 	redisMaxRedirects          = "redis.max_redirects"
@@ -300,6 +301,7 @@ func getOptionsSingle(p *properties.Properties) *goredis.Options {
 	opts.Addr = p.GetString(redisAddr, redisAddrDefault)
 	opts.DB = p.GetInt(redisDB, 0)
 	opts.Network = p.GetString(redisNetwork, redisNetworkDefault)
+	opts.Username = p.GetString(redisUsername, "")
 	opts.Password, _ = p.Get(redisPassword)
 	opts.MaxRetries = p.GetInt(redisMaxRetries, 0)
 	opts.MinRetryBackoff = p.GetDuration(redisMinRetryBackoff, time.Millisecond*8)
@@ -334,6 +336,7 @@ func getOptionsCluster(p *properties.Properties) *goredis.ClusterOptions {
 	opts.ReadOnly = p.GetBool(redisReadOnly, false)
 	opts.RouteByLatency = p.GetBool(redisRouteByLatency, false)
 	opts.RouteRandomly = p.GetBool(redisRouteRandomly, false)
+	opts.Username = p.GetString(redisUsername, "")
 	opts.Password, _ = p.Get(redisPassword)
 	opts.MaxRetries = p.GetInt(redisMaxRetries, 0)
 	opts.MinRetryBackoff = p.GetDuration(redisMinRetryBackoff, time.Millisecond*8)
