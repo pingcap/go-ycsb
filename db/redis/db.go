@@ -214,8 +214,11 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	mode := p.GetString(redisMode, redisModeDefault)
 	switch mode {
 	case "cluster":
-		rds.client = goredis.NewClusterClient(getOptionsCluster(p))
-
+		clusterClient := goredis.NewClusterClient(getOptionsCluster(p))
+		// ReloadState reloads cluster state. It calls ClusterSlots func
+		// to get cluster slots information.
+		clusterClient.ReloadState(context.Background())
+		rds.client = clusterClient
 		if p.GetBool(prop.DropData, prop.DropDataDefault) {
 			err := rds.client.FlushDB(context.Background()).Err()
 			if err != nil {
@@ -251,6 +254,7 @@ const (
 	redisNetworkDefault        = "tcp"
 	redisAddr                  = "redis.addr"
 	redisAddrDefault           = "localhost:6379"
+	redisUsername              = "redis.username"
 	redisPassword              = "redis.password"
 	redisDB                    = "redis.db"
 	redisMaxRedirects          = "redis.max_redirects"
@@ -266,10 +270,10 @@ const (
 	redisPoolSize              = "redis.pool_size"
 	redisPoolSizeDefault       = 0
 	redisMinIdleConns          = "redis.min_idle_conns"
+	redisMaxIdleConns          = "redis.max_idle_conns"
 	redisMaxConnAge            = "redis.max_conn_age"
 	redisPoolTimeout           = "redis.pool_timeout"
 	redisIdleTimeout           = "redis.idle_timeout"
-	redisIdleCheckFreq         = "redis.idle_check_frequency"
 	redisTLSCA                 = "redis.tls_ca"
 	redisTLSCert               = "redis.tls_cert"
 	redisTLSKey                = "redis.tls_key"
@@ -297,6 +301,7 @@ func getOptionsSingle(p *properties.Properties) *goredis.Options {
 	opts.Addr = p.GetString(redisAddr, redisAddrDefault)
 	opts.DB = p.GetInt(redisDB, 0)
 	opts.Network = p.GetString(redisNetwork, redisNetworkDefault)
+	opts.Username = p.GetString(redisUsername, "")
 	opts.Password, _ = p.Get(redisPassword)
 	opts.MaxRetries = p.GetInt(redisMaxRetries, 0)
 	opts.MinRetryBackoff = p.GetDuration(redisMinRetryBackoff, time.Millisecond*8)
@@ -311,10 +316,12 @@ func getOptionsSingle(p *properties.Properties) *goredis.Options {
 		fmt.Println(fmt.Sprintf("Setting %s=%d (from <threadcount>) given you haven't specified a value.", redisPoolSize, opts.PoolSize))
 	}
 	opts.MinIdleConns = p.GetInt(redisMinIdleConns, 0)
-	opts.MaxConnAge = p.GetDuration(redisMaxConnAge, 0)
+	opts.MaxIdleConns = p.GetInt(redisMaxIdleConns, 0)
+	// Since go-redis 9.0.0 the MaxConnAge option was Renamed to ConnMaxLifetime
+	opts.ConnMaxLifetime = p.GetDuration(redisMaxConnAge, 0)
 	opts.PoolTimeout = p.GetDuration(redisPoolTimeout, time.Second+opts.ReadTimeout)
-	opts.IdleTimeout = p.GetDuration(redisIdleTimeout, time.Minute*5)
-	opts.IdleCheckFrequency = p.GetDuration(redisIdleCheckFreq, time.Minute)
+	// Since go-redis 9.0.0 the MaxConnAge option was Renamed to ConnMaxLifetime
+	opts.ConnMaxIdleTime = p.GetDuration(redisIdleTimeout, time.Minute*5)
 	opts.TLSConfig = parseTLS(p)
 
 	return opts
@@ -329,6 +336,7 @@ func getOptionsCluster(p *properties.Properties) *goredis.ClusterOptions {
 	opts.ReadOnly = p.GetBool(redisReadOnly, false)
 	opts.RouteByLatency = p.GetBool(redisRouteByLatency, false)
 	opts.RouteRandomly = p.GetBool(redisRouteRandomly, false)
+	opts.Username = p.GetString(redisUsername, "")
 	opts.Password, _ = p.Get(redisPassword)
 	opts.MaxRetries = p.GetInt(redisMaxRetries, 0)
 	opts.MinRetryBackoff = p.GetDuration(redisMinRetryBackoff, time.Millisecond*8)
@@ -343,10 +351,12 @@ func getOptionsCluster(p *properties.Properties) *goredis.ClusterOptions {
 		fmt.Println(fmt.Sprintf("Setting %s=%d (from <threadcount>) given you haven't specified a value.", redisPoolSize, opts.PoolSize))
 	}
 	opts.MinIdleConns = p.GetInt(redisMinIdleConns, 0)
-	opts.MaxConnAge = p.GetDuration(redisMaxConnAge, 0)
+	opts.MaxIdleConns = p.GetInt(redisMaxIdleConns, 0)
+	// Since go-redis 9.0.0 the MaxConnAge option was Renamed to ConnMaxLifetime
+	opts.ConnMaxLifetime = p.GetDuration(redisMaxConnAge, 0)
 	opts.PoolTimeout = p.GetDuration(redisPoolTimeout, time.Second+opts.ReadTimeout)
-	opts.IdleTimeout = p.GetDuration(redisIdleTimeout, time.Minute*5)
-	opts.IdleCheckFrequency = p.GetDuration(redisIdleCheckFreq, time.Minute)
+	// Since go-redis 9.0.0 the MaxConnAge option was Renamed to ConnMaxLifetime
+	opts.ConnMaxIdleTime = p.GetDuration(redisIdleTimeout, time.Minute*5)
 
 	opts.TLSConfig = parseTLS(p)
 
