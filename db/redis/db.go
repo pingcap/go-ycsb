@@ -218,6 +218,10 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		// ReloadState reloads cluster state. It calls ClusterSlots func
 		// to get cluster slots information.
 		clusterClient.ReloadState(context.Background())
+		err := clusterClient.Ping(context.Background()).Err()
+		if err != nil {
+			return nil, err
+		}
 		rds.client = clusterClient
 		if p.GetBool(prop.DropData, prop.DropDataDefault) {
 			err := rds.client.FlushDB(context.Background()).Err()
@@ -229,7 +233,12 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		fallthrough
 	default:
 		mode = "single"
-		rds.client = goredis.NewClient(getOptionsSingle(p))
+		singleEndpointClient := goredis.NewClient(getOptionsSingle(p))
+		err := singleEndpointClient.Ping(context.Background()).Err()
+		if err != nil {
+			return nil, err
+		}
+		rds.client = singleEndpointClient
 
 		if p.GetBool(prop.DropData, prop.DropDataDefault) {
 			err := rds.client.FlushDB(context.Background()).Err()
