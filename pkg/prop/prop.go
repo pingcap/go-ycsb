@@ -116,4 +116,10 @@ const (
 	Command = "command"
 
 	OutputStyle = "outputstyle"
+
+	// MeasurementHistogramPercentileExport properties -- related to histogram latencies exporting
+	MeasurementHistogramPercentileExport                = "histogram.percentiles.export"
+	MeasurementHistogramPercentileExportDefault         = false
+	MeasurementHistogramPercentileExportFilepath        = "histogram.percentiles.export.filepath"
+	MeasurementHistogramPercentileExportFilepathDefault = "./"
 )

@@ -35,6 +35,7 @@ func measure(start time.Time, op string, err error) {
 	}
 
 	measurement.Measure(op, start, lan)
+	measurement.Measure("TOTAL", start, lan)
 }
 
 func (db DbWrapper) Close() error {
