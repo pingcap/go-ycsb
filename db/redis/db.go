@@ -338,8 +338,8 @@ func getOptionsSingle(p *properties.Properties) *goredis.Options {
 		opts.PoolSize = threadCount
 		fmt.Println(fmt.Sprintf("Setting %s=%d (from <threadcount>) given you haven't specified a value.", redisPoolSize, opts.PoolSize))
 	}
-	opts.MinIdleConns = p.GetInt(redisMinIdleConns, 0)
-	opts.MaxIdleConns = p.GetInt(redisMaxIdleConns, 0)
+	opts.MinIdleConns = p.GetInt(redisMinIdleConns, opts.PoolSize)
+	opts.MaxIdleConns = p.GetInt(redisMaxIdleConns, opts.PoolSize)
 	// Since go-redis 9.0.0 the MaxConnAge option was Renamed to ConnMaxLifetime
 	opts.ConnMaxLifetime = p.GetDuration(redisMaxConnAge, 0)
 	opts.PoolTimeout = p.GetDuration(redisPoolTimeout, time.Second+opts.ReadTimeout)
