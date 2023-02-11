@@ -35,9 +35,10 @@ type redisClient interface {
 }
 
 type redis struct {
-	client   redisClient
-	mode     string
-	datatype string
+	client     redisClient
+	mode       string
+	datatype   string
+	fieldcount int64
 }
 
 func (r *redis) Close() error {
@@ -108,6 +109,11 @@ func (r *redis) Scan(ctx context.Context, table string, startKey string, count i
 }
 
 func (r *redis) Update(ctx context.Context, table string, key string, values map[string][]byte) (err error) {
+	// check if it's full update. If yes then we can avoid reading the previous value on string datype
+	fullUpdate := false
+	if int64(len(values)) == r.fieldcount {
+		fullUpdate = true
+	}
 	err = nil
 	switch r.datatype {
 	case JSON_DATATYPE:
@@ -138,15 +144,22 @@ func (r *redis) Update(ctx context.Context, table string, key string, values map
 		fallthrough
 	default:
 		{
-			var initialEncodedJson string = ""
-			initialEncodedJson, err = r.client.Get(ctx, getKeyName(table, key)).Result()
-			if err != nil {
-				return
-			}
 			var encodedJson = make([]byte, 0)
-			err, encodedJson = mergeEncodedJsonWithMap(initialEncodedJson, values)
-			if err != nil {
-				return
+			if fullUpdate {
+				encodedJson, err = json.Marshal(values)
+				if err != nil {
+					return err
+				}
+			} else {
+				var initialEncodedJson string = ""
+				initialEncodedJson, err = r.client.Get(ctx, getKeyName(table, key)).Result()
+				if err != nil {
+					return
+				}
+				err, encodedJson = mergeEncodedJsonWithMap(initialEncodedJson, values)
+				if err != nil {
+					return
+				}
 			}
 			return r.client.Set(ctx, getKeyName(table, key), string(encodedJson), 0).Err()
 		}
@@ -250,6 +263,7 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	rds.mode = mode
 	rds.datatype = p.GetString(redisDatatype, redisDatatypeDefault)
 	fmt.Println(fmt.Sprintf("Using the redis datatype: %s", rds.datatype))
+	rds.fieldcount = p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
 
 	return rds, nil
 }
