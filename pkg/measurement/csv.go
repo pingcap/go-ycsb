@@ -17,6 +17,9 @@ type csvs struct {
 	opCsv map[string][]csventry
 }
 
+func (c *csvs) GenerateExtendedOutputs() {
+}
+
 func InitCSV() *csvs {
 	return &csvs{
 		opCsv: make(map[string][]csventry),

@@ -1,6 +1,8 @@
 package measurement
 
 import (
+	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"sort"
@@ -15,6 +17,28 @@ type histograms struct {
 	p *properties.Properties
 
 	histograms map[string]*histogram
+}
+
+func (h *histograms) GenerateExtendedOutputs() {
+	exportHistograms := h.p.GetBool(prop.MeasurementHistogramPercentileExport, prop.MeasurementHistogramPercentileExportDefault)
+	if exportHistograms {
+		exportHistogramsFilepath := h.p.GetString(prop.MeasurementHistogramPercentileExportFilepath, prop.MeasurementHistogramPercentileExportFilepathDefault)
+		for op, opM := range h.histograms {
+			outFile := fmt.Sprintf("%s%s-percentiles.txt", exportHistogramsFilepath, op)
+			fmt.Printf("Exporting the full latency spectrum for operation '%s' in percentile output format into file: %s.\n", op, outFile)
+			f, err := os.Create(outFile)
+			if err != nil {
+				panic("failed to create percentile output file: " + err.Error())
+			}
+			defer f.Close()
+			w := bufio.NewWriter(f)
+			_, err = opM.hist.PercentilesPrint(w, 1, 1.0)
+			w.Flush()
+			if err != nil {
+				panic("failed to print percentiles: " + err.Error())
+			}
+		}
+	}
 }
 
 func (h *histograms) Measure(op string, start time.Time, lan time.Duration) {

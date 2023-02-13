@@ -26,6 +26,9 @@ type Measurer interface {
 	// Summary writes a summary of the current measurement results to stdout.
 	Summary()
 
+	// GenerateExtendedOutputs is called at the end of the benchmark
+	GenerateExtendedOutputs()
+
 	// Output writes the measurement results to the specified writer.
 	Output(w io.Writer) error
 }
