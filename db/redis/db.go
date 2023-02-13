@@ -35,9 +35,10 @@ type redisClient interface {
 }
 
 type redis struct {
-	client   redisClient
-	mode     string
-	datatype string
+	client     redisClient
+	mode       string
+	datatype   string
+	fieldcount int64
 }
 
 func (r *redis) Close() error {
@@ -108,6 +109,11 @@ func (r *redis) Scan(ctx context.Context, table string, startKey string, count i
 }
 
 func (r *redis) Update(ctx context.Context, table string, key string, values map[string][]byte) (err error) {
+	// check if it's full update. If yes then we can avoid reading the previous value on string datype
+	fullUpdate := false
+	if int64(len(values)) == r.fieldcount {
+		fullUpdate = true
+	}
 	err = nil
 	switch r.datatype {
 	case JSON_DATATYPE:
@@ -138,15 +144,22 @@ func (r *redis) Update(ctx context.Context, table string, key string, values map
 		fallthrough
 	default:
 		{
-			var initialEncodedJson string = ""
-			initialEncodedJson, err = r.client.Get(ctx, getKeyName(table, key)).Result()
-			if err != nil {
-				return
-			}
 			var encodedJson = make([]byte, 0)
-			err, encodedJson = mergeEncodedJsonWithMap(initialEncodedJson, values)
-			if err != nil {
-				return
+			if fullUpdate {
+				encodedJson, err = json.Marshal(values)
+				if err != nil {
+					return err
+				}
+			} else {
+				var initialEncodedJson string = ""
+				initialEncodedJson, err = r.client.Get(ctx, getKeyName(table, key)).Result()
+				if err != nil {
+					return
+				}
+				err, encodedJson = mergeEncodedJsonWithMap(initialEncodedJson, values)
+				if err != nil {
+					return
+				}
 			}
 			return r.client.Set(ctx, getKeyName(table, key), string(encodedJson), 0).Err()
 		}
@@ -218,6 +231,10 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		// ReloadState reloads cluster state. It calls ClusterSlots func
 		// to get cluster slots information.
 		clusterClient.ReloadState(context.Background())
+		err := clusterClient.Ping(context.Background()).Err()
+		if err != nil {
+			return nil, err
+		}
 		rds.client = clusterClient
 		if p.GetBool(prop.DropData, prop.DropDataDefault) {
 			err := rds.client.FlushDB(context.Background()).Err()
@@ -229,7 +246,12 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		fallthrough
 	default:
 		mode = "single"
-		rds.client = goredis.NewClient(getOptionsSingle(p))
+		singleEndpointClient := goredis.NewClient(getOptionsSingle(p))
+		err := singleEndpointClient.Ping(context.Background()).Err()
+		if err != nil {
+			return nil, err
+		}
+		rds.client = singleEndpointClient
 
 		if p.GetBool(prop.DropData, prop.DropDataDefault) {
 			err := rds.client.FlushDB(context.Background()).Err()
@@ -241,6 +263,7 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	rds.mode = mode
 	rds.datatype = p.GetString(redisDatatype, redisDatatypeDefault)
 	fmt.Println(fmt.Sprintf("Using the redis datatype: %s", rds.datatype))
+	rds.fieldcount = p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
 
 	return rds, nil
 }
@@ -315,8 +338,8 @@ func getOptionsSingle(p *properties.Properties) *goredis.Options {
 		opts.PoolSize = threadCount
 		fmt.Println(fmt.Sprintf("Setting %s=%d (from <threadcount>) given you haven't specified a value.", redisPoolSize, opts.PoolSize))
 	}
-	opts.MinIdleConns = p.GetInt(redisMinIdleConns, 0)
-	opts.MaxIdleConns = p.GetInt(redisMaxIdleConns, 0)
+	opts.MinIdleConns = p.GetInt(redisMinIdleConns, opts.PoolSize)
+	opts.MaxIdleConns = p.GetInt(redisMaxIdleConns, opts.PoolSize)
 	// Since go-redis 9.0.0 the MaxConnAge option was Renamed to ConnMaxLifetime
 	opts.ConnMaxLifetime = p.GetDuration(redisMaxConnAge, 0)
 	opts.PoolTimeout = p.GetDuration(redisPoolTimeout, time.Second+opts.ReadTimeout)
