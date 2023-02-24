@@ -341,10 +341,18 @@ func getOptionsSingle(p *properties.Properties) *goredis.Options {
 	opts.MinIdleConns = p.GetInt(redisMinIdleConns, opts.PoolSize)
 	opts.MaxIdleConns = p.GetInt(redisMaxIdleConns, opts.PoolSize)
 	// Since go-redis 9.0.0 the MaxConnAge option was Renamed to ConnMaxLifetime
-	opts.ConnMaxLifetime = p.GetDuration(redisMaxConnAge, 0)
+	// Expired connections may be closed lazily before reuse.
+	// If <= 0, connections are not closed due to a connection's age.
+	opts.ConnMaxLifetime = p.GetDuration(redisMaxConnAge, -1)
+	// Amount of time client waits for connection if all connections
+	// are busy before returning an error.
+	// Default is ReadTimeout + 1 second.
 	opts.PoolTimeout = p.GetDuration(redisPoolTimeout, time.Second+opts.ReadTimeout)
 	// Since go-redis 9.0.0 the MaxConnAge option was Renamed to ConnMaxLifetime
-	opts.ConnMaxIdleTime = p.GetDuration(redisIdleTimeout, time.Minute*5)
+	// Expired connections may be closed lazily before reuse.
+	// If d <= 0, connections are not closed due to a connection's idle time.
+	// -1 disables idle timeout check.
+	opts.ConnMaxIdleTime = p.GetDuration(redisIdleTimeout, -1)
 	opts.TLSConfig = parseTLS(p)
 
 	return opts
@@ -373,14 +381,21 @@ func getOptionsCluster(p *properties.Properties) *goredis.ClusterOptions {
 		opts.PoolSize = threadCount
 		fmt.Println(fmt.Sprintf("Setting %s=%d (from <threadcount>) given you haven't specified a value.", redisPoolSize, opts.PoolSize))
 	}
-	opts.MinIdleConns = p.GetInt(redisMinIdleConns, 0)
-	opts.MaxIdleConns = p.GetInt(redisMaxIdleConns, 0)
+	opts.MinIdleConns = p.GetInt(redisMinIdleConns, opts.PoolSize)
+	opts.MaxIdleConns = p.GetInt(redisMaxIdleConns, opts.PoolSize)
 	// Since go-redis 9.0.0 the MaxConnAge option was Renamed to ConnMaxLifetime
-	opts.ConnMaxLifetime = p.GetDuration(redisMaxConnAge, 0)
+	// Expired connections may be closed lazily before reuse.
+	// If <= 0, connections are not closed due to a connection's age.
+	opts.ConnMaxLifetime = p.GetDuration(redisMaxConnAge, -1)
+	// Amount of time client waits for connection if all connections
+	// are busy before returning an error.
+	// Default is ReadTimeout + 1 second.
 	opts.PoolTimeout = p.GetDuration(redisPoolTimeout, time.Second+opts.ReadTimeout)
 	// Since go-redis 9.0.0 the MaxConnAge option was Renamed to ConnMaxLifetime
-	opts.ConnMaxIdleTime = p.GetDuration(redisIdleTimeout, time.Minute*5)
-
+	// Expired connections may be closed lazily before reuse.
+	// If d <= 0, connections are not closed due to a connection's idle time.
+	// -1 disables idle timeout check.
+	opts.ConnMaxIdleTime = p.GetDuration(redisIdleTimeout, -1)
 	opts.TLSConfig = parseTLS(p)
 
 	return opts
