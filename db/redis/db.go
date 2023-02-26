@@ -308,7 +308,7 @@ func parseTLS(p *properties.Properties) *tls.Config {
 	certPath, _ := p.Get(redisTLSCert)
 	keyPath, _ := p.Get(redisTLSKey)
 	insecureSkipVerify := p.GetBool(redisTLSInsecureSkipVerify, false)
-	if certPath != "" && keyPath != "" {
+	if (certPath != "" && keyPath != "") || (caPath != "") {
 		config, err := util.CreateTLSConfig(caPath, certPath, keyPath, insecureSkipVerify)
 		if err == nil {
 			return config
