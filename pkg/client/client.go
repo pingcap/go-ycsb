@@ -76,6 +76,9 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 	}
 
 	w.opCount = totalOpCount / int64(threadCount)
+	if threadID < int(totalOpCount%int64(threadCount)) {
+		w.opCount++
+	}
 
 	targetPerThreadPerms := float64(-1)
 	if v := p.GetInt64(prop.Target, 0); v > 0 {
