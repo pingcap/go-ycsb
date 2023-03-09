@@ -9,7 +9,12 @@ jobs:
   releases-matrix:
     name: Release Go Binary
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # To sign.
+      contents: write # To upload release assets.
+      actions: read   # To read workflow path.
     strategy:
+      fail-fast: false
       matrix:
         goos: [linux, darwin]
         goarch: [amd64, arm64]
