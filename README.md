@@ -320,6 +320,7 @@ Common configurations:
 |etcd.cert_file|""|When using secure etcd, this should point to the crt file.|
 |etcd.key_file|""|When using secure etcd, this should point to the pem file.|
 |etcd.cacert_file|""|When using secure etcd, this should point to the ca file.|
+|etcd.serializable_reads|false|Whether to use serializable reads.|
 
 ### DynamoDB
 
