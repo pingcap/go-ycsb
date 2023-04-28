@@ -19,11 +19,12 @@ import (
 
 // properties
 const (
-	etcdEndpoints   = "etcd.endpoints"
-	etcdDialTimeout = "etcd.dial_timeout"
-	etcdCertFile    = "etcd.cert_file"
-	etcdKeyFile     = "etcd.key_file"
-	etcdCaFile      = "etcd.cacert_file"
+	etcdEndpoints         = "etcd.endpoints"
+	etcdDialTimeout       = "etcd.dial_timeout"
+	etcdCertFile          = "etcd.cert_file"
+	etcdKeyFile           = "etcd.key_file"
+	etcdCaFile            = "etcd.cacert_file"
+	etcdSerializableReads = "etcd.serializable_reads"
 )
 
 type etcdCreator struct{}
@@ -96,7 +97,11 @@ func getRowKey(table string, key string) string {
 
 func (db *etcdDB) Read(ctx context.Context, table string, key string, _ []string) (map[string][]byte, error) {
 	rkey := getRowKey(table, key)
-	value, err := db.client.Get(ctx, rkey)
+	var options []clientv3.OpOption
+	if db.p.GetBool(etcdSerializableReads, false) {
+		options = append(options, clientv3.WithSerializable())
+	}
+	value, err := db.client.Get(ctx, rkey, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +121,11 @@ func (db *etcdDB) Read(ctx context.Context, table string, key string, _ []string
 func (db *etcdDB) Scan(ctx context.Context, table string, startKey string, count int, _ []string) ([]map[string][]byte, error) {
 	res := make([]map[string][]byte, count)
 	rkey := getRowKey(table, startKey)
-	values, err := db.client.Get(ctx, rkey, clientv3.WithFromKey(), clientv3.WithLimit(int64(count)))
+	options := []clientv3.OpOption{clientv3.WithFromKey(), clientv3.WithLimit(int64(count))}
+	if db.p.GetBool(etcdSerializableReads, false) {
+		options = append(options, clientv3.WithSerializable())
+	}
+	values, err := db.client.Get(ctx, rkey, options...)
 	if err != nil {
 		return nil, err
 	}
