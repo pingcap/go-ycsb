@@ -76,8 +76,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/etcd"
 	// Register dynamodb
 	_ "github.com/pingcap/go-ycsb/db/dynamodb"
-	// Register Taas-tikv
-	//_ "github.com/Mister-Star/go-ycsb/db/taas_tikv"
+	// Register taas-tikv
+	_ "github.com/Mister-Star/go-ycsb/db/taas_tikv"
 )
 
 var (

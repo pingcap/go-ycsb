@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package taas_proto;
+
+option go_package = "./taas_proto";
+
+import "transaction.proto";
+import "node.proto";
+
+message StoragePullRequest {
+  uint64 epoch_id = 1;
+  Node send_node = 2;
+  Node recv_node = 3;
+}
+
+message StoragePullResponse {
+  Result result = 1;
+  uint64 epoch_id = 2;
+  uint64 txn_num = 3;
+  repeated Transaction txns = 4;
+  Node send_node = 5;
+  Node recv_node = 6;
+}
+
+message StoragePushResponse {
+  Result result = 1;
+  uint64 epoch_id = 2;
+  uint64 txn_num = 3;
+  repeated Transaction txns = 4;
+  Node send_node = 5;
+  Node recv_node = 6;
+}

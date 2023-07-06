@@ -1,0 +1,163 @@
+syntax = "proto3";
+
+package taas_proto;
+
+option go_package = "./taas_proto";
+
+import "transaction.proto";
+import "node.proto";
+
+message ReplyTransactionToClient { //return the result to client
+  uint64 client_txn_id = 1;
+  TxnState txn_state = 2;
+  Node send_node = 3;
+  Node recv_node = 4;
+}
+
+
+/***********************************************
+                Raft  REQUESTS
+***********************************************/
+
+message RaftRequest {
+  oneof type {
+    Ping ping = 1;
+    Signal signal = 2;
+    LookupMasterRequest lookup_master = 3;
+    ForwardEpochRequest forward_epoch = 4;
+    EpochReplicationAck epoch_replication_ack= 5;
+    RaftPropose raft_propose = 6;
+    RaftAcceptRequest raft_accept = 7;
+    RaftCommitRequest raft_commit = 8;
+    StatsRequest stats = 9;
+    ChangeServerStateRequest change_server_state= 10;
+  }
+}
+
+message Ping {
+  int32 from = 1;
+  int32 to = 2;
+}
+
+/**
+ * Generic signal message
+ */
+message Signal {
+  int32 from = 1;
+}
+
+message LookupMasterRequest {
+  repeated uint64 txn_ids = 1;
+  repeated bytes keys = 2;
+}
+
+message ForwardEpochRequest {
+  int32 from = 1;
+  int32 to = 2;
+  uint64 epoch_id = 3;
+}
+
+message EpochReplicationAck {
+  uint64 epoch_id = 1;
+}
+
+message RaftPropose {
+  uint64 value = 1;
+}
+
+message RaftAcceptRequest {
+  uint32 from = 1;
+  uint32 to = 2;
+  uint64 epoch_id = 3;
+}
+
+message RaftCommitRequest {
+  uint32 from = 1;
+  uint32 to = 2;
+  uint64 epoch_id = 3;
+}
+
+message StatsRequest {
+  uint32 from = 1;
+  uint32 to = 2;
+  uint32 level = 3;
+}
+
+message ChangeServerStateRequest {
+  uint32 from = 1;
+  uint32 to = 2;
+  uint32 target = 3;
+  uint32 state = 4;
+  uint32 pull_server_id = 5;
+  uint64 epoch_id = 6;
+}
+
+/***********************************************
+                    RESPONSES
+***********************************************/
+/**
+ * A response is always preceeded by a Request
+ */
+message RaftResponse {
+  oneof type {
+    Pong pong = 1;
+    LookupMasterResponse lookup_master = 2;
+    RaftAcceptResponse raft_accept = 3;
+    RaftCommitResponse raft_commit = 4;
+    StatsResponse stats = 5;
+    ChangeServerStateResponse change_server_state = 6;
+  }
+}
+
+/**
+ * For debugging and testing purposes
+ */
+message Pong {
+  int32 from = 1;
+  int32 to = 2;
+  int64 time = 3;
+  int64 epoch_id = 4;
+}
+
+message MasterMetadata {
+  uint32 master = 1;
+  uint32 epoch_count = 2;
+}
+
+message KeyMasterMetadata {
+  bytes key = 1;
+  MasterMetadata metadata = 2;
+}
+
+message LookupMasterResponse {
+  repeated uint64 epoch_id = 1;
+  repeated KeyMasterMetadata lookup_results = 2;
+}
+
+message RaftAcceptResponse {
+  uint32 from = 1;
+  uint32 to = 2;
+  uint64 epoch_id = 3;
+  uint32 result = 4;
+}
+
+message RaftCommitResponse {
+  uint32 from = 1;
+  uint32 to = 2;
+  uint64 epoch_id = 3;
+  uint32 result = 4;
+}
+
+message StatsResponse {
+  uint32 from = 1;
+  uint64 to = 2;
+  uint64 epoch_id = 3;
+}
+
+message ChangeServerStateResponse {
+  uint32 from = 1;
+  uint32 to = 2;
+  uint32 target = 3;
+  uint64 epoch_id = 4;
+  uint32 state = 5;
+}

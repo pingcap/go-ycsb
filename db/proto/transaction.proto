@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package taas_proto;
+
+option go_package = "./taas_proto";
+
+import "node.proto";
+
+
+enum Result {
+  Fail = 0;
+  Success = 1;
+}
+
+enum TxnType {
+  ClientTxn = 0; // client sends to txn
+  RemoteServerTxn = 1; // txn sends to txn, transactions sharding
+  EpochEndFlag = 2; // txn sends to txn, epoch transactions info
+  CommittedTxn = 3; // txn sends to storage , redo log
+  BackUpTxn = 4; // txn sends to txn, transactions backup
+  BackUpEpochEndFlag = 5; // txn sends to txn, transactions backup info
+  AbortSet = 6; // epoch abort set
+  InsertSet = 7; // epoch insert set backup
+  EpochShardingACK = 8;
+  BackUpACK = 9;
+  AbortSetACK = 10;
+  InsertSetACK = 11;
+  EpochLogPushDownComplete = 12;
+  NullMark = 13;
+}
+
+enum TxnState {
+  Empty = 0;
+  Abort = 1;
+  Commit = 2;
+}
+
+enum OpType {
+  Read = 0;
+  Insert = 1;
+  Update = 2;
+  Delete = 3;
+}
+
+message Column {
+  uint32 id = 1; // column id
+  bytes value = 2; // column value/data
+}
+
+message Row{
+  OpType op_type = 1;
+  string table_name = 2;
+  bytes key = 3;
+  bytes data = 4;
+  repeated Column column = 5; // if needed
+  uint64 csn = 6;
+}
+
+message Transaction{
+  repeated Row row = 1;
+  uint64 start_epoch = 2;
+  uint64 commit_epoch = 3;
+  uint64 csn = 4;
+
+  string server_ip = 5; // used to identify which remote server sends this txn to current server
+  uint32 server_id = 6; // used to identify which remote server sends this txn to current server
+
+  string client_ip = 7; // used to identify which client sends this txn to current server
+  uint64 client_txn_id = 8; // used to identify which txn it is in client
+
+  TxnType txn_type = 9;
+  TxnState txn_state = 10;
+
+  uint64 sharding_id = 11;
+
+}

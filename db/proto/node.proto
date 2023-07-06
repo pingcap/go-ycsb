@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package taas_proto;
+
+option go_package = "./taas_proto";
+
+message Node {
+  string ip = 1;
+  uint32 port = 2;
+  uint32 id = 3;
+}

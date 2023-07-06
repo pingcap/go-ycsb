@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package taas_proto;
+
+option go_package = "./taas_proto";
+
+import "transaction.proto";
+import "server.proto";
+import "client.proto";
+import "storage.proto";
+import "node.proto";
+
+message Message {
+  oneof type {
+    Transaction txn = 1;
+    ReplyTransactionToClient reply_txn_result_to_client = 2;
+    ClientReadRequest client_read_request = 3;
+    ClientReadResponse client_read_response = 4;
+    StoragePullRequest storage_pull_request = 5;
+    StoragePullResponse storage_pull_response = 6;
+    StoragePushResponse storage_push_response = 7;
+    RaftRequest raft_request = 8;
+    RaftResponse raft_response = 9;
+  }
+}
+
+
+//message ServerMessage{
+//  message Msg{
+//    string key = 1;
+//    string value = 2;
+//  }
+//  string send_ip = 1;
+//  string receive_ip = 2;
+//  string port = 3;
+//  repeated Msg msg= 4;
+//
+//  //uint32 type = 1;//server to master 消息类型 0:新增节点以及新增节点开始时间？ 1:server节点通报自己的情况 运行到了哪个epoch
+//                  //2: server节点反馈 epoch size更新信息 3:server节点返回新增节点信息 4:cache server反馈存储信息相关
+//                  //5：某节点请求相关epoch的写集，cache反馈有没有完整的epoch写集，有则发
+//                    //master to server 消息类型 0:新增节点 1:adjust epoch size 2:
+//  //uint32 server_id = 2;
+//  //string ip = 3;
+//  //uint64 physical_epoch = 4;//新epochsize开始时间epoch 发送给server进行修改自己的sleeptime或修改发送线程sleeptime
+//  //uint64 logical_epoch = 5;
+//  //uint64 epoch_size = 6;//新epochsize 或现有的epochsize大小
+//  //uint64 commit_time = 7;//提交耗时
+//  //uint64 send_time = 8; //用以确定网络时延，决定新epoch size开启时间
+//  //uint64 new_server_id = 9;
+//  //string new_server_ip = 10;
+//}
