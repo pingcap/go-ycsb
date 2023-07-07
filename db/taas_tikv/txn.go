@@ -17,7 +17,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"github.com/pingcap/errors"
 	"io/ioutil"
 	"sync/atomic"
 
@@ -30,7 +29,6 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/tikv/client-go/v2/txnkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
-	"net"
 	"strings"
 	"time"
 )
@@ -38,7 +36,7 @@ import (
 //#include ""
 import (
 	"context"
-	taas_proto "github.com/Mister-Star/go-ycsb/db/taas_proto"
+	"github.com/Mister-Star/go-ycsb/db/taas_proto"
 	"github.com/golang/protobuf/proto"
 	zmq "github.com/pebbe/zmq4"
 	tikverr "github.com/tikv/client-go/v2/error"
@@ -62,6 +60,7 @@ type txnDB struct {
 }
 
 const TaasServerIp = "172.30.67.201"
+const LocalServerIp = "172.30.67.201"
 
 type TaasTxn struct {
 	GzipedTransaction []byte
@@ -71,8 +70,9 @@ var TaasTxnCH = make(chan TaasTxn, 100000)
 var UnPackCH = make(chan string, 100000)
 
 var ChanList []chan string
-var init_ok uint64 = 0
-var atomic_counter uint64 = 0
+var initOk uint64 = 0
+var atomicCounter uint64 = 0
+var SuccessCounter, FailedCounter, TotalCounter uint64 = 0, 0, 0
 
 func SendTxnToTaas() {
 	socket, _ := zmq.NewSocket(zmq.PUSH)
@@ -136,12 +136,12 @@ func ListenFromTaas() {
 		log.Fatal(err)
 	}
 	for {
-		taas_reply, err := socket.Recv(0)
+		taasReply, err := socket.Recv(0)
 		if err != nil {
 			fmt.Println("txn_bak.go 115")
 			log.Fatal(err)
 		}
-		UnPackCH <- taas_reply
+		UnPackCH <- taasReply
 	}
 }
 
@@ -150,18 +150,17 @@ func UnPack() {
 		taasReply, ok := <-UnPackCH
 		if ok {
 			UnGZipedReply := UGZipBytes([]byte(taasReply))
-			testMessage := taas_proto.Message{}
+			testMessage := &taas_proto.Message{}
 			err := proto.Unmarshal(UnGZipedReply, testMessage)
 			if err != nil {
 				fmt.Println("txn_bak.go 142")
 				log.Fatal(err)
 			}
 			replyMessage := testMessage.GetReplyTxnResultToClient()
-			(ChanList[replyMessage.ClientTxnId%2048]) <- string(replyMessage.GetTxnState().String())
+			ChanList[replyMessage.ClientTxnId%2048] <- string(replyMessage.GetTxnState().String())
 		} else {
 			fmt.Println("txn_bak.go 148")
 			log.Fatal(ok)
-			break
 		}
 	}
 }
@@ -177,7 +176,7 @@ func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 		ChanList = append(ChanList, make(chan string, 100000))
 	}
 
-	init_ok = 1
+	initOk = 1
 	go SendTxnToTaas()
 	go ListenFromTaas()
 	for i := 0; i < 4; i++ {
@@ -314,70 +313,6 @@ func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count 
 	return res, nil
 }
 
-// 获取本机当前可用端口号
-func GetFreePort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return 0, err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return 0, err
-	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port, nil
-}
-
-// 获取ip
-func externalIP() (net.IP, error) {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return nil, err
-	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 {
-			continue // interface down
-		}
-		if iface.Flags&net.FlagLoopback != 0 {
-			continue // loopback interface
-		}
-		addrs, err := iface.Addrs()
-		if err != nil {
-			return nil, err
-		}
-		for _, addr := range addrs {
-			ip := getIpFromAddr(addr)
-			if ip == nil {
-				continue
-			}
-			return ip, nil
-		}
-	}
-	return nil, errors.New("connected to the network?")
-}
-
-// 获取本机IP地址
-func getIpFromAddr(addr net.Addr) net.IP {
-	var ip net.IP
-	switch v := addr.(type) {
-	case *net.IPNet:
-		ip = v.IP
-	case *net.IPAddr:
-		ip = v.IP
-	}
-	if ip == nil || ip.IsLoopback() {
-		return nil
-	}
-	ip = ip.To4()
-	if ip == nil {
-		return nil // not an ipv4 address
-	}
-
-	return ip
-}
-
-// 将远端发过来的消息进行解压缩
 func UGZipBytes(in []byte) []byte {
 	reader, err := gzip.NewReader(bytes.NewReader(in))
 	if err != nil {
@@ -390,20 +325,17 @@ func UGZipBytes(in []byte) []byte {
 
 }
 
-// 修改代码的主体部分
 func (db *txnDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	for init_ok == 0 {
+	for initOk == 0 {
 		time.Sleep(50)
 	}
-	chan_id := atomic.AddUint64(&atomic_counter, 1) // return new value
+	txnId := atomic.AddUint64(&atomicCounter, 1) // return new value
+	atomic.AddUint64(&TotalCounter, 1)
+
 	rowKey := db.getRowKey(table, key)
 	var bufferBeforeGzip bytes.Buffer
-	ip, err := externalIP()
-	if err != nil {
-		fmt.Println(err)
-	}
-	clientIP := ip.String()
-	txnSendToTaas := Transaction{
+	clientIP := LocalServerIp
+	txnSendToTaas := taas_proto.Transaction{
 		//Row:         {},
 		StartEpoch:  0,
 		CommitEpoch: 5,
@@ -411,40 +343,48 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 		ServerIp:    TaasServerIp,
 		ServerId:    0,
 		ClientIp:    clientIP,
-		ClientTxnId: chan_id,
-		TxnType:     TxnType_ClientTxn,
+		ClientTxnId: txnId,
+		TxnType:     taas_proto.TxnType_ClientTxn,
 		TxnState:    0,
 	}
 	updateKey := rowKey
-	sendRow := Row{
-		OpType: OpType_Update,
+	sendRow := taas_proto.Row{
+		OpType: taas_proto.OpType_Update,
 		Key:    *(*[]byte)(unsafe.Pointer(&updateKey)),
 	}
 	for field, value := range values {
 		idColumn, _ := strconv.ParseUint(string(field[5]), 10, 32)
-		updatedColumn := Column{
+		updatedColumn := taas_proto.Column{
 			Id:    uint32(idColumn),
 			Value: value,
 		}
 		sendRow.Column = append(sendRow.Column, &updatedColumn)
 	}
 	txnSendToTaas.Row = append(txnSendToTaas.Row, &sendRow)
-	sendMessage := &Message{
-		Type: &Message_Txn{&txnSendToTaas},
+	sendMessage := &taas_proto.Message{
+		Type: &taas_proto.Message_Txn{Txn: &txnSendToTaas},
 	}
 	sendBuffer, _ := proto.Marshal(sendMessage)
 	bufferBeforeGzip.Reset()
 	gw := gzip.NewWriter(&bufferBeforeGzip)
-	gw.Write(sendBuffer)
-	gw.Close()
+	_, err := gw.Write(sendBuffer)
+	if err != nil {
+		return err
+	}
+	err = gw.Close()
+	if err != nil {
+		return err
+	}
 	GzipedTransaction := bufferBeforeGzip.Bytes()
 	TaasTxnCH <- TaasTxn{GzipedTransaction}
 
-	result, ok := <-(ChanList[chan_id%2048])
+	result, ok := <-(ChanList[txnId%2048])
 	if ok {
 		if result != "Commit" {
+			atomic.AddUint64(&FailedCounter, 1)
 			return err
 		}
+		atomic.AddUint64(&SuccessCounter, 1)
 	} else {
 		fmt.Println("txn_bak.go 481")
 		log.Fatal(ok)
@@ -454,23 +394,29 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 }
 
 func (db *txnDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	tx, err := db.beginTxn()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
+	txnId := atomic.AddUint64(&atomicCounter, 1) // return new value
+	atomic.AddUint64(&TotalCounter, 1)
 	for i, key := range keys {
-		// TODO should we check the key exist?
-		rowData, err := db.r.Encode(nil, values[i])
-		if err != nil {
-			return err
-		}
-		if err = tx.Set(db.getRowKey(table, key), rowData); err != nil {
-			return err
-		}
+		fmt.Println(string(txnId) + ", i:" + string(i) + ", key:" + key)
 	}
-	return tx.Commit(ctx)
+	//tx, err := db.beginTxn()
+	//if err != nil {
+	//	return err
+	//}
+	//defer tx.Rollback()
+	//
+	//for i, key := range keys {
+	//	// TODO should we check the key exist?
+	//	rowData, err := db.r.Encode(nil, values[i])
+	//	if err != nil {
+	//		return err
+	//	}
+	//	if err = tx.Set(db.getRowKey(table, key), rowData); err != nil {
+	//		return err
+	//	}
+	//}
+	//return tx.Commit(ctx)
+	return nil
 }
 
 func (db *txnDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
