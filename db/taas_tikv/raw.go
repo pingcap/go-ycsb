@@ -32,6 +32,11 @@ type rawDB struct {
 	bufPool *util.BufPool
 }
 
+func (db *rawDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func createRawDB(p *properties.Properties) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
 	apiVersionStr := strings.ToUpper(p.GetString(tikvAPIVersion, "V1"))

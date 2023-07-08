@@ -34,6 +34,11 @@ type etcdDB struct {
 	client *clientv3.Client
 }
 
+func (db *etcdDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func init() {
 	ycsb.RegisterDBCreator("etcd", etcdCreator{})
 }

@@ -20,6 +20,11 @@ type aerospikedb struct {
 	ns     string
 }
 
+func (adb *aerospikedb) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 // Close closes the database layer.
 func (adb *aerospikedb) Close() error {
 	adb.client.Close()

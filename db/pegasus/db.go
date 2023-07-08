@@ -66,6 +66,11 @@ type pegasusDB struct {
 	sessions []pegasus.TableConnector
 }
 
+func (db *pegasusDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (db *pegasusDB) InitThread(ctx context.Context, threadId int, _ int) context.Context {
 	return context.WithValue(ctx, "tid", threadId)
 }

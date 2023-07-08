@@ -41,6 +41,11 @@ type redis struct {
 	fieldcount int64
 }
 
+func (r *redis) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (r *redis) Close() error {
 	return r.client.Close()
 }

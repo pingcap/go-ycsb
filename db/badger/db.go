@@ -61,6 +61,11 @@ type badgerDB struct {
 	bufPool *util.BufPool
 }
 
+func (db *badgerDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 type contextKey string
 
 const stateKey = contextKey("badgerDB")

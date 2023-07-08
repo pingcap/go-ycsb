@@ -27,6 +27,11 @@ type DbWrapper struct {
 	DB ycsb.DB
 }
 
+func (db DbWrapper) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func measure(start time.Time, op string, err error) {
 	lan := time.Now().Sub(start)
 	if err != nil {

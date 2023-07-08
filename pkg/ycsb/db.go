@@ -16,7 +16,6 @@ package ycsb
 import (
 	"context"
 	"fmt"
-
 	"github.com/magiconair/properties"
 )
 
@@ -68,6 +67,8 @@ type DB interface {
 	// table: The name of the table.
 	// key: The record key of the record to delete.
 	Delete(ctx context.Context, table string, key string) error
+
+	CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error
 }
 
 type BatchDB interface {

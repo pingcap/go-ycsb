@@ -1,5 +1,6 @@
-//module github.com/pingcap/go-ycsb
-module github.com/Mister-Star/go-ycsb
+module github.com/pingcap/go-ycsb
+
+//module github.com/Mister-Star/go-ycsb
 
 require (
 	cloud.google.com/go/spanner v1.34.1
@@ -42,7 +43,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.17.1
 	github.com/golang/protobuf v1.5.2
 	github.com/pebbe/zmq4 v1.2.10
-	github.com/pingcap/go-ycsb v1.0.1
 	go.etcd.io/etcd/client/pkg/v3 v3.5.2
 	go.etcd.io/etcd/client/v3 v3.5.2
 	google.golang.org/protobuf v1.28.0
@@ -53,6 +53,7 @@ require (
 	cloud.google.com/go v0.103.0 // indirect
 	cloud.google.com/go/compute v1.7.0 // indirect
 	github.com/AndreasBriese/bbloom v0.0.0-20180913140656-343706a395b7 // indirect
+	github.com/alecthomas/gozmq v0.0.0-20140622232202-d1b01a2df6b2 // indirect
 	github.com/apache/thrift v0.0.0-20171203172758-327ebb6c2b6d // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.21 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.17 // indirect
@@ -138,6 +139,8 @@ require (
 replace github.com/apache/thrift => github.com/apache/thrift v0.0.0-20171203172758-327ebb6c2b6d
 
 //require github.com/Mister-Star/go-ycsb/taas_tikv v0.1.0
-//replace github.com/Mister-Star/go-ycsb/taas_tikv => ./taas_tikv
+replace github.com/pingcap/go-ycsb/taas_tikv => ./taas_tikv
+
+replace github.com/pingcap/go-ycsb/taas_proto => ./taas_proto
 
 go 1.18

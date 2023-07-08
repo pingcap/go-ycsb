@@ -34,41 +34,41 @@ import (
 
 type contextKey string
 
-const stateKey = contextKey("core")
+const StateKey = contextKey("core")
 
-type coreState struct {
-	r *rand.Rand
-	// fieldNames is a copy of core.fieldNames to be goroutine-local
-	fieldNames []string
+type CoreState struct {
+	R *rand.Rand
+	// FieldNames is a copy of Core.fieldNames to be goroutine-local
+	FieldNames []string
 }
 
-type operationType int64
+type OperationType int64
 
 const (
-	read operationType = iota + 1
+	read OperationType = iota + 1
 	update
 	insert
 	scan
 	readModifyWrite
 )
 
-// Core is the core benchmark scenario. Represents a set of clients doing simple CRUD operations.
-type core struct {
+// Core is the Core benchmark scenario. Represents a set of clients doing simple CRUD operations.
+type Core struct {
 	p *properties.Properties
 
-	table      string
+	Table      string
 	fieldCount int64
 	fieldNames []string
 
 	fieldLengthGenerator ycsb.Generator
-	readAllFields        bool
-	writeAllFields       bool
-	dataIntegrity        bool
+	ReadAllFields        bool
+	WriteAllFields       bool
+	DataIntegrity        bool
 
 	keySequence                  ycsb.Generator
-	operationChooser             *generator.Discrete
+	OperationChooser             *generator.Discrete
 	keyChooser                   ycsb.Generator
-	fieldChooser                 ycsb.Generator
+	FieldChooser                 ycsb.Generator
 	transactionInsertKeySequence *generator.AcknowledgedCounter
 	scanLength                   ycsb.Generator
 	orderedInserts               bool
@@ -134,33 +134,33 @@ func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 }
 
 // Load implements the Workload Load interface.
-func (c *core) Load(ctx context.Context, db ycsb.DB, totalCount int64) error {
+func (c *Core) Load(ctx context.Context, db ycsb.DB, totalCount int64) error {
 	return nil
 }
 
 // InitThread implements the Workload InitThread interface.
-func (c *core) InitThread(ctx context.Context, _ int, _ int) context.Context {
+func (c *Core) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	fieldNames := make([]string, len(c.fieldNames))
 	copy(fieldNames, c.fieldNames)
-	state := &coreState{
-		r:          r,
-		fieldNames: fieldNames,
+	state := &CoreState{
+		R:          r,
+		FieldNames: fieldNames,
 	}
-	return context.WithValue(ctx, stateKey, state)
+	return context.WithValue(ctx, StateKey, state)
 }
 
 // CleanupThread implements the Workload CleanupThread interface.
-func (c *core) CleanupThread(_ context.Context) {
+func (c *Core) CleanupThread(_ context.Context) {
 
 }
 
 // Close implements the Workload Close interface.
-func (c *core) Close() error {
+func (c *Core) Close() error {
 	return nil
 }
 
-func (c *core) buildKeyName(keyNum int64) string {
+func (c *Core) BuildKeyName(keyNum int64) string {
 	if !c.orderedInserts {
 		keyNum = util.Hash64(keyNum)
 	}
@@ -169,14 +169,14 @@ func (c *core) buildKeyName(keyNum int64) string {
 	return fmt.Sprintf("%s%0[3]*[2]d", prefix, keyNum, c.zeroPadding)
 }
 
-func (c *core) buildSingleValue(state *coreState, key string) map[string][]byte {
+func (c *Core) BuildSingleValue(state *CoreState, key string) map[string][]byte {
 	values := make(map[string][]byte, 1)
 
-	r := state.r
-	fieldKey := state.fieldNames[c.fieldChooser.Next(r)]
+	r := state.R
+	fieldKey := state.FieldNames[c.FieldChooser.Next(r)]
 
 	var buf []byte
-	if c.dataIntegrity {
+	if c.DataIntegrity {
 		buf = c.buildDeterministicValue(state, key, fieldKey)
 	} else {
 		buf = c.buildRandomValue(state)
@@ -187,12 +187,12 @@ func (c *core) buildSingleValue(state *coreState, key string) map[string][]byte 
 	return values
 }
 
-func (c *core) buildValues(state *coreState, key string) map[string][]byte {
+func (c *Core) BuildValues(state *CoreState, key string) map[string][]byte {
 	values := make(map[string][]byte, c.fieldCount)
 
-	for _, fieldKey := range state.fieldNames {
+	for _, fieldKey := range state.FieldNames {
 		var buf []byte
-		if c.dataIntegrity {
+		if c.DataIntegrity {
 			buf = c.buildDeterministicValue(state, key, fieldKey)
 		} else {
 			buf = c.buildRandomValue(state)
@@ -203,7 +203,7 @@ func (c *core) buildValues(state *coreState, key string) map[string][]byte {
 	return values
 }
 
-func (c *core) getValueBuffer(size int) []byte {
+func (c *Core) getValueBuffer(size int) []byte {
 	buf := c.valuePool.Get().([]byte)
 	if cap(buf) >= size {
 		return buf[0:size]
@@ -212,23 +212,23 @@ func (c *core) getValueBuffer(size int) []byte {
 	return make([]byte, size)
 }
 
-func (c *core) putValues(values map[string][]byte) {
+func (c *Core) PutValues(values map[string][]byte) {
 	for _, value := range values {
 		c.valuePool.Put(value)
 	}
 }
 
-func (c *core) buildRandomValue(state *coreState) []byte {
+func (c *Core) buildRandomValue(state *CoreState) []byte {
 	// TODO: use pool for the buffer
-	r := state.r
+	r := state.R
 	buf := c.getValueBuffer(int(c.fieldLengthGenerator.Next(r)))
 	util.RandBytes(r, buf)
 	return buf
 }
 
-func (c *core) buildDeterministicValue(state *coreState, key string, fieldKey string) []byte {
+func (c *Core) buildDeterministicValue(state *CoreState, key string, fieldKey string) []byte {
 	// TODO: use pool for the buffer
-	r := state.r
+	r := state.R
 	size := c.fieldLengthGenerator.Next(r)
 	buf := c.getValueBuffer(int(size + 21))
 	b := bytes.NewBuffer(buf[0:0])
@@ -244,7 +244,7 @@ func (c *core) buildDeterministicValue(state *coreState, key string, fieldKey st
 	return b.Bytes()
 }
 
-func (c *core) verifyRow(state *coreState, key string, values map[string][]byte) {
+func (c *Core) VerifyRow(state *CoreState, key string, values map[string][]byte) {
 	if len(values) == 0 {
 		// null data here, need panic?
 		return
@@ -259,19 +259,19 @@ func (c *core) verifyRow(state *coreState, key string, values map[string][]byte)
 }
 
 // DoInsert implements the Workload DoInsert interface.
-func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
-	state := ctx.Value(stateKey).(*coreState)
-	r := state.r
+func (c *Core) DoInsert(ctx context.Context, db ycsb.DB) error {
+	state := ctx.Value(StateKey).(*CoreState)
+	r := state.R
 	keyNum := c.keySequence.Next(r)
-	dbKey := c.buildKeyName(keyNum)
-	values := c.buildValues(state, dbKey)
-	defer c.putValues(values)
+	dbKey := c.BuildKeyName(keyNum)
+	values := c.BuildValues(state, dbKey)
+	defer c.PutValues(values)
 
 	numOfRetries := int64(0)
 
 	var err error
 	for {
-		err = db.Insert(ctx, c.table, dbKey, values)
+		err = db.Insert(ctx, c.Table, dbKey, values)
 		if err == nil {
 			break
 		}
@@ -302,31 +302,31 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 }
 
 // DoBatchInsert implements the Workload DoBatchInsert interface.
-func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) error {
+func (c *Core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) error {
 	batchDB, ok := db.(ycsb.BatchDB)
 	if !ok {
 		return fmt.Errorf("the %T does't implement the batchDB interface", db)
 	}
-	state := ctx.Value(stateKey).(*coreState)
-	r := state.r
+	state := ctx.Value(StateKey).(*CoreState)
+	r := state.R
 	var keys []string
 	var values []map[string][]byte
 	for i := 0; i < batchSize; i++ {
 		keyNum := c.keySequence.Next(r)
-		dbKey := c.buildKeyName(keyNum)
+		dbKey := c.BuildKeyName(keyNum)
 		keys = append(keys, dbKey)
-		values = append(values, c.buildValues(state, dbKey))
+		values = append(values, c.BuildValues(state, dbKey))
 	}
 	defer func() {
 		for _, value := range values {
-			c.putValues(value)
+			c.PutValues(value)
 		}
 	}()
 
 	numOfRetries := int64(0)
 	var err error
 	for {
-		err = batchDB.BatchInsert(ctx, c.table, keys, values)
+		err = batchDB.BatchInsert(ctx, c.Table, keys, values)
 		if err == nil {
 			break
 		}
@@ -356,35 +356,65 @@ func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) err
 }
 
 // DoTransaction implements the Workload DoTransaction interface.
-func (c *core) DoTransaction(ctx context.Context, db ycsb.DB) error {
-	state := ctx.Value(stateKey).(*coreState)
-	r := state.r
+func (c *Core) DoTransaction(ctx context.Context, db ycsb.DB) error {
+	state := ctx.Value(StateKey).(*CoreState)
+	r := state.R
 
-	operation := operationType(c.operationChooser.Next(r))
+	operation := OperationType(c.OperationChooser.Next(r))
 	switch operation {
 	case read:
-		return c.doTransactionRead(ctx, db, state)
+		//return c.DoTransactionRead(ctx, db, state)
+		return c.DoTransactionOps(ctx, db, state)
 	case update:
-		return c.doTransactionUpdate(ctx, db, state)
+		//return c.DoTransactionUpdate(ctx, db, state)
 	case insert:
-		return c.doTransactionInsert(ctx, db, state)
+		return c.DoTransactionInsert(ctx, db, state)
 	case scan:
-		return c.doTransactionScan(ctx, db, state)
+		return c.DoTransactionScan(ctx, db, state)
 	default:
-		return c.doTransactionReadModifyWrite(ctx, db, state)
+		return c.DoTransactionReadModifyWrite(ctx, db, state)
 	}
+	return nil
+}
+
+const OpNum = 10
+
+func (c *Core) DoTransactionOps(ctx context.Context, db ycsb.DB, state *CoreState) error {
+	r := state.R
+	keys := make([]string, OpNum)
+	values := make([]map[string][]byte, OpNum)
+	for i := 0; i < OpNum; i++ {
+		operation := OperationType(c.OperationChooser.Next(r))
+		switch operation {
+		case read:
+			keyNum := c.NextKeyNum(state)
+			keyName := c.BuildKeyName(keyNum)
+			keys[i] = keyName
+			break
+		case update:
+			keyNum := c.NextKeyNum(state)
+			keyName := c.BuildKeyName(keyNum)
+			keys[i] = keyName
+			values[i] = c.BuildValues(state, keyName)
+			break
+		default:
+			break
+		}
+	}
+
+	return db.CommitToTaas(ctx, c.Table, keys, values)
 }
 
 // DoBatchTransaction implements the Workload DoBatchTransaction interface
-func (c *core) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.DB) error {
+func (c *Core) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.DB) error {
 	batchDB, ok := db.(ycsb.BatchDB)
 	if !ok {
 		return fmt.Errorf("the %T does't implement the batchDB interface", db)
 	}
-	state := ctx.Value(stateKey).(*coreState)
-	r := state.r
+	state := ctx.Value(StateKey).(*CoreState)
+	r := state.R
 
-	operation := operationType(c.operationChooser.Next(r))
+	operation := OperationType(c.OperationChooser.Next(r))
 	switch operation {
 	case read:
 		return c.doBatchTransactionRead(ctx, batchSize, batchDB, state)
@@ -399,8 +429,8 @@ func (c *core) DoBatchTransaction(ctx context.Context, batchSize int, db ycsb.DB
 	}
 }
 
-func (c *core) nextKeyNum(state *coreState) int64 {
-	r := state.r
+func (c *Core) NextKeyNum(state *CoreState) int64 {
+	r := state.R
 	keyNum := int64(0)
 	if _, ok := c.keyChooser.(*generator.Exponential); ok {
 		keyNum = -1
@@ -413,137 +443,137 @@ func (c *core) nextKeyNum(state *coreState) int64 {
 	return keyNum
 }
 
-func (c *core) doTransactionRead(ctx context.Context, db ycsb.DB, state *coreState) error {
-	r := state.r
-	keyNum := c.nextKeyNum(state)
-	keyName := c.buildKeyName(keyNum)
+func (c *Core) DoTransactionRead(ctx context.Context, db ycsb.DB, state *CoreState) error {
+	r := state.R
+	keyNum := c.NextKeyNum(state)
+	keyName := c.BuildKeyName(keyNum)
 
 	var fields []string
-	if !c.readAllFields {
-		fieldName := state.fieldNames[c.fieldChooser.Next(r)]
+	if !c.ReadAllFields {
+		fieldName := state.FieldNames[c.FieldChooser.Next(r)]
 		fields = append(fields, fieldName)
 	} else {
-		fields = state.fieldNames
+		fields = state.FieldNames
 	}
 
-	values, err := db.Read(ctx, c.table, keyName, fields)
+	values, err := db.Read(ctx, c.Table, keyName, fields)
 	if err != nil {
 		return err
 	}
 
-	if c.dataIntegrity {
-		c.verifyRow(state, keyName, values)
+	if c.DataIntegrity {
+		c.VerifyRow(state, keyName, values)
 	}
 
 	return nil
 }
 
-func (c *core) doTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, state *coreState) error {
+func (c *Core) DoTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, state *CoreState) error {
 	start := time.Now()
 	defer func() {
 		measurement.Measure("READ_MODIFY_WRITE", start, time.Now().Sub(start))
 	}()
 
-	r := state.r
-	keyNum := c.nextKeyNum(state)
-	keyName := c.buildKeyName(keyNum)
+	r := state.R
+	keyNum := c.NextKeyNum(state)
+	keyName := c.BuildKeyName(keyNum)
 
 	var fields []string
-	if !c.readAllFields {
-		fieldName := state.fieldNames[c.fieldChooser.Next(r)]
+	if !c.ReadAllFields {
+		fieldName := state.FieldNames[c.FieldChooser.Next(r)]
 		fields = append(fields, fieldName)
 	} else {
-		fields = state.fieldNames
+		fields = state.FieldNames
 	}
 
 	var values map[string][]byte
-	if c.writeAllFields {
-		values = c.buildValues(state, keyName)
+	if c.WriteAllFields {
+		values = c.BuildValues(state, keyName)
 	} else {
-		values = c.buildSingleValue(state, keyName)
+		values = c.BuildSingleValue(state, keyName)
 	}
-	defer c.putValues(values)
+	defer c.PutValues(values)
 
-	readValues, err := db.Read(ctx, c.table, keyName, fields)
+	readValues, err := db.Read(ctx, c.Table, keyName, fields)
 	if err != nil {
 		return err
 	}
 
-	if err := db.Update(ctx, c.table, keyName, values); err != nil {
+	if err := db.Update(ctx, c.Table, keyName, values); err != nil {
 		return err
 	}
 
-	if c.dataIntegrity {
-		c.verifyRow(state, keyName, readValues)
+	if c.DataIntegrity {
+		c.VerifyRow(state, keyName, readValues)
 	}
 
 	return nil
 }
 
-func (c *core) doTransactionInsert(ctx context.Context, db ycsb.DB, state *coreState) error {
-	r := state.r
+func (c *Core) DoTransactionInsert(ctx context.Context, db ycsb.DB, state *CoreState) error {
+	r := state.R
 	keyNum := c.transactionInsertKeySequence.Next(r)
 	defer c.transactionInsertKeySequence.Acknowledge(keyNum)
-	dbKey := c.buildKeyName(keyNum)
-	values := c.buildValues(state, dbKey)
-	defer c.putValues(values)
+	dbKey := c.BuildKeyName(keyNum)
+	values := c.BuildValues(state, dbKey)
+	defer c.PutValues(values)
 
-	return db.Insert(ctx, c.table, dbKey, values)
+	return db.Insert(ctx, c.Table, dbKey, values)
 }
 
-func (c *core) doTransactionScan(ctx context.Context, db ycsb.DB, state *coreState) error {
-	r := state.r
-	keyNum := c.nextKeyNum(state)
-	startKeyName := c.buildKeyName(keyNum)
+func (c *Core) DoTransactionScan(ctx context.Context, db ycsb.DB, state *CoreState) error {
+	r := state.R
+	keyNum := c.NextKeyNum(state)
+	startKeyName := c.BuildKeyName(keyNum)
 
 	scanLen := c.scanLength.Next(r)
 
 	var fields []string
-	if !c.readAllFields {
-		fieldName := state.fieldNames[c.fieldChooser.Next(r)]
+	if !c.ReadAllFields {
+		fieldName := state.FieldNames[c.FieldChooser.Next(r)]
 		fields = append(fields, fieldName)
 	} else {
-		fields = state.fieldNames
+		fields = state.FieldNames
 	}
 
-	_, err := db.Scan(ctx, c.table, startKeyName, int(scanLen), fields)
+	_, err := db.Scan(ctx, c.Table, startKeyName, int(scanLen), fields)
 
 	return err
 }
 
-func (c *core) doTransactionUpdate(ctx context.Context, db ycsb.DB, state *coreState) error {
-	keyNum := c.nextKeyNum(state)
-	keyName := c.buildKeyName(keyNum)
+func (c *Core) DoTransactionUpdate(ctx context.Context, db ycsb.DB, state *CoreState) error {
+	keyNum := c.NextKeyNum(state)
+	keyName := c.BuildKeyName(keyNum)
 
 	var values map[string][]byte
-	if c.writeAllFields {
-		values = c.buildValues(state, keyName)
+	if c.WriteAllFields {
+		values = c.BuildValues(state, keyName)
 	} else {
-		values = c.buildSingleValue(state, keyName)
+		values = c.BuildSingleValue(state, keyName)
 	}
 
-	defer c.putValues(values)
+	defer c.PutValues(values)
 
-	return db.Update(ctx, c.table, keyName, values)
+	return db.Update(ctx, c.Table, keyName, values)
 }
 
-func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycsb.BatchDB, state *coreState) error {
-	r := state.r
+func (c *Core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycsb.BatchDB, state *CoreState) error {
+	r := state.R
 	var fields []string
 
-	if !c.readAllFields {
-		fieldName := state.fieldNames[c.fieldChooser.Next(r)]
+	if !c.ReadAllFields {
+		fieldName := state.FieldNames[c.FieldChooser.Next(r)]
 		fields = append(fields, fieldName)
 	} else {
-		fields = state.fieldNames
+		fields = state.FieldNames
 	}
 
 	keys := make([]string, batchSize)
 	for i := 0; i < batchSize; i++ {
-		keys[i] = c.buildKeyName(c.nextKeyNum(state))
+		keys[i] = c.BuildKeyName(c.NextKeyNum(state))
 	}
 
-	_, err := db.BatchRead(ctx, c.table, keys, fields)
+	_, err := db.BatchRead(ctx, c.Table, keys, fields)
 	if err != nil {
 		return err
 	}
@@ -552,52 +582,52 @@ func (c *core) doBatchTransactionRead(ctx context.Context, batchSize int, db ycs
 	return nil
 }
 
-func (c *core) doBatchTransactionInsert(ctx context.Context, batchSize int, db ycsb.BatchDB, state *coreState) error {
-	r := state.r
+func (c *Core) doBatchTransactionInsert(ctx context.Context, batchSize int, db ycsb.BatchDB, state *CoreState) error {
+	r := state.R
 	keys := make([]string, batchSize)
 	values := make([]map[string][]byte, batchSize)
 	for i := 0; i < batchSize; i++ {
 		keyNum := c.transactionInsertKeySequence.Next(r)
-		keyName := c.buildKeyName(keyNum)
+		keyName := c.BuildKeyName(keyNum)
 		keys[i] = keyName
-		if c.writeAllFields {
-			values[i] = c.buildValues(state, keyName)
+		if c.WriteAllFields {
+			values[i] = c.BuildValues(state, keyName)
 		} else {
-			values[i] = c.buildSingleValue(state, keyName)
+			values[i] = c.BuildSingleValue(state, keyName)
 		}
 		c.transactionInsertKeySequence.Acknowledge(keyNum)
 	}
 
 	defer func() {
 		for _, value := range values {
-			c.putValues(value)
+			c.PutValues(value)
 		}
 	}()
 
-	return db.BatchInsert(ctx, c.table, keys, values)
+	return db.BatchInsert(ctx, c.Table, keys, values)
 }
 
-func (c *core) doBatchTransactionUpdate(ctx context.Context, batchSize int, db ycsb.BatchDB, state *coreState) error {
+func (c *Core) doBatchTransactionUpdate(ctx context.Context, batchSize int, db ycsb.BatchDB, state *CoreState) error {
 	keys := make([]string, batchSize)
 	values := make([]map[string][]byte, batchSize)
 	for i := 0; i < batchSize; i++ {
-		keyNum := c.nextKeyNum(state)
-		keyName := c.buildKeyName(keyNum)
+		keyNum := c.NextKeyNum(state)
+		keyName := c.BuildKeyName(keyNum)
 		keys[i] = keyName
-		if c.writeAllFields {
-			values[i] = c.buildValues(state, keyName)
+		if c.WriteAllFields {
+			values[i] = c.BuildValues(state, keyName)
 		} else {
-			values[i] = c.buildSingleValue(state, keyName)
+			values[i] = c.BuildSingleValue(state, keyName)
 		}
 	}
 
 	defer func() {
 		for _, value := range values {
-			c.putValues(value)
+			c.PutValues(value)
 		}
 	}()
 
-	return db.BatchUpdate(ctx, c.table, keys, values)
+	return db.BatchUpdate(ctx, c.Table, keys, values)
 }
 
 // CoreCreator creates the Core workload.
@@ -606,9 +636,9 @@ type coreCreator struct {
 
 // Create implements the WorkloadCreator Create interface.
 func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
-	c := new(core)
+	c := new(Core)
 	c.p = p
-	c.table = p.GetString(prop.TableName, prop.TableNameDefault)
+	c.Table = p.GetString(prop.TableName, prop.TableNameDefault)
 	c.fieldCount = p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
 	c.fieldNames = make([]string, c.fieldCount)
 	for i := int64(0); i < c.fieldCount; i++ {
@@ -631,11 +661,11 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 			c.recordCount, insertStart, insertCount)
 	}
 	c.zeroPadding = p.GetInt64(prop.ZeroPadding, prop.ZeroPaddingDefault)
-	c.readAllFields = p.GetBool(prop.ReadAllFields, prop.ReadALlFieldsDefault)
-	c.writeAllFields = p.GetBool(prop.WriteAllFields, prop.WriteAllFieldsDefault)
-	c.dataIntegrity = p.GetBool(prop.DataIntegrity, prop.DataIntegrityDefault)
+	c.ReadAllFields = p.GetBool(prop.ReadAllFields, prop.ReadALlFieldsDefault)
+	c.WriteAllFields = p.GetBool(prop.WriteAllFields, prop.WriteAllFieldsDefault)
+	c.DataIntegrity = p.GetBool(prop.DataIntegrity, prop.DataIntegrityDefault)
 	fieldLengthDistribution := p.GetString(prop.FieldLengthDistribution, prop.FieldLengthDistributionDefault)
-	if c.dataIntegrity && fieldLengthDistribution != "constant" {
+	if c.DataIntegrity && fieldLengthDistribution != "constant" {
 		util.Fatal("must have constant field size to check data integrity")
 	}
 
@@ -646,7 +676,7 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 	}
 
 	c.keySequence = generator.NewCounter(insertStart)
-	c.operationChooser = createOperationGenerator(p)
+	c.OperationChooser = createOperationGenerator(p)
 	var keyrangeLowerBound int64 = insertStart
 	var keyrangeUpperBound int64 = insertStart + insertCount - 1
 
@@ -677,7 +707,7 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 	}
 	fmt.Println(fmt.Sprintf("Using request distribution '%s' a keyrange of [%d %d]", requestDistrib, keyrangeLowerBound, keyrangeUpperBound))
 
-	c.fieldChooser = generator.NewUniform(0, c.fieldCount-1)
+	c.FieldChooser = generator.NewUniform(0, c.fieldCount-1)
 	switch scanLengthDistrib {
 	case "uniform":
 		c.scanLength = generator.NewUniform(1, maxScanLength)
