@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"strings"
 	"sync/atomic"
 
 	"log"
@@ -28,7 +29,6 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/tikv/client-go/v2/txnkv"
 	"github.com/tikv/client-go/v2/txnkv/transaction"
-	"strings"
 	"time"
 )
 
@@ -59,7 +59,7 @@ type txnDB struct {
 
 func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	fmt.Println("taas_tikv connect")
+	//fmt.Println("taas_tikv connect")
 	db, err := txnkv.NewClient(strings.Split(pdAddr, ","))
 	if err != nil {
 		return nil, err
@@ -85,7 +85,8 @@ func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	bufPool := util.NewBufPool()
 
 	return &txnDB{
-		db:      db,
+		db: db,
+		//db:      nil,
 		r:       util.NewRowCodec(p),
 		bufPool: bufPool,
 		cfg:     &cfg,

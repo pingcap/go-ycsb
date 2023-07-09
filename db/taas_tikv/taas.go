@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"github.com/pingcap/errors"
+	tikverr "github.com/tikv/client-go/v2/error"
 	"io/ioutil"
 	"log"
 	"sync/atomic"
@@ -34,7 +36,7 @@ var ChanList []chan string
 var initOk uint64 = 0
 var atomicCounter uint64 = 0
 var SuccessTransactionCounter, FailedTransactionCounter, TotalTransactionCounter uint64 = 0, 0, 0
-var SuccessReadCounter, FailedReadounter, TotalReadCounter uint64 = 0, 0, 0
+var SuccessReadCounter, FailedReadCounter, TotalReadCounter uint64 = 0, 0, 0
 var SuccessUpdateCounter, FailedUpdateounter, TotalUpdateCounter uint64 = 0, 0, 0
 var TotalLatency uint64 = 0
 var latency []uint64
@@ -43,6 +45,7 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 	for initOk == 0 {
 		time.Sleep(50)
 	}
+	//fmt.Println("taas_tikv commit")
 	t1 := time.Now().UnixNano()
 	txnId := atomic.AddUint64(&atomicCounter, 1) // return new value
 	atomic.AddUint64(&TotalTransactionCounter, 1)
@@ -58,34 +61,35 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 		TxnState:    0,
 	}
 
-	readOpNum, writeOpNum := 0, 0
+	var readOpNum, writeOpNum uint64 = 0, 0
+	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
 	for i, key := range keys {
 		if values[i] == nil { //read
 			readOpNum++
 			rowKey := db.getRowKey(table, key)
-			//tx, err := db.db.Begin()
-			//if err != nil {
-			//	return err
-			//}
-			//defer tx.Rollback()
-			//
-			//rowData, err := tx.Get(ctx, rowKey)
-			//if tikverr.IsErrNotFound(err) {
-			//	return err
-			//} else if rowData == nil {
-			//	return err
-			//}
-			//
-			//if err = tx.Commit(ctx); err != nil {
-			//	return err
-			//}
+			defer tx.Rollback()
+
+			rowData, err := tx.Get(ctx, rowKey)
+			if tikverr.IsErrNotFound(err) {
+				return err
+			} else if rowData == nil {
+				return err
+			}
+
+			if err = tx.Commit(ctx); err != nil {
+				return err
+			}
 			sendRow := taas_proto.Row{
-				OpType: taas_proto.OpType_Update,
+				OpType: taas_proto.OpType_Read,
 				Key:    *(*[]byte)(unsafe.Pointer(&rowKey)),
 				Data:   nil,
 				Csn:    0,
 			}
 			txnSendToTaas.Row = append(txnSendToTaas.Row, &sendRow)
+			//fmt.Print("; Read, key : " + string(rowKey))
 		} else {
 			writeOpNum++
 			rowKey := db.getRowKey(table, key)
@@ -99,9 +103,11 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 				Data:   []byte(rowData),
 			}
 			txnSendToTaas.Row = append(txnSendToTaas.Row, &sendRow)
+			//fmt.Print("; Update, key : " + string(rowKey))
 		}
 
 	}
+	//fmt.Println("; read op : " + strconv.FormatUint(readOpNum, 10) + ", write op : " + strconv.FormatUint(writeOpNum, 10))
 
 	sendMessage := &taas_proto.Message{
 		Type: &taas_proto.Message_Txn{Txn: &txnSendToTaas},
@@ -110,7 +116,7 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 	sendBuffer, _ := proto.Marshal(sendMessage)
 	bufferBeforeGzip.Reset()
 	gw := gzip.NewWriter(&bufferBeforeGzip)
-	_, err := gw.Write(sendBuffer)
+	_, err = gw.Write(sendBuffer)
 	if err != nil {
 		return err
 	}
@@ -120,22 +126,22 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 	}
 	GzipedTransaction := bufferBeforeGzip.Bytes()
 	GzipedTransaction = GzipedTransaction
-	//TaasTxnCH <- TaasTxn{GzipedTransaction}
-	//
-	//result, ok := <-(ChanList[txnId%2048])
+	TaasTxnCH <- TaasTxn{GzipedTransaction}
+
+	result, ok := <-(ChanList[txnId%2048])
 
 	t2 := uint64(time.Now().UnixNano() - t1)
 	TotalLatency += t2
 	//append(latency, t2)
-	result, ok := "Abort", true
+	//result, ok := "Abort", true
 	atomic.AddUint64(&TotalReadCounter, uint64(readOpNum))
 	atomic.AddUint64(&TotalUpdateCounter, uint64(writeOpNum))
 	if ok {
 		if result != "Commit" {
-			atomic.AddUint64(&FailedReadounter, uint64(readOpNum))
+			atomic.AddUint64(&FailedReadCounter, uint64(readOpNum))
 			atomic.AddUint64(&FailedUpdateounter, uint64(writeOpNum))
 			atomic.AddUint64(&FailedTransactionCounter, 1)
-			return err
+			return errors.New("txn conflict handle failed")
 		}
 		atomic.AddUint64(&SuccessReadCounter, uint64(readOpNum))
 		atomic.AddUint64(&SuccessUpdateCounter, uint64(writeOpNum))

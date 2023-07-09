@@ -15,9 +15,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/pingcap/go-ycsb/db/taas_tikv"
+	"github.com/pingcap/go-ycsb/pkg/workload"
 	"strconv"
 	"time"
 
+	_ "github.com/pingcap/go-ycsb/db/taas_tikv"
 	"github.com/pingcap/go-ycsb/pkg/client"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
@@ -61,6 +64,19 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 	fmt.Println("**********************************************")
 	fmt.Printf("Run finished, takes %s\n", time.Now().Sub(start))
 	measurement.Output()
+	fmt.Printf("[Read] TotalOpNum %d, SuccessOpNum %d FailedOpNum %d SuccessRate %f\n",
+		taas_tikv.TotalReadCounter, taas_tikv.SuccessReadCounter, taas_tikv.FailedReadCounter,
+		float64(taas_tikv.SuccessReadCounter)/float64(taas_tikv.TotalReadCounter))
+	fmt.Printf("[Update] TotalOpNum %d, SuccessOpNum %d FailedOpNum %d SuccessRate %f\n",
+		taas_tikv.TotalUpdateCounter, taas_tikv.SuccessUpdateCounter, taas_tikv.FailedUpdateounter,
+		float64(taas_tikv.SuccessUpdateCounter)/float64(taas_tikv.TotalUpdateCounter))
+	fmt.Printf("[Transaction] TotalOpNum %d, SuccessOpNum %d FailedOpNum %d SuccessRate %f\n",
+		taas_tikv.TotalTransactionCounter, taas_tikv.SuccessTransactionCounter, taas_tikv.FailedTransactionCounter,
+		float64(taas_tikv.SuccessTransactionCounter)/float64(taas_tikv.TotalTransactionCounter))
+
+	fmt.Printf("[Op] ReadOpNum %d, UpdateOpNum %d UpdateRate %f\n",
+		workload.TotalReadCounter, workload.TotalUpdateCounter,
+		float64(workload.TotalUpdateCounter)/float64(workload.TotalReadCounter+workload.TotalUpdateCounter))
 }
 
 func runLoadCommandFunc(cmd *cobra.Command, args []string) {
