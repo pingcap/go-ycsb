@@ -109,7 +109,8 @@ func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 	insertProportion := p.GetFloat64(prop.InsertProportion, prop.InsertProportionDefault)
 	scanProportion := p.GetFloat64(prop.ScanProportion, prop.ScanProportionDefault)
 	readModifyWriteProportion := p.GetFloat64(prop.ReadModifyWriteProportion, prop.ReadModifyWriteProportionDefault)
-	fmt.Printf("read %f, write %f \n", readProportion, updateProportion)
+	OpNum = p.GetInt("opNum", 10)
+	fmt.Printf("OpNum %d, read %f, write %f \n", OpNum, readProportion, updateProportion)
 	operationChooser := generator.NewDiscrete()
 	if readProportion > 0 {
 		operationChooser.Add(readProportion, int64(read))
@@ -379,7 +380,7 @@ func (c *Core) DoTransaction(ctx context.Context, db ycsb.DB) error {
 	return nil
 }
 
-const OpNum = 10
+var OpNum = 10
 
 var TotalReadCounter uint64 = 0
 var TotalUpdateCounter uint64 = 0

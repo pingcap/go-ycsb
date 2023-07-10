@@ -59,23 +59,12 @@ type txnDB struct {
 
 func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	//fmt.Println("taas_tikv connect")
+
+	fmt.Println("taas_tikv createTxnDB")
 	db, err := txnkv.NewClient(strings.Split(pdAddr, ","))
 	if err != nil {
 		return nil, err
 	}
-
-	for i := 0; i < 2048; i++ {
-		ChanList = append(ChanList, make(chan string, 100000))
-	}
-
-	initOk = 1
-	go SendTxnToTaas()
-	go ListenFromTaas()
-	for i := 0; i < 4; i++ {
-		go UnPack()
-	}
-	time.Sleep(5)
 
 	cfg := txnConfig{
 		asyncCommit: p.GetBool(tikvAsyncCommit, true),
@@ -83,6 +72,22 @@ func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	}
 
 	bufPool := util.NewBufPool()
+
+	TaasServerIp = p.GetString("taasAddress", "")
+	LocalServerIp = p.GetString("localServerIp", "")
+	OpNum = p.GetInt("opNum", 10)
+	for i := 0; i < 2048; i++ {
+		ChanList = append(ChanList, make(chan string, 100000))
+	}
+
+	go SendTxnToTaas()
+	go ListenFromTaas()
+	for i := 0; i < 32; i++ {
+		go UnPack()
+	}
+	InitOk = 1
+
+	fmt.Println("taas_tikv client.go Init OK")
 
 	return &txnDB{
 		db: db,
@@ -208,7 +213,7 @@ func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count 
 }
 
 func (db *txnDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	for initOk == 0 {
+	for InitOk == 0 {
 		time.Sleep(50)
 	}
 	txnId := atomic.AddUint64(&atomicCounter, 1) // return new value
