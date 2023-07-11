@@ -48,7 +48,7 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 		time.Sleep(50)
 	}
 	//fmt.Println("taas_tikv commit")
-	fmt.Println("taas_tikv commit")
+	//fmt.Println("taas_tikv commit")
 	t1 := time.Now().UnixNano()
 	txnId := atomic.AddUint64(&atomicCounter, 1) // return new value
 	atomic.AddUint64(&TotalTransactionCounter, 1)
