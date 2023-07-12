@@ -28,11 +28,14 @@ type DbWrapper struct {
 }
 
 func (db DbWrapper) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) (err error) {
-	////TODO implement me
-	//panic("implement me")
 	start := time.Now()
 	defer func() {
 		measure(start, "Transaction", err)
+		//if err != nil {
+		//	measure(start, "Transaction", err)
+		//} else {
+		//	measure(start, "Transaction_Success", err)
+		//}
 	}()
 	return db.DB.CommitToTaas(ctx, table, keys, values)
 }

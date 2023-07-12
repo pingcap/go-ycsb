@@ -9,7 +9,6 @@ import (
 	tikverr "github.com/tikv/client-go/v2/error"
 	"io/ioutil"
 	"log"
-	"strconv"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -116,7 +115,7 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 	}
 	timeLen := time.Now().Sub(time1)
 	atomic.AddUint64(&TikvTotalLatency, uint64(timeLen))
-	fmt.Println("; read op : " + strconv.FormatUint(readOpNum, 10) + ", write op : " + strconv.FormatUint(writeOpNum, 10))
+	//fmt.Println("; read op : " + strconv.FormatUint(readOpNum, 10) + ", write op : " + strconv.FormatUint(writeOpNum, 10))
 
 	sendMessage := &taas_proto.Message{
 		Type: &taas_proto.Message_Txn{Txn: &txnSendToTaas},
@@ -135,11 +134,11 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 	}
 	GzipedTransaction := bufferBeforeGzip.Bytes()
 	GzipedTransaction = GzipedTransaction
-	fmt.Println("Send to Taas")
+	//fmt.Println("Send to Taas")
 	TaasTxnCH <- TaasTxn{GzipedTransaction}
 
 	result, ok := <-(ChanList[txnId%2048])
-	fmt.Println("Receive From Taas")
+	//fmt.Println("Receive From Taas")
 	t2 := uint64(time.Now().UnixNano() - t1)
 	TotalLatency += t2
 	//append(latency, t2)
@@ -151,13 +150,13 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 			atomic.AddUint64(&FailedReadCounter, uint64(readOpNum))
 			atomic.AddUint64(&FailedUpdateounter, uint64(writeOpNum))
 			atomic.AddUint64(&FailedTransactionCounter, 1)
-			fmt.Println("Commit Failed")
+			//fmt.Println("Commit Failed")
 			return errors.New("txn conflict handle failed")
 		}
 		atomic.AddUint64(&SuccessReadCounter, uint64(readOpNum))
 		atomic.AddUint64(&SuccessUpdateCounter, uint64(writeOpNum))
 		atomic.AddUint64(&SuccessTransactionCounter, 1)
-		fmt.Println("Commit Success")
+		//fmt.Println("Commit Success")
 	} else {
 		fmt.Println("txn_bak.go 481")
 		log.Fatal(ok)
@@ -194,7 +193,7 @@ func SendTxnToTaas() {
 		value, ok := <-TaasTxnCH
 		if ok {
 			_, err := socket.Send(string(value.GzipedTransaction), 0)
-			fmt.Println("taas send thread")
+			//fmt.Println("taas send thread")
 			if err != nil {
 				return
 			}
