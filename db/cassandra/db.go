@@ -57,6 +57,11 @@ type cassandraDB struct {
 	fieldNames []string
 }
 
+func (db *cassandraDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 type contextKey string
 
 const stateKey = contextKey("cassandraDB")

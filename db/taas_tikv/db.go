@@ -40,6 +40,7 @@ func (c taas_tikvCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	})
 
 	tp := p.GetString(tikvType, "raw")
+	fmt.Println("=====================  Taas - TiKV  ============================")
 	switch tp {
 	case "raw":
 		return createRawDB(p)

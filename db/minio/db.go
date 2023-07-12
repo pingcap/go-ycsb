@@ -37,6 +37,11 @@ type minioDB struct {
 	db *minio.Client
 }
 
+func (db *minioDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 // Close closes the database layer.
 func (db *minioDB) Close() error {
 	return nil

@@ -68,6 +68,11 @@ type boltDB struct {
 	bufPool *util.BufPool
 }
 
+func (db *boltDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (c boltCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	opts := getOptions(p)
 

@@ -122,4 +122,8 @@ const (
 	MeasurementHistogramPercentileExportDefault         = false
 	MeasurementHistogramPercentileExportFilepath        = "histogram.percentiles.export.filepath"
 	MeasurementHistogramPercentileExportFilepathDefault = "./"
+
+	//Taas
+	TaasServerIp = "taasServerIp"
+	OpNum        = uint64(10)
 )

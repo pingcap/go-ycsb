@@ -54,6 +54,11 @@ type elastic struct {
 	verbose   bool
 }
 
+func (m *elastic) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (m *elastic) Close() error {
 	return nil
 }

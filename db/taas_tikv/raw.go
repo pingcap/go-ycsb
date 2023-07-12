@@ -16,20 +16,24 @@ package taas_tikv
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"github.com/magiconair/properties"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"github.com/pingcap/kvproto/pkg/kvrpcpb"
 	"github.com/tikv/client-go/v2/rawkv"
+	"strings"
 )
 
 type rawDB struct {
 	db      *rawkv.Client
 	r       *util.RowCodec
 	bufPool *util.BufPool
+}
+
+func (db *rawDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func createRawDB(p *properties.Properties) (ycsb.DB, error) {

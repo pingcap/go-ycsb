@@ -30,6 +30,11 @@ type dynamodbWrapper struct {
 	command            string
 }
 
+func (r *dynamodbWrapper) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (r *dynamodbWrapper) Close() error {
 	var err error = nil
 	if strings.Compare("run", r.command) == 0 {

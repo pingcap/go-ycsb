@@ -66,6 +66,11 @@ type basicDB struct {
 	toDelay        int64
 }
 
+func (db *basicDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (db *basicDB) delay(ctx context.Context, state *basicState) {
 	if db.toDelay == 0 {
 		return

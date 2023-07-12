@@ -14,15 +14,148 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
+	"github.com/golang/protobuf/proto"
+	zmq "github.com/pebbe/zmq4"
+	"github.com/pingcap/go-ycsb/db/taas_proto"
+	"github.com/pingcap/go-ycsb/db/taas_tikv"
+	"github.com/pingcap/go-ycsb/pkg/workload"
+	"io/ioutil"
+	"log"
 	"strconv"
 	"time"
 
+	_ "github.com/pingcap/go-ycsb/db/taas_tikv"
 	"github.com/pingcap/go-ycsb/pkg/client"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/spf13/cobra"
 )
+
+func sendTxnToTaas(taasServerIp string, taasTxnCH chan taas_tikv.TaasTxn) {
+	fmt.Println("连接Taas Send send")
+	socket, _ := zmq.NewSocket(zmq.PUSH)
+	err := socket.SetSndbuf(10000000)
+	if err != nil {
+		fmt.Println("连接Taas Send send 1")
+		log.Fatal(err)
+		return
+	}
+	err = socket.SetRcvbuf(10000000)
+	if err != nil {
+		fmt.Println("连接Taas Send send 2")
+		log.Fatal(err)
+		return
+	}
+	err = socket.SetSndhwm(10000000)
+	if err != nil {
+		fmt.Println("连接Taas Send send 3")
+		log.Fatal(err)
+		return
+	}
+	err = socket.SetRcvhwm(10000000)
+	if err != nil {
+		fmt.Println("连接Taas Send send 4")
+		log.Fatal(err)
+		return
+	}
+	err = socket.Connect("tcp://" + taasServerIp + ":5551")
+	if err != nil {
+		fmt.Println("taas.go 97")
+		log.Fatal(err)
+	}
+	fmt.Println("连接Taas Send" + taasServerIp)
+	for {
+		value, ok := <-taasTxnCH
+		if ok {
+			_, err := socket.Send(string(value.GzipedTransaction), 0)
+			if err != nil {
+				return
+			}
+		} else {
+			fmt.Println("taas.go 109")
+			log.Fatal(ok)
+		}
+	}
+}
+
+func listenFromTaas(unPackCH chan string) {
+	fmt.Println("连接Taas Send listen")
+	socket, err := zmq.NewSocket(zmq.PULL)
+	err = socket.SetSndbuf(10000000)
+	if err != nil {
+		fmt.Println("连接Taas Send listen 1")
+		log.Fatal(err)
+		return
+	}
+	err = socket.SetRcvbuf(10000000)
+	if err != nil {
+		fmt.Println("连接Taas Send listen 2")
+		log.Fatal(err)
+		return
+	}
+	err = socket.SetSndhwm(10000000)
+	if err != nil {
+		fmt.Println("连接Taas Send listen 3")
+		log.Fatal(err)
+		return
+	}
+	err = socket.SetRcvhwm(10000000)
+	if err != nil {
+		fmt.Println("连接Taas Send listen 4")
+		log.Fatal(err)
+		return
+	}
+	err = socket.Bind("tcp://*:5552")
+	fmt.Println("连接Taas Listen")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for {
+		taasReply, err := socket.Recv(0)
+		if err != nil {
+			fmt.Println("taas.go 115")
+			log.Fatal(err)
+		}
+		unPackCH <- taasReply
+	}
+}
+
+func unGZipBytes(in []byte) []byte {
+
+	reader, err := gzip.NewReader(bytes.NewReader(in))
+	if err != nil {
+		var out []byte
+		return out
+	}
+	defer reader.Close()
+	out, _ := ioutil.ReadAll(reader)
+	return out
+
+}
+
+func unPack(unPackCH chan string, chanList []chan string) {
+	//fmt.Println("连接Taas Send unpack")
+	for {
+		taasReply, ok := <-unPackCH
+		if ok {
+			UnGZipedReply := unGZipBytes([]byte(taasReply))
+			testMessage := &taas_proto.Message{}
+			err := proto.Unmarshal(UnGZipedReply, testMessage)
+			if err != nil {
+				fmt.Println("taas.go 142")
+				log.Fatal(err)
+			}
+			replyMessage := testMessage.GetReplyTxnResultToClient()
+			chanList[replyMessage.ClientTxnId%2048] <- replyMessage.GetTxnState().String()
+		} else {
+			fmt.Println("taas.go 148")
+			log.Fatal(ok)
+		}
+	}
+}
 
 func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool, command string) {
 	dbName := args[0]
@@ -61,6 +194,20 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 	fmt.Println("**********************************************")
 	fmt.Printf("Run finished, takes %s\n", time.Now().Sub(start))
 	measurement.Output()
+	fmt.Printf("[Read] TotalOpNum %d, SuccessOpNum %d FailedOpNum %d SuccessRate %f\n",
+		taas_tikv.TotalReadCounter, taas_tikv.SuccessReadCounter, taas_tikv.FailedReadCounter,
+		float64(taas_tikv.SuccessReadCounter)/float64(taas_tikv.TotalReadCounter))
+	fmt.Printf("[Update] TotalOpNum %d, SuccessOpNum %d FailedOpNum %d SuccessRate %f\n",
+		taas_tikv.TotalUpdateCounter, taas_tikv.SuccessUpdateCounter, taas_tikv.FailedUpdateounter,
+		float64(taas_tikv.SuccessUpdateCounter)/float64(taas_tikv.TotalUpdateCounter))
+	fmt.Printf("[Transaction] TotalOpNum %d, SuccessOpNum %d FailedOpNum %d SuccessRate %f\n",
+		taas_tikv.TotalTransactionCounter, taas_tikv.SuccessTransactionCounter, taas_tikv.FailedTransactionCounter,
+		float64(taas_tikv.SuccessTransactionCounter)/float64(taas_tikv.TotalTransactionCounter))
+	fmt.Printf("[Op] ReadOpNum %d, UpdateOpNum %d UpdateRate %f\n",
+		workload.TotalReadCounter, workload.TotalUpdateCounter,
+		float64(workload.TotalUpdateCounter)/float64(workload.TotalReadCounter+workload.TotalUpdateCounter))
+	fmt.Printf("[Op] TikvTotalTime %d, TikvReadTime %d\n",
+		taas_tikv.TikvTotalLatency, taas_tikv.TikvReadLatency)
 }
 
 func runLoadCommandFunc(cmd *cobra.Command, args []string) {
