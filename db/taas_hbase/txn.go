@@ -52,13 +52,15 @@ type txnDB struct {
 }
 
 var HBaseConncetion []*THBaseServiceClient
+var ClientConnectionNum int = 256
 
 func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	TaasServerIp = p.GetString("taasServerIp", "")
 	LocalServerIp = p.GetString("localServerIp", "")
 	HbaseServerIp = p.GetString("hbaseServerIp", "")
+	ClientConnectionNum = p.GetInt("threadcount", 256)
 	fmt.Println("localServerIp : " + LocalServerIp + ", taasServerIp : " + TaasServerIp + ", hbaseServerIp " + HbaseServerIp + " ;")
-	for i := 0; i < 2048; i++ {
+	for i := 0; i < ClientConnectionNum; i++ {
 		protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
 		transport, err := thrift.NewTSocket(net.JoinHostPort(HbaseServerIp, strconv.Itoa(9090)))
 		if err != nil {
@@ -74,7 +76,7 @@ func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 
 	bufPool := util.NewBufPool()
 	OpNum = p.GetInt("opNum", 10)
-	for i := 0; i < 2048; i++ {
+	for i := 0; i < ClientConnectionNum; i++ {
 		ChanList = append(ChanList, make(chan string, 100000))
 	}
 	go SendTxnToTaas()
@@ -318,7 +320,7 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 	})
 
 	tempTPut := TPut{Row: []byte(key), ColumnValues: cvarr}
-	err := HBaseConncetion[txnId%2048].Put(ctx, []byte(table), &tempTPut)
+	err := HBaseConncetion[txnId%uint64(ClientConnectionNum)].Put(ctx, []byte(table), &tempTPut)
 	if err != nil {
 		fmt.Println(err)
 	}
