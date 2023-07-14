@@ -73,7 +73,7 @@ func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 
 	bufPool := util.NewBufPool()
 
-	TaasServerIp = p.GetString("taasAddress", "")
+	TaasServerIp = p.GetString("taasServerIp", "")
 	LocalServerIp = p.GetString("localServerIp", "")
 	OpNum = p.GetInt("opNum", 10)
 	for i := 0; i < 2048; i++ {

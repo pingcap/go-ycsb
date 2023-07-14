@@ -36,6 +36,7 @@ require (
 )
 
 require (
+	github.com/apache/thrift v0.16.0
 	github.com/aws/aws-sdk-go-v2 v1.16.16
 	github.com/aws/aws-sdk-go-v2/config v1.17.8
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.10.0
@@ -53,7 +54,6 @@ require (
 	cloud.google.com/go v0.103.0 // indirect
 	cloud.google.com/go/compute v1.7.0 // indirect
 	github.com/AndreasBriese/bbloom v0.0.0-20180913140656-343706a395b7 // indirect
-	github.com/apache/thrift v0.18.1 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.21 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.17 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.23 // indirect
@@ -140,11 +140,13 @@ require (
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
 )
 
-replace github.com/apache/thrift => github.com/apache/thrift v0.18.1
+replace github.com/apache/thrift => github.com/apache/thrift v0.16.0
 
 //require github.com/Mister-Star/go-ycsb/taas_tikv v0.1.0
-replace github.com/pingcap/go-ycsb/taas_tikv => ./taas_tikv
+replace github.com/pingcap/go-ycsb/db/taas_hbase => ./taas_hbase
 
 replace github.com/pingcap/go-ycsb/taas_proto => ./taas_proto
+
+replace github.com/pingcap/go-ycsb/taas_tikv => ./taas_tikv
 
 go 1.18

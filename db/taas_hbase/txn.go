@@ -1,4 +1,4 @@
-package hbase
+package taas_hbase
 
 import (
 	"bytes"
@@ -46,49 +46,32 @@ type txnDB struct {
 	db      *THBaseServiceClient
 	r       *util.RowCodec
 	bufPool *util.BufPool
-	//cfg     *txnConfig
 	//needed by HBase
 	transport *thrift.TSocket
 }
 
 func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
-	//pdAddr := p.GetString(tikvPD, "127.0.0.1:2379")
-	//
-	//fmt.Println("taas_tikv createTxnDB")
-	//db, err := txnkv.NewClient(strings.Split(pdAddr, ","))
-	//if err != nil {
-	//	return nil, err
-	//}
+	TaasServerIp = p.GetString("taasServerIp", "")
+	LocalServerIp = p.GetString("localServerIp", "")
+	HbaseServerIp = p.GetString("hbaseServerIp", "")
 	protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
-	transport, err := thrift.NewTSocket(net.JoinHostPort(HOST, PORT))
+	transport, err := thrift.NewTSocket(net.JoinHostPort(HbaseServerIp, strconv.Itoa(9090)))
 	if err != nil {
 		return nil, err
 	}
 	db := NewTHBaseServiceClientFactory(transport, protocolFactory)
-
-	//cfg := txnConfig{
-	//	asyncCommit: p.GetBool(tikvAsyncCommit, true),
-	//	onePC:       p.GetBool(tikvOnePC, true),
-	//}
-
 	bufPool := util.NewBufPool()
-
-	TaasServerIp = p.GetString("taasAddress", "")
-	LocalServerIp = p.GetString("localServerIp", "")
 	OpNum = p.GetInt("opNum", 10)
 	for i := 0; i < 2048; i++ {
 		ChanList = append(ChanList, make(chan string, 100000))
 	}
-
 	go SendTxnToTaas()
 	go ListenFromTaas()
 	for i := 0; i < 32; i++ {
 		go UnPack()
 	}
 	InitOk = 1
-
 	fmt.Println("hbase client.go Init OK")
-
 	return &txnDB{
 		db:        db,
 		r:         util.NewRowCodec(p),
@@ -98,7 +81,6 @@ func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 }
 
 func (db *txnDB) Close() error {
-	//return db.db.Close()
 	//seems that HBase
 	return db.transport.Close()
 }
@@ -116,25 +98,10 @@ func (db *txnDB) getRowKey(table string, key string) []byte {
 
 // seems that HBase don't need this function
 func (db *txnDB) beginTxn() (*transaction.KVTxn, error) {
-	//txn, err := db.db.Begin()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//txn.SetEnableAsyncCommit(db.cfg.asyncCommit)
-	//txn.SetEnable1PC(db.cfg.onePC)
-	//
-	//return txn, err
 	return nil, nil
 }
 
 func (db *txnDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
-	//tx, err := db.db.Begin()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//defer tx.Rollback()
-
 	tx := db.db
 	row, err := tx.Get(ctx, []byte(table), &TGet{Row: []byte(key)})
 
@@ -155,12 +122,6 @@ func (db *txnDB) Read(ctx context.Context, table string, key string, fields []st
 }
 
 func (db *txnDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
-	//tx, err := db.db.Begin()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//defer tx.Rollback()
-
 	tx := db.db
 
 	var tempTGet []*TGet
@@ -349,9 +310,7 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 }
 
 func (db *txnDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-
 	client := db.db
-
 	var tempTPuts []*TPut
 	for i, key := range keys {
 		var cvarr []*TColumnValue
@@ -367,9 +326,7 @@ func (db *txnDB) BatchInsert(ctx context.Context, table string, keys []string, v
 			ColumnValues: cvarr,
 		})
 	}
-
 	return client.PutMultiple(ctx, []byte(table), tempTPuts)
-
 }
 
 func (db *txnDB) Delete(ctx context.Context, table string, key string) error {

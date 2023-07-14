@@ -56,8 +56,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/rocksdb"
 	// Register Spanner database
 	_ "github.com/pingcap/go-ycsb/db/spanner"
-	// Register pegasus database
-	_ "github.com/pingcap/go-ycsb/db/pegasus"
+	//// Register pegasus database
+	//_ "github.com/pingcap/go-ycsb/db/pegasus"
 	// Register sqlite database
 	_ "github.com/pingcap/go-ycsb/db/sqlite"
 	// Register cassandra database
@@ -76,6 +76,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/etcd"
 	// Register dynamodb
 	_ "github.com/pingcap/go-ycsb/db/dynamodb"
+	// Register taas-hbase
+	_ "github.com/pingcap/go-ycsb/db/taas_hbase"
 	// Register taas-tikv
 	_ "github.com/pingcap/go-ycsb/db/taas_tikv"
 )

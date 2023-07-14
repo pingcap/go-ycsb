@@ -1,4 +1,4 @@
-package hbase
+package taas_hbase
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"github.com/pingcap/errors"
 	"io/ioutil"
 	"log"
+	"reflect"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -20,8 +21,9 @@ import (
 	"github.com/pingcap/go-ycsb/db/taas_proto"
 )
 
-var TaasServerIp = "172.30.67.185"
-var LocalServerIp = "172.30.67.187"
+var TaasServerIp = "127.0.0.1"
+var LocalServerIp = "127.0.0.1"
+var HbaseServerIp = "127.0.0.1"
 var OpNum = 10
 
 type TaasTxn struct {
@@ -63,34 +65,33 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 	var readOpNum, writeOpNum uint64 = 0, 0
 	time1 := time.Now()
 	tx := db.db
-	//if err != nil {
-	//	return err
-	//}
-	//defer tx.Rollback()
 
 	for i, key := range keys {
 		if values[i] == nil { //read
 			readOpNum++
 			rowKey := db.getRowKey(table, key)
 			time2 := time.Now()
-			//rowData, err := tx.Get(ctx, rowKey)
 			rowData, err := tx.Get(ctx, []byte(table), &TGet{Row: []byte(key)})
+			res := make(map[string][]byte)
+			for _, column := range rowData.ColumnValues {
+				c := reflect.ValueOf(column).Elem()
+				family := c.Field(0)
+				value := c.Field(2)
+				res[string(family.Interface().([]uint8))] = value.Interface().([]byte)
+			}
 			timeLen2 := time.Now().Sub(time2)
 			atomic.AddUint64(&TikvReadLatency, uint64(timeLen2))
-
-			//if tikverr.IsErrNotFound(err) {
-			//	return err
-			//} else if rowData == nil {
-			//	return err
-			//}
 			if err != nil {
 				return err
 			}
-
+			finalData, err1 := db.r.Encode(nil, res)
+			if err1 != nil {
+				return nil
+			}
 			sendRow := taas_proto.Row{
 				OpType: taas_proto.OpType_Read,
 				Key:    *(*[]byte)(unsafe.Pointer(&rowKey)),
-				Data:   []byte(rowData.String()),
+				Data:   finalData,
 				Csn:    0,
 			}
 			txnSendToTaas.Row = append(txnSendToTaas.Row, &sendRow)
