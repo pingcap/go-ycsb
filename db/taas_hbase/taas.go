@@ -64,14 +64,17 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 
 	var readOpNum, writeOpNum uint64 = 0, 0
 	time1 := time.Now()
-	tx := db.db
-
 	for i, key := range keys {
 		if values[i] == nil { //read
 			readOpNum++
 			rowKey := db.getRowKey(table, key)
 			time2 := time.Now()
-			rowData, err := tx.Get(ctx, []byte(table), &TGet{Row: []byte(key)})
+			rowData, err := HBaseConncetion[txnId].Get(ctx, []byte(table), &TGet{Row: []byte(key)})
+			if err != nil {
+				return err
+			} else if rowData == nil {
+				return errors.New("txn read failed")
+			}
 			res := make(map[string][]byte)
 			for _, column := range rowData.ColumnValues {
 				c := reflect.ValueOf(column).Elem()

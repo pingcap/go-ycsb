@@ -47,19 +47,31 @@ type txnDB struct {
 	r       *util.RowCodec
 	bufPool *util.BufPool
 	//needed by HBase
-	transport *thrift.TSocket
+	transport       *thrift.TSocket
+	protocolFactory *thrift.TProtocolFactory
 }
+
+var HBaseConncetion []*THBaseServiceClient
 
 func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	TaasServerIp = p.GetString("taasServerIp", "")
 	LocalServerIp = p.GetString("localServerIp", "")
 	HbaseServerIp = p.GetString("hbaseServerIp", "")
-	protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
-	transport, err := thrift.NewTSocket(net.JoinHostPort(HbaseServerIp, strconv.Itoa(9090)))
-	if err != nil {
-		return nil, err
+	fmt.Println("localServerIp : " + LocalServerIp + ", taasServerIp : " + TaasServerIp + ", hbaseServerIp " + HbaseServerIp + " ;")
+	for i := 0; i < 2048; i++ {
+		protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
+		transport, err := thrift.NewTSocket(net.JoinHostPort(HbaseServerIp, strconv.Itoa(9090)))
+		if err != nil {
+			return nil, err
+		}
+		client := NewTHBaseServiceClientFactory(transport, protocolFactory)
+		err = transport.Open()
+		if err != nil {
+			return nil, err
+		}
+		HBaseConncetion = append(HBaseConncetion, client)
 	}
-	db := NewTHBaseServiceClientFactory(transport, protocolFactory)
+
 	bufPool := util.NewBufPool()
 	OpNum = p.GetInt("opNum", 10)
 	for i := 0; i < 2048; i++ {
@@ -73,10 +85,8 @@ func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	InitOk = 1
 	fmt.Println("hbase client.go Init OK")
 	return &txnDB{
-		db:        db,
-		r:         util.NewRowCodec(p),
-		bufPool:   bufPool,
-		transport: transport,
+		r:       util.NewRowCodec(p),
+		bufPool: bufPool,
 	}, nil
 }
 
@@ -295,7 +305,7 @@ func (db *txnDB) BatchUpdate(ctx context.Context, table string, keys []string, v
 }
 
 func (db *txnDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
-	client := db.db
+	txnId := atomic.AddUint64(&atomicCounter, 1)
 	var cvarr []*TColumnValue
 	finalData, err1 := db.r.Encode(nil, values)
 	if err1 != nil {
@@ -308,7 +318,10 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 	})
 
 	tempTPut := TPut{Row: []byte(key), ColumnValues: cvarr}
-	err := client.Put(ctx, []byte(table), &tempTPut)
+	err := HBaseConncetion[txnId%2048].Put(ctx, []byte(table), &tempTPut)
+	if err != nil {
+		fmt.Println(err)
+	}
 	return err
 }
 
