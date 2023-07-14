@@ -297,13 +297,16 @@ func (db *txnDB) BatchUpdate(ctx context.Context, table string, keys []string, v
 func (db *txnDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	client := db.db
 	var cvarr []*TColumnValue
-	for k, v := range values {
-		cvarr = append(cvarr, &TColumnValue{
-			Family:    []byte(k),
-			Qualifier: []byte(""),
-			Value:     v,
-		})
+	finalData, err1 := db.r.Encode(nil, values)
+	if err1 != nil {
+		return err1
 	}
+	cvarr = append(cvarr, &TColumnValue{
+		Family:    []byte("entire"),
+		Qualifier: []byte(""),
+		Value:     []byte(string(finalData)),
+	})
+
 	tempTPut := TPut{Row: []byte(key), ColumnValues: cvarr}
 	err := client.Put(ctx, []byte(table), &tempTPut)
 	return err

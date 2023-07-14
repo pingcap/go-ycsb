@@ -84,14 +84,10 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 			if err != nil {
 				return err
 			}
-			finalData, err1 := db.r.Encode(nil, res)
-			if err1 != nil {
-				return nil
-			}
 			sendRow := taas_proto.Row{
 				OpType: taas_proto.OpType_Read,
 				Key:    *(*[]byte)(unsafe.Pointer(&rowKey)),
-				Data:   finalData,
+				Data:   []byte(res["entire"]),
 				Csn:    0,
 			}
 			txnSendToTaas.Row = append(txnSendToTaas.Row, &sendRow)

@@ -47,21 +47,21 @@ func allFields(p *properties.Properties) []string {
 // RowCodec is a helper struct to encode and decode TiDB format row
 type RowCodec struct {
 	fieldIndices map[string]int64
-	fields       []string
+	Fields       []string
 }
 
 // NewRowCodec creates the RowCodec
 func NewRowCodec(p *properties.Properties) *RowCodec {
 	return &RowCodec{
 		fieldIndices: createFieldIndices(p),
-		fields:       allFields(p),
+		Fields:       allFields(p),
 	}
 }
 
 // Decode decodes the row and returns a field-value map
 func (r *RowCodec) Decode(row []byte, fields []string) (map[string][]byte, error) {
 	if len(fields) == 0 {
-		fields = r.fields
+		fields = r.Fields
 	}
 
 	data, err := DecodeRow(row)
