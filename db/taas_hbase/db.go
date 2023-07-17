@@ -39,7 +39,7 @@ func (c taas_hbaseCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		c.TiKVClient.MaxBatchSize = p.GetUint(tikvBatchSize, 128)
 	})
 
-	tp := p.GetString(tikvType, "raw")
+	tp := p.GetString(tikvType, "txn")
 	fmt.Println("=====================  Taas - HBase  ============================")
 	switch tp {
 	case "raw":

@@ -58,6 +58,11 @@ func createDB(p *properties.Properties) (ycsb.DB, error) {
 	}, nil
 }
 
+func (db *fDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (db *fDB) Close() error {
 	return nil
 }

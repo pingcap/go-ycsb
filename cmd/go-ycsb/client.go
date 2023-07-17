@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Modifyed by singheart
 package main
 
 import (
@@ -21,7 +22,7 @@ import (
 	zmq "github.com/pebbe/zmq4"
 	"github.com/pingcap/go-ycsb/db/taas_proto"
 	"github.com/pingcap/go-ycsb/db/taas_tikv"
-	"github.com/pingcap/go-ycsb/pkg/workload"
+	// "github.com/pingcap/go-ycsb/pkg/workload"
 	"io/ioutil"
 	"log"
 	"strconv"
@@ -203,11 +204,11 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 	fmt.Printf("[Transaction] TotalOpNum %d, SuccessOpNum %d FailedOpNum %d SuccessRate %f\n",
 		taas_tikv.TotalTransactionCounter, taas_tikv.SuccessTransactionCounter, taas_tikv.FailedTransactionCounter,
 		float64(taas_tikv.SuccessTransactionCounter)/float64(taas_tikv.TotalTransactionCounter))
-	fmt.Printf("[Op] ReadOpNum %d, UpdateOpNum %d UpdateRate %f\n",
-		workload.TotalReadCounter, workload.TotalUpdateCounter,
-		float64(workload.TotalUpdateCounter)/float64(workload.TotalReadCounter+workload.TotalUpdateCounter))
-	fmt.Printf("[Op] TikvTotalTime %d, TikvReadTime %d\n",
-		taas_tikv.TikvTotalLatency, taas_tikv.TikvReadLatency)
+	// fmt.Printf("[Op] ReadOpNum %d, UpdateOpNum %d UpdateRate %f\n",
+	// 	workload.TotalReadCounter, workload.TotalUpdateCounter,
+	// 	float64(workload.TotalUpdateCounter)/float64(workload.TotalReadCounter+workload.TotalUpdateCounter))
+	// fmt.Printf("[Op] TikvTotalTime %d, TikvReadTime %d\n",
+	// 	taas_tikv.TikvTotalLatency, taas_tikv.TikvReadLatency)
 }
 
 func runLoadCommandFunc(cmd *cobra.Command, args []string) {

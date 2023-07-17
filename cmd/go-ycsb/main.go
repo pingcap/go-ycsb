@@ -76,6 +76,8 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/etcd"
 	// Register dynamodb
 	_ "github.com/pingcap/go-ycsb/db/dynamodb"
+	// Register taas-leveldb
+	_ "github.com/pingcap/go-ycsb/db/leveldb"
 	// Register taas-hbase
 	_ "github.com/pingcap/go-ycsb/db/taas_hbase"
 	// Register taas-tikv

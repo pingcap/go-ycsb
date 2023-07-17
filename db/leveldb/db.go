@@ -1,0 +1,152 @@
+// Copyright 2018 PingCAP, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package leveldb
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/util"
+	"github.com/pingcap/go-ycsb/pkg/ycsb"
+
+)
+
+const (
+	leveldbEndpoint = "leveldb.endpoint"
+)
+
+type levelDB struct {
+	client  LeveldbClient
+	r       *util.RowCodec
+	bufPool *util.BufPool
+}
+type leveldbCreator struct {
+}
+
+func (c leveldbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
+	fmt.Println("=====================  Taas - LevelDB  ============================")
+	db := new(levelDB)
+	err := db.client.Connect(p)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	db.r = util.NewRowCodec(p)
+	db.bufPool = util.NewBufPool()
+	return db, nil
+}
+
+func (db *levelDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (db *levelDB) Close() error {
+	return nil
+}
+
+func (db *levelDB) InitThread(ctx context.Context, _ int, _ int) context.Context {
+	return ctx
+}
+
+func (db *levelDB) CleanupThread(ctx context.Context) {
+}
+
+func (db *levelDB) getRowKey(table string, key string) []byte {
+	return util.Slice(fmt.Sprintf("%s:%s", table, key))
+}
+
+func (db *levelDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
+	// fmt.Println("do Read")
+	rowKey := db.getRowKey(table, key)
+	raw_value, err := db.client.Get(rowKey)
+	if err != nil {
+		return nil, err
+	}
+	return db.r.Decode(raw_value, fields)
+}
+
+func (db *levelDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
+	fmt.Println("do batchread")
+	return nil, nil
+}
+
+func (db *levelDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
+	fmt.Println("do scan")
+	return nil, nil
+}
+
+func (db *levelDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
+	m, err := db.Read(ctx, table, key, nil)
+	if err != nil {
+		return err
+	}
+
+	for field, value := range values {
+		m[field] = value
+	}
+
+	buf := db.bufPool.Get()
+	defer db.bufPool.Put(buf)
+
+	buf, err = db.r.Encode(buf, m)
+	if err != nil {
+		return err
+	}
+
+	rowKey := db.getRowKey(table, key)
+	db.client.Put(rowKey, buf)
+	return nil
+}
+
+func (db *levelDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	fmt.Println("do batchupdate")
+	return nil
+}
+
+func (db *levelDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
+
+	fmt.Println("do insert")
+	buf := db.bufPool.Get()
+	defer db.bufPool.Put(buf)
+	buf, err := db.r.Encode(buf, values)
+	if err != nil {
+		return err
+	}
+	rowKey := db.getRowKey(table, key)
+	db.client.Put(rowKey, buf)
+	return err
+}
+
+func (db *levelDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	fmt.Println("do batchinsert")
+	// fmt.Println(keys)
+	return nil
+}
+
+func (db *levelDB) Delete(ctx context.Context, table string, key string) error {
+	fmt.Println("do delete")
+	return nil
+}
+
+func (db *levelDB) BatchDelete(ctx context.Context, table string, keys []string) error {
+	fmt.Println("do batchdelete")
+	return nil
+}
+
+
+func init() {
+	ycsb.RegisterDBCreator("leveldb", leveldbCreator{})
+}

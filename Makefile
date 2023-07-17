@@ -21,11 +21,11 @@ ifeq ($(SQLITE_CHECK), 0)
 	TAGS += libsqlite3
 endif
 
-ifeq ($(ROCKSDB_CHECK), 0)
-	TAGS += rocksdb
-	CGO_CXXFLAGS := "${CGO_CXXFLAGS} -std=c++11"
-	CGO_FLAGS += CGO_CXXFLAGS=$(CGO_CXXFLAGS)
-endif
+# ifeq ($(ROCKSDB_CHECK), 0)
+# 	TAGS += rocksdb
+# 	CGO_CXXFLAGS := "${CGO_CXXFLAGS} -std=c++11"
+# 	CGO_FLAGS += CGO_CXXFLAGS=$(CGO_CXXFLAGS)
+# endif
 
 endif
 

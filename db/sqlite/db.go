@@ -103,6 +103,11 @@ func (c sqliteCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	return d, nil
 }
 
+func (db *sqliteDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (db *sqliteDB) createTable() error {
 	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
 
