@@ -3,24 +3,22 @@ package taas_tikv
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
-	zmq "github.com/pebbe/zmq4"
-	"github.com/pingcap/errors"
-	tikverr "github.com/tikv/client-go/v2/error"
 	"io/ioutil"
 	"log"
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/golang/protobuf/proto"
+	zmq "github.com/pebbe/zmq4"
+	"github.com/pingcap/errors"
+	"github.com/pingcap/go-ycsb/db/taas_proto"
+	tikverr "github.com/tikv/client-go/v2/error"
 )
 
 //#include ""
-import (
-	"context"
-	"github.com/golang/protobuf/proto"
-
-	"github.com/pingcap/go-ycsb/db/taas_proto"
-)
 
 var TaasServerIp = "172.30.67.185"
 var LocalServerIp = "172.30.67.187"
@@ -246,7 +244,6 @@ func UGZipBytes(in []byte) []byte {
 	defer reader.Close()
 	out, _ := ioutil.ReadAll(reader)
 	return out
-
 }
 
 func UnPack() {
