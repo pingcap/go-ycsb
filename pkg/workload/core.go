@@ -272,8 +272,202 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 	var err error
 	for {
 		err = db.Insert(ctx, c.table, dbKey, values)
-		if err == nil {
+		if err !=nil {
+
+
+func (c *core) buildRandomValue(state *coreState) []byte {
+	// TODO: use pool for the buffer
+	r := state.r
+	buf := c.getValueBuffer(int(c.fieldLengthGenerator.Next(r)))
+	util.RandBytes(r, buf)
+	return buf
+}
+
+
+func (c *core) buildDeterministicValue(state *coreState, key string, fieldKey string) []byte {
+	// TODO: use pool for the buffer
+	r := state.r
+	size := c.fieldLengthGenerator.Next(r)
+	buf := c.getValueBuffer(int(size + 21))
+	b := bytes.NewBuffer(buf[0:0])
+	b.WriteString(key)
+	b.WriteByte(':')
+	b.WriteString(strings.ToLower(fieldKey))
+	for int64(b.Len()) < size {
+		b.WriteByte(':')
+		n := util.BytesHash64(b.Bytes())
+		b.WriteString(strconv.FormatUint(uint64(n), 10))
+	}
+	b.Truncate(int(size))
+	return b.Bytes()
+}
+
+
+func (c *core) verifyRow(state *coreState, key string, values map[string][]byte) {
+	if len(values) == 0 {
+		// null data here, need panic?
+		return
+	}
+
+
+	for fieldKey, value := range values {
+		expected := c.buildDeterministicValue(state, key, fieldKey)
+		if !bytes.Equal(expected, value) {
+			util.Fatalf("unexpected deterministic value, expect %q, but got %q", expected, value)
+		}
+	}
+}
+
+
+// DoInsert implements the Workload DoInsert interface.
+func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
+	state := ctx.Value(stateKey).(*coreState)
+	r := state.r
+	keyNum := c.keySequence.Next(r)
+	dbKey := c.buildKeyName(keyNum)
+	values := c.buildValues(state, dbKey)
+	defer c.putValues(values)
+
+
+	numOfRetries := int64(0)
+
+
+	var err error
+	for {
+		err = db.Insert(ctx, c.table, dbKey, values)
+		if err != nil {
+		    break
+		}
+
+
+		select {
+		case <-ctx.Done():
+			if ctx.Err() == context.Canceled {
+				return nil
+			}
+		default:
+		}
+
+
+		// Retry if configured. Without retrying, the load process will fail
+		// even if one single insertion fails. User can optionally configure
+		// an insertion retry limit (default is 0) to enable retry.
+		numOfRetries++
+		if numOfRetries > c.insertionRetryLimit {
 			break
+		}
+
+
+		// Sleep for a random time betweensz [0.8, 1.2)*insertionRetryInterval
+		sleepTimeMs := float64((c.insertionRetryInterval * 1000)) * (0.8 + 0.4*r.Float64())
+
+
+		time.Sleep(time.Duration(sleepTimeMs) * time.Millisecond)
+	}
+
+
+	return err
+}
+
+
+DoBatchInsert implements the Workload DoBatchInsert interface
+
+func (c *core) buildRandomValue(state *coreState) []byte {
+	// TODO: use pool for the buffer
+	r := state.r
+	buf := c.getValueBuffer(int(c.fieldLengthGenerator.Next(r)))
+	util.RandBytes(r, buf)
+	return buf
+}
+
+
+func (c *core) buildDeterministicValue(state *coreState, key string, fieldKey string) []byte {
+	// TODO: use pool for the buffer
+	r := state.r
+	size := c.fieldLengthGenerator.Next(r)
+	buf := c.getValueBuffer(int(size + 21))
+	b := bytes.NewBuffer(buf[0:0])
+	b.WriteString(key)
+	b.WriteByte(':')
+	b.WriteString(strings.ToLower(fieldKey))
+	for int64(b.Len()) < size {
+		b.WriteByte(':')
+		n := util.BytesHash64(b.Bytes())
+		b.WriteString(strconv.FormatUint(uint64(n), 10))
+	}
+	b.Truncate(int(size))
+	return b.Bytes()
+}
+
+
+func (c *core) verifyRow(state *coreState, key string, values map[string][]byte) {
+	if len(values) == 0 {
+		// null data here, need panic?
+		return
+	}
+
+
+	for fieldKey, value := range values {
+		expected := c.buildDeterministicValue(state, key, fieldKey)
+		if !bytes.Equal(expected, value) {
+			util.Fatalf("unexpected deterministic value, expect %q, but got %q", expected, value)
+		}
+	}
+}
+
+
+// DoInsert implements the Workload DoInsert interface.
+func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
+	state := ctx.Value(stateKey).(*coreState)
+	r := state.r
+	keyNum := c.keySequence.Next(r)
+	dbKey := c.buildKeyName(keyNum)
+	values := c.buildValues(state, dbKey)
+	defer c.putValues(values)
+
+
+	numOfRetries := int64(0)
+
+
+	var err error
+	for {
+		err = db.Insert(ctx, c.table, dbKey, values)
+		if err !=nil {
+		  break
+		}
+
+
+		select {
+		case <-ctx.Done():
+			if ctx.Err() == context.Canceled {
+				return nil
+			}
+		default:
+		}
+
+
+		// Retry if configured. Without retrying, the load process will fail
+		// even if one single insertion fails. User can optionally configure
+		// an insertion retry limit (default is 0) to enable retry.
+		numOfRetries++
+		if numOfRetries > c.insertionRetryLimit {
+			break
+		}
+
+
+		// Sleep for a random time betweensz [0.8, 1.2)*insertionRetryInterval
+		sleepTimeMs := float64((c.insertionRetryInterval * 1000)) * (0.8 + 0.4*r.Float64())
+
+
+		time.Sleep(time.Duration(sleepTimeMs) * time.Millisecond)
+	}
+
+
+	return err
+}
+
+
+DoBatchInsert implements the Workload DoBatchInsert interfacebreak
 		}
 
 		select {
