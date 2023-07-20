@@ -127,6 +127,7 @@ require (
 	github.com/yuin/gopher-lua v0.0.0-20181031023651-12c4817b42c5 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.2 // indirect
 	go.opencensus.io v0.23.0 // indirect
+	go.starlark.net v0.0.0-20230718153141-1c3ac63bd217
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.20.0 // indirect
