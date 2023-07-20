@@ -106,10 +106,9 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 	for InitOk == 0 {
 		time.Sleep(50)
 	}
-	fmt.Println("not implement yet")
+	fmt.Println("unsure Update()")
 	// txnId := atomic.AddUint64(&atomicCounter, 1) // return new value
 	// atomic.AddUint64(&TotalTransactionCounter, 1)
-
 	// var bufferBeforeGzip bytes.Buffer
 	// clientIP := LocalServerIp
 	// txnSendToTaas := taas_proto.Transaction{ // 存储发送给taas的事务数据
@@ -153,7 +152,6 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 	// }
 	// GzipedTransaction := bufferBeforeGzip.Bytes()
 	// TaasTxnCH <- TaasTxn{GzipedTransaction}
-
 	// result, ok := <-(ChanList[txnId%2048])
 	// if ok {
 	// 	if result != "Commit" {
@@ -191,7 +189,7 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 
 // unfinished batchUpdate
 func (db *txnDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	fmt.Println("not implement yet")
+	fmt.Println("unsure BatchUpdate()")
 	txnId := atomic.AddUint64(&atomicCounter, 1) // return new value
 	atomic.AddUint64(&TotalTransactionCounter, 1)
 
