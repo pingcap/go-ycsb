@@ -107,65 +107,6 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 		time.Sleep(50)
 	}
 	fmt.Println("unsure Update()")
-	// txnId := atomic.AddUint64(&atomicCounter, 1) // return new value
-	// atomic.AddUint64(&TotalTransactionCounter, 1)
-	// var bufferBeforeGzip bytes.Buffer
-	// clientIP := LocalServerIp
-	// txnSendToTaas := taas_proto.Transaction{ // 存储发送给taas的事务数据
-	// 	//Row:         {},
-	// 	StartEpoch:  0,
-	// 	CommitEpoch: 5,
-	// 	Csn:         uint64(time.Now().UnixNano()),
-	// 	ServerIp:    TaasServerIp,
-	// 	ServerId:    0,
-	// 	ClientIp:    clientIP,
-	// 	ClientTxnId: txnId,
-	// 	TxnType:     taas_proto.TxnType_ClientTxn,
-	// 	TxnState:    0,
-	// }
-	// updateKey := rowKey        // 获取updateKey
-	// sendRow := taas_proto.Row{ // 存储发送给Taas的行数据
-	// 	OpType: taas_proto.OpType_Update,
-	// 	Key:    *(*[]byte)(unsafe.Pointer(&updateKey)),
-	// }
-	// for field, value := range values { // 遍历values
-	// 	idColumn, _ := strconv.ParseUint(string(field[5]), 10, 32) // 获取idColumn
-	// 	updatedColumn := taas_proto.Column{                        // 存储更新后的列数据
-	// 		Id:    uint32(idColumn),
-	// 		Value: value,
-	// 	}
-	// 	sendRow.Column = append(sendRow.Column, &updatedColumn) // 添加到sendRow.Column中
-	// }
-	// sendMessage := &taas_proto.Message{ //存储发送给Taas的消息数据
-	// 	Type: &taas_proto.Message_Txn{Txn: &txnSendToTaas},
-	// }
-	// sendBuffer, _ := proto.Marshal(sendMessage) // 将sendMessage序列化为字节数组sendBuffer
-	// bufferBeforeGzip.Reset()                    // 重置bufferBeforeGzip
-	// gw := gzip.NewWriter(&bufferBeforeGzip)     // 用于压缩数据
-	// _, err := gw.Write(sendBuffer)              // 将sendBuffer写入gw
-	// if err != nil {
-	// 	return err
-	// }
-	// err = gw.Close()
-	// if err != nil {
-	// 	return err
-	// }
-	// GzipedTransaction := bufferBeforeGzip.Bytes()
-	// TaasTxnCH <- TaasTxn{GzipedTransaction}
-	// result, ok := <-(ChanList[txnId%2048])
-	// if ok {
-	// 	if result != "Commit" {
-	// 		atomic.AddUint64(&FailedTransactionCounter, 1)
-	// 		return err
-	// 	}
-	// 	atomic.AddUint64(&SuccessTransactionCounter, 1)
-	// } else {
-	// 	fmt.Println("txn_bak.go 481")
-	// 	log.Fatal(ok)
-	// 	return err
-	// }
-	// return nil
-
 	// original version
 	rowKey := db.getRowKey(table, key)
 	m, err := db.Read(ctx, table, key, nil)
