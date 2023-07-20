@@ -117,6 +117,7 @@ require (
 	github.com/smartystreets/goconvey v1.8.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stathat/consistent v1.0.0 // indirect
+	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/tikv/pd/client v0.0.0-20220307081149-841fa61e9710 // indirect
 	github.com/twmb/murmur3 v1.1.3 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

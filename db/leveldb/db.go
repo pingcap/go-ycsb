@@ -71,11 +71,11 @@ func (db *levelDB) getRowKey(table string, key string) []byte {
 func (db *levelDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	// fmt.Println("do Read")
 	rowKey := db.getRowKey(table, key)
-	raw_value, err := db.client.Get(rowKey)
+	row_value, err := db.client.Get(rowKey)
 	if err != nil {
 		return nil, err
 	}
-	return db.r.Decode(raw_value, fields)
+	return db.r.Decode(row_value, fields)
 }
 
 func (db *levelDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
@@ -83,7 +83,7 @@ func (db *levelDB) BatchRead(ctx context.Context, table string, keys []string, f
 	row_value := make([]map[string][]byte, len(keys))
 	for i, key := range keys {
 		value, err := db.client.Get(db.getRowKey(table, key))
-		if value == nil {
+		if value == nil || err != nil {
 			row_value[i] = nil
 		} else {
 			row_value[i], err = db.r.Decode(value, fields)
@@ -100,6 +100,7 @@ func (db *levelDB) Scan(ctx context.Context, table string, startKey string, coun
 	fmt.Println("do scan")
 	rows := make([]map[string][]byte, 0, count)
 
+	// it, err := tx.Iter(db.getRowKey(table, startKey), nil)
 	// 如何获取到key迭代器？
 	key := startKey
 
@@ -116,7 +117,7 @@ func (db *levelDB) Scan(ctx context.Context, table string, startKey string, coun
 		rows[i] = v
 	}
 
-	return nil, nil
+	return rows, nil
 }
 
 func (db *levelDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
@@ -138,12 +139,22 @@ func (db *levelDB) Update(ctx context.Context, table string, key string, values 
 	}
 
 	rowKey := db.getRowKey(table, key)
-	db.client.Put(rowKey, buf)
-	return nil
+	return db.client.Put(rowKey, buf)
 }
 
 func (db *levelDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
 	fmt.Println("do batchupdate")
+	// 批量更新？
+	for i, key := range keys {
+		row_key := db.getRowKey(table, key)
+		rowData, err := db.r.Encode(nil, values[i])
+		if err != nil {
+			return err
+		}
+		if err = db.client.Put(row_key, rowData); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -152,6 +163,7 @@ func (db *levelDB) Insert(ctx context.Context, table string, key string, values 
 	fmt.Println("do insert")
 	buf := db.bufPool.Get()
 	defer db.bufPool.Put(buf)
+
 	buf, err := db.r.Encode(buf, values)
 	if err != nil {
 		return err
@@ -164,6 +176,17 @@ func (db *levelDB) Insert(ctx context.Context, table string, key string, values 
 func (db *levelDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
 	fmt.Println("do batchinsert")
 	// fmt.Println(keys)
+	for i, key := range keys {
+		rowData, err := db.r.Encode(nil, values[i])
+		if err != nil {
+			return err
+		}
+		rowKey := db.getRowKey(table, key)
+
+		if err = db.client.Put(rowKey, rowData); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
