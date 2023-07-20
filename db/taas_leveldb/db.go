@@ -32,7 +32,7 @@ func (c taas_leveldbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	case "raw":
 		return nil, nil
 		///todo not implement yet
-		//return createRawDB(p)
+		///return createRawDB(p)
 	case "txn":
 		return createTxnDB(p)
 	default:
