@@ -272,7 +272,7 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 	var err error
 	for {
 		err = db.Insert(ctx, c.table, dbKey, values)
-		if err == nil {
+		if err != nil {
 			break
 		}
 
@@ -327,7 +327,7 @@ func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) err
 	var err error
 	for {
 		err = batchDB.BatchInsert(ctx, c.table, keys, values)
-		if err == nil {
+		if err != nil {
 			break
 		}
 
