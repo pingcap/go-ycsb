@@ -327,7 +327,7 @@ func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) err
 	var err error
 	for {
 		err = batchDB.BatchInsert(ctx, c.table, keys, values)
-		if err == nil {
+		if err != nil {
 			break
 		}
 
