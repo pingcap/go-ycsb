@@ -272,7 +272,7 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 	var err error
 	for {
 		err = db.Insert(ctx, c.table, dbKey, values)
-		if err == nil {
+		if err != nil {
 			break
 		}
 
