@@ -27,7 +27,7 @@ func (c taas_leveldbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	})
 
 	tp := p.GetString(tikvType, "txn")
-	fmt.Println("=====================  Taas - Leveldb  ============================")
+	fmt.Println("=====================  Taas - leveldb  ============================")
 	switch tp {
 	case "raw":
 		return nil, nil

@@ -14,7 +14,7 @@ type LeveldbClient struct {
 }
 
 func (c *LeveldbClient) Connect(p *properties.Properties) error {
-	endpoint := p.GetString("lelveldb.endpoint", "127.0.0.1:8000")
+	endpoint := p.GetString("leveldb.endpoint", "127.0.0.1:8000")
 	clientConn, err := brpc.Dial(bstd.ProtocolName, endpoint)
 	if err != nil {
 		return err

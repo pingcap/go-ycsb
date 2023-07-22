@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"sync/atomic"
-	"time"
 
+	"github.com/icexin/brpc-go"
+	bstd "github.com/icexin/brpc-go/protocol/brpc-std"
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
@@ -19,6 +20,7 @@ type txnConfig struct {
 
 type txnDB struct {
 	db      *leveldb.DB
+	client  LeveldbClient
 	r       *util.RowCodec
 	bufPool *util.BufPool
 }
@@ -28,14 +30,21 @@ var ClientConnectionNum int = 256
 
 func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	TaasServerIp = p.GetString("taasServerIp", "")
-	// leveldb找到本地leveldb数据库文件夹进行连接，需修改
-	dir := p.GetString("leveldb.dir", "/tmp/leveldb")
-	db, err := leveldb.OpenFile(dir, nil)
+	// leveldb找到本地leveldb数据库文件夹进行连接，不用管
+	dir := p.GetString("leveldb.dir", "/tmp/leveldb_simple_example")
+	db, _ := leveldb.OpenFile(dir, nil)
+
+	// 连接远端brpc
+	endpoint := p.GetString(bstd.ProtocolName, "127.0.0.1:8000")
+	clientConn, err := brpc.Dial(bstd.ProtocolName, endpoint)
+	client := new(LeveldbClient)
+	client.conn = clientConn
 	if err != nil {
 		return nil, err
 	}
 	return &txnDB{
 		db:      db,
+		client:  *client,
 		r:       util.NewRowCodec(p),
 		bufPool: util.NewBufPool(),
 	}, nil
@@ -57,7 +66,7 @@ func (db *txnDB) getRowKey(table string, key string) []byte {
 }
 
 func (db *txnDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
-	value, err := db.db.Get(db.getRowKey(table, key), nil)
+	value, err := db.client.Get(db.getRowKey(table, key))
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +76,7 @@ func (db *txnDB) Read(ctx context.Context, table string, key string, fields []st
 func (db *txnDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
 	rowKeys := make([]map[string][]byte, len(keys))
 	for i, key := range keys {
-		value, err := db.db.Get(db.getRowKey(table, key), nil)
+		value, err := db.client.Get(db.getRowKey(table, key))
 		if value == nil {
 			rowKeys[i] = nil
 		} else {
@@ -80,6 +89,7 @@ func (db *txnDB) BatchRead(ctx context.Context, table string, keys []string, fie
 	return rowKeys, nil
 }
 
+// no need for scan there's no proto for this action
 func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	res := make([]map[string][]byte, count)
 	it := db.db.NewIterator(nil, nil)
@@ -103,9 +113,6 @@ func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count 
 
 // unfinished Update
 func (db *txnDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	for InitOk == 0 {
-		time.Sleep(50)
-	}
 	fmt.Println("unsure Update()")
 	// original version
 	rowKey := db.getRowKey(table, key)
@@ -163,23 +170,24 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 	if err != nil {
 		return err
 	}
-	batch := new(leveldb.Batch)
-	batch.Put(rowKey, buf)
-	return db.db.Write(batch, nil)
+	return db.client.Put(rowKey, buf)
 }
 
 func (db *txnDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	batch := new(leveldb.Batch)
 	for i, key := range keys {
 		rowData, err := db.r.Encode(nil, values[i])
 		if err != nil {
 			return err
 		}
-		batch.Put(db.getRowKey(table, key), rowData)
+		err = db.client.Put(db.getRowKey(table, key), rowData)
+		if err != nil {
+			return err
+		}
 	}
-	return db.db.Write(batch, nil)
+	return nil
 }
 
+// no need for scan there's no proto for this action
 func (db *txnDB) Delete(ctx context.Context, table string, key string) error {
 	batch := new(leveldb.Batch)
 	rowKey := db.getRowKey(table, key)
@@ -187,6 +195,7 @@ func (db *txnDB) Delete(ctx context.Context, table string, key string) error {
 	return db.db.Write(batch, nil)
 }
 
+// no need for scan there's no proto for this action
 func (db *txnDB) BatchDelete(ctx context.Context, table string, keys []string) error {
 	batch := new(leveldb.Batch)
 	for _, key := range keys {
