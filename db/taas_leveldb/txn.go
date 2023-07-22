@@ -111,7 +111,7 @@ func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count 
 	return res, nil
 }
 
-// unfinished Update
+// unfinished Update, no need for scan there's no proto for this action
 func (db *txnDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
 	fmt.Println("unsure Update()")
 	// original version
@@ -135,7 +135,7 @@ func (db *txnDB) Update(ctx context.Context, table string, key string, values ma
 	return db.db.Write(batch, nil)
 }
 
-// unfinished batchUpdate
+// unfinished batchUpdate, no need for scan there's no proto for this action
 func (db *txnDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
 	fmt.Println("unsure BatchUpdate()")
 	txnId := atomic.AddUint64(&atomicCounter, 1) // return new value
