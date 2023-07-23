@@ -35,7 +35,7 @@ func createTxnDB(p *properties.Properties) (ycsb.DB, error) {
 	db, _ := leveldb.OpenFile(dir, nil)
 
 	// 连接远端brpc
-	endpoint := p.GetString(bstd.ProtocolName, "127.0.0.1:8000")
+	endpoint := p.GetString(bstd.ProtocolName, "127.0.0.1:2379")
 	clientConn, err := brpc.Dial(bstd.ProtocolName, endpoint)
 	client := new(LeveldbClient)
 	client.conn = clientConn
@@ -66,7 +66,9 @@ func (db *txnDB) getRowKey(table string, key string) []byte {
 }
 
 func (db *txnDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
-	value, err := db.client.Get(db.getRowKey(table, key))
+	rowKey := db.getRowKey(table, key)
+	value, err := db.client.Get(rowKey)
+	fmt.Println("Read() ===== key :" + util.String(rowKey) + "value :" + util.String(value))
 	if err != nil {
 		return nil, err
 	}
@@ -165,8 +167,11 @@ func (db *txnDB) BatchUpdate(ctx context.Context, table string, keys []string, v
 
 func (db *txnDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	rowKey := db.getRowKey(table, key)
+
 	buf := db.bufPool.Get()
 	buf, err := db.r.Encode(buf, values)
+
+	fmt.Println("Insert() ===== key :" + util.String(rowKey) + "value :" + util.String(buf))
 	if err != nil {
 		return err
 	}
