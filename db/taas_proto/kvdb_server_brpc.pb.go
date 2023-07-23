@@ -4,7 +4,7 @@
 // - protoc             v3.12.4
 // source: kvdb_server.proto
 
-package taas_leveldb
+package taas_proto
 
 import (
 	context "context"

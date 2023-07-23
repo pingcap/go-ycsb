@@ -4,6 +4,7 @@ import (
 	"context"
 
 	brpc_go "github.com/icexin/brpc-go"
+	"github.com/pingcap/go-ycsb/db/taas_proto"
 )
 
 type LeveldbClient struct {
@@ -11,14 +12,14 @@ type LeveldbClient struct {
 }
 
 func (c *LeveldbClient) Get(key []byte) (value []byte, err error) {
-	getClient := NewKvDBGetServiceClient(c.conn)
+	getClient := taas_proto.NewKvDBGetServiceClient(c.conn)
 
-	kv_pair := &KvDBData{
+	kv_pair := &taas_proto.KvDBData{
 		Key: string(key),
 	}
 
-	request := &KvDBRequest{
-		Data: []*KvDBData{kv_pair},
+	request := &taas_proto.KvDBRequest{
+		Data: []*taas_proto.KvDBData{kv_pair},
 	}
 	response, err := getClient.Get(context.Background(), request)
 	if err != nil {
@@ -28,14 +29,14 @@ func (c *LeveldbClient) Get(key []byte) (value []byte, err error) {
 }
 
 func (c *LeveldbClient) Put(key, value []byte) error {
-	putClient := NewKvDBPutServiceClient(c.conn)
-	kv_pair := &KvDBData{
+	putClient := taas_proto.NewKvDBPutServiceClient(c.conn)
+	kv_pair := &taas_proto.KvDBData{
 		Key:   string(key),
 		Value: string(value),
 	}
 
-	request := &KvDBRequest{
-		Data: []*KvDBData{kv_pair},
+	request := &taas_proto.KvDBRequest{
+		Data: []*taas_proto.KvDBData{kv_pair},
 	}
 	_, err := putClient.Put(context.Background(), request)
 	return err
