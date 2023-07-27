@@ -31,48 +31,53 @@
 package generator
 
 import (
+	"math"
 	"math/rand"
-
-	"github.com/pingcap/go-ycsb/pkg/util"
 )
 
-// ScrambledZipfian produces a sequence of items, such that some items are more popular than
-// others, according to a zipfian distribution
-type ScrambledZipfian struct {
+const (
+	// ParetoTheta is the 'theta' of Generized Pareto Distribution.
+	ParetoTheta = float64(0)
+	// ParetoK is the 'k' of Generized Pareto Distribution.
+	ParetoK = float64(0.923)
+	// ParetoSigma is the 'sigma' of Generized Pareto Distribution.
+	ParetoSigma = float64(226.409)
+)
+
+// Pareto generates integers follow Pareto distribution.
+// "f(x)=(1/sigma)*(1+k*(x-theta)/sigma)^-(1/k+1)");
+type Pareto struct {
 	Number
-	gen       *Zipfian
-	min       int64
-	max       int64
-	itemCount int64
+	maxValue int64
+	theta    float64
+	k        float64
+	sigma    float64
 }
 
-// NewScrambledZipfian creates a ScrambledZipfian generator.
-func NewScrambledZipfian(min int64, max int64, zipfianConstant float64) *ScrambledZipfian {
-	const (
-		zetan               = float64(26.46902820178302)
-		usedZipfianConstant = float64(0.99)
-		itemCount           = int64(10000000000)
-	)
-
-	s := new(ScrambledZipfian)
-	s.min = min
-	s.max = max
-	s.itemCount = max - min + 1
-	if zipfianConstant == usedZipfianConstant {
-		s.gen = NewZipfian(0, itemCount, zipfianConstant, zetan)
-	} else if zipfianConstant == 1.2 {
-		s.gen = NewZipfian(0, itemCount, zipfianConstant, 52.7270)
-	} else {
-		s.gen = NewZipfianWithRange(0, itemCount, zipfianConstant)
+// NewPareto creates the Pareto generator.
+func NewPareto(maxValue int64, theta float64, k float64, sigma float64) *Pareto {
+	return &Pareto{
+		maxValue: maxValue,
+		theta:    theta,
+		k:        k,
+		sigma:    sigma,
 	}
-	return s
 }
 
 // Next implements the Generator Next interface.
-func (s *ScrambledZipfian) Next(r *rand.Rand) int64 {
-	n := s.gen.Next(r)
-
-	n = s.min + util.Hash64(n)%s.itemCount
-	s.SetLastValue(n)
-	return n
+func (p *Pareto) Next(r *rand.Rand) int64 {
+	u := r.Float64()
+	val := 0.0
+	if p.k == 0.0 {
+		val = p.theta - p.sigma*math.Log(u)
+	} else {
+		val = p.theta + p.sigma*(math.Pow(u, -1*p.k)-1)/p.k
+	}
+	ret := int64(math.Ceil(val))
+	if ret <= 0 {
+		ret = 10
+	} else if ret > p.maxValue {
+		ret = ret % p.maxValue
+	}
+	return ret
 }

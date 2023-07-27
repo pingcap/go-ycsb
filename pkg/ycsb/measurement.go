@@ -14,18 +14,22 @@
 package ycsb
 
 import (
-	"io"
 	"time"
 )
 
-// Measurer is used to capture measurements.
-type Measurer interface {
-	// Measure measures the latency of an operation.
-	Measure(op string, start time.Time, latency time.Duration)
+// MeasurementInfo contains metrics of one measurement.
+type MeasurementInfo interface {
+	// Get returns the value corresponded to the specified metric, such QPS, MIN, MAX，etc.
+	// If metric does not exist, the returned value will be nil.
+	Get(metricName string) interface{}
+}
 
-	// Summary writes a summary of the current measurement results to stdout.
-	Summary()
-
-	// Output writes the measurement results to the specified writer.
-	Output(w io.Writer) error
+// Measurement measures the operations metrics.
+type Measurement interface {
+	// Measure measures the operation latency.
+	Measure(latency time.Duration)
+	// Summary returns the summary of the measurement.
+	Summary() string
+	// Info returns the MeasurementInfo of the measurement.
+	Info() MeasurementInfo
 }

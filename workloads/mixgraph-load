@@ -22,16 +22,38 @@
 #   Default data size: 1 KB records (10 fields, 100 bytes each, plus key)
 #   Request distribution: zipfian
 
-recordcount=100000
-operationcount=100000
+recordcount=500000000
+operationcount=500000000
+threadcount=1024
 workload=core
 
+# mixgraph parameter
+keyrangenum=3000
+mixgetratio=0
+mixputratio=1
+mixseekratio=0
+
+keyrangedista=14.18
+keyrangedistb=-2.917
+keyrangedistc=0.0164
+keyrangedistd=-0.08082
+
+keydista=0.002312
+keydistb=0.3467
+
+valuesigma=226.409
+valuek=0.923
+fieldlengthdistribution=pareto
+
+mixgraph=true
+usedefaultrequest=true
+variedsize=true
+zipfianrange=false
+
+# ycsb parameter
+insertorder=order
+zeropadding=20
 readallfields=true
-
-readproportion=0.5
-updateproportion=0.5
-scanproportion=0
-insertproportion=0
-
 requestdistribution=uniform
-
+fieldlength=10240
+fieldcount=1

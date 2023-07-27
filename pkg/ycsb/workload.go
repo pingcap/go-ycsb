@@ -16,6 +16,7 @@ package ycsb
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/magiconair/properties"
 )
@@ -37,9 +38,6 @@ type Workload interface {
 	// CleanupThread cleans up the state when the worker finished.
 	CleanupThread(ctx context.Context)
 
-	// Load data into DB.
-	Load(ctx context.Context, db DB, totalCount int64) error
-
 	// DoInsert does one insert operation.
 	DoInsert(ctx context.Context, db DB) error
 
@@ -51,6 +49,18 @@ type Workload interface {
 
 	// DoBatchTransaction does the batch transaction operation.
 	DoBatchTransaction(ctx context.Context, batchSize int, db DB) error
+
+	ProcessKVRequest(ctx context.Context, db DB, kvReq *KVRequest) error
+}
+
+// KVRequest is used to record kv request
+type KVRequest struct {
+	QueryType int64
+	KeyName   string
+	Values    map[string][]byte
+	Fields    []string
+	ScanLen   int
+	StartTime time.Time
 }
 
 var workloadCreators = map[string]WorkloadCreator{}

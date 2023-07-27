@@ -183,16 +183,14 @@ func (db *boltDB) Update(ctx context.Context, table string, key string, values m
 		}
 
 		buf := db.bufPool.Get()
-		defer func() {
-			db.bufPool.Put(buf)
-		}()
+		defer db.bufPool.Put(buf)
 
-		buf, err = db.r.Encode(buf, data)
+		rowData, err := db.r.Encode(buf.Bytes(), data)
 		if err != nil {
 			return err
 		}
 
-		return bucket.Put([]byte(key), buf)
+		return bucket.Put([]byte(key), rowData)
 	})
 	return err
 }
@@ -205,16 +203,14 @@ func (db *boltDB) Insert(ctx context.Context, table string, key string, values m
 		}
 
 		buf := db.bufPool.Get()
-		defer func() {
-			db.bufPool.Put(buf)
-		}()
+		defer db.bufPool.Put(buf)
 
-		buf, err = db.r.Encode(buf, values)
+		rowData, err := db.r.Encode(buf.Bytes(), values)
 		if err != nil {
 			return err
 		}
 
-		return bucket.Put([]byte(key), buf)
+		return bucket.Put([]byte(key), rowData)
 	})
 	return err
 }

@@ -1,41 +1,36 @@
-// Copyright (c) 2020 Daimler TSS GmbH TLS support
-
 package mongodb
 
 import (
 	"context"
-	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"strings"
 
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/x/mongo/driver/connstring"
+	"go.mongodb.org/mongo-driver/x/network/command"
+	"go.mongodb.org/mongo-driver/x/network/connstring"
 )
 
 const (
-	mongodbUrl      = "mongodb.url"
-	mongodbAuthdb   = "mongodb.authdb"
-	mongodbUsername = "mongodb.username"
-	mongodbPassword = "mongodb.password"
+	mongodbUri       = "mongodb.uri"
+	mongodbNamespace = "mongodb.namespace"
+	mongodbAuthdb    = "mongodb.authdb"
+	mongodbUsername  = "mongodb.username"
+	mongodbPassword  = "mongodb.password"
 
-	// see https://github.com/brianfrankcooper/YCSB/tree/master/mongodb#mongodb-configuration-parameters
-	mongodbUrlDefault      = "mongodb://127.0.0.1:27017/ycsb?w=1"
-	mongodbDatabaseDefault = "ycsb"
-	mongodbAuthdbDefault   = "admin"
-	mongodbTLSSkipVerify   = "mongodb.tls_skip_verify"
-	mongodbTLSCAFile       = "mongodb.tls_ca_file"
+	mongodbUriDefault       = "mongodb://127.0.0.1:27017"
+	mongodbNamespaceDefault = "ycsb.ycsb"
+	mongodbAuthdbDefault    = "admin"
 )
 
 type mongoDB struct {
-	cli *mongo.Client
-	db  *mongo.Database
+	cli      *mongo.Client
+	dbname   string
+	collname string
+	coll     *mongo.Collection
 }
 
 func (m *mongoDB) Close() error {
@@ -57,7 +52,7 @@ func (m *mongoDB) Read(ctx context.Context, table string, key string, fields []s
 	}
 	opt := &options.FindOneOptions{Projection: projection}
 	var doc map[string][]byte
-	if err := m.db.Collection(table).FindOne(ctx, bson.M{"_id": key}, opt).Decode(&doc); err != nil {
+	if err := m.coll.FindOne(ctx, bson.M{"_id": key}, opt).Decode(&doc); err != nil {
 		return nil, fmt.Errorf("Read error: %s", err.Error())
 	}
 	return doc, nil
@@ -71,7 +66,7 @@ func (m *mongoDB) Scan(ctx context.Context, table string, startKey string, count
 	}
 	limit := int64(count)
 	opt := &options.FindOptions{Projection: projection, Sort: bson.M{"_id": 1}, Limit: &limit}
-	cursor, err := m.db.Collection(table).Find(ctx, bson.M{"_id": bson.M{"$gte": startKey}}, opt)
+	cursor, err := m.coll.Find(ctx, bson.M{"_id": bson.M{"$gte": startKey}}, opt)
 	if err != nil {
 		return nil, fmt.Errorf("Scan error: %s", err.Error())
 	}
@@ -93,7 +88,7 @@ func (m *mongoDB) Insert(ctx context.Context, table string, key string, values m
 	for k, v := range values {
 		doc[k] = v
 	}
-	if _, err := m.db.Collection(table).InsertOne(ctx, doc); err != nil {
+	if _, err := m.coll.InsertOne(ctx, doc); err != nil {
 		fmt.Println(err)
 		return fmt.Errorf("Insert error: %s", err.Error())
 	}
@@ -102,7 +97,7 @@ func (m *mongoDB) Insert(ctx context.Context, table string, key string, values m
 
 // Update a document.
 func (m *mongoDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	res, err := m.db.Collection(table).UpdateOne(ctx, bson.M{"_id": key}, bson.M{"$set": values})
+	res, err := m.coll.UpdateOne(ctx, bson.M{"_id": key}, bson.M{"$set": values})
 	if err != nil {
 		return fmt.Errorf("Update error: %s", err.Error())
 	}
@@ -114,7 +109,7 @@ func (m *mongoDB) Update(ctx context.Context, table string, key string, values m
 
 // Delete a document.
 func (m *mongoDB) Delete(ctx context.Context, table string, key string) error {
-	res, err := m.db.Collection(table).DeleteOne(ctx, bson.M{"_id": key})
+	res, err := m.coll.DeleteOne(ctx, bson.M{"_id": key})
 	if err != nil {
 		return fmt.Errorf("Delete error: %s", err.Error())
 	}
@@ -124,16 +119,19 @@ func (m *mongoDB) Delete(ctx context.Context, table string, key string) error {
 	return nil
 }
 
-type mongodbCreator struct{}
+type mongodbCreator struct {
+}
 
 func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
-	uri := p.GetString(mongodbUrl, mongodbUrlDefault)
+	uri := p.GetString(mongodbUri, mongodbUriDefault)
+	nss := p.GetString(mongodbNamespace, mongodbNamespaceDefault)
 	authdb := p.GetString(mongodbAuthdb, mongodbAuthdbDefault)
-	tlsSkipVerify := p.GetBool(mongodbTLSSkipVerify, false)
-	caFile := p.GetString(mongodbTLSCAFile, "")
 
-	connString, err := connstring.Parse(uri)
-	if err != nil {
+	if _, err := connstring.Parse(uri); err != nil {
+		return nil, err
+	}
+	ns := command.ParseNamespace(nss)
+	if err := ns.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -141,31 +139,6 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	defer cancel()
 
 	cliOpts := options.Client().ApplyURI(uri)
-	if cliOpts.TLSConfig != nil {
-		if len(connString.Hosts) > 0 {
-			servername := strings.Split(connString.Hosts[0], ":")[0]
-			log.Printf("using server name for tls: %s\n", servername)
-			cliOpts.TLSConfig.ServerName = servername
-		}
-		if tlsSkipVerify {
-			log.Println("skipping tls cert validation")
-			cliOpts.TLSConfig.InsecureSkipVerify = true
-		}
-
-		if caFile != "" {
-			// Load CA cert
-			caCert, err := ioutil.ReadFile(caFile)
-			if err != nil {
-				log.Fatal(err)
-			}
-			caCertPool := x509.NewCertPool()
-			if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
-				log.Fatalf("certifacte %s could not be parsed", caFile)
-			}
-
-			cliOpts.TLSConfig.RootCAs = caCertPool
-		}
-	}
 
 	username, usrExist := p.Get(mongodbUsername)
 	password, pwdExist := p.Get(mongodbPassword)
@@ -192,8 +165,10 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	fmt.Println("Connected to MongoDB!")
 
 	m := &mongoDB{
-		cli: cli,
-		db:  cli.Database(mongodbDatabaseDefault),
+		cli:      cli,
+		dbname:   ns.DB,
+		collname: ns.Collection,
+		coll:     cli.Database(ns.DB).Collection(ns.Collection),
 	}
 	return m, nil
 }

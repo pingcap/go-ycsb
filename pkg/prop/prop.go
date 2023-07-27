@@ -107,13 +107,73 @@ const (
 	KeyPrefix        = "keyprefix"
 	KeyPrefixDefault = "user"
 
-	LogInterval = "measurement.interval"
+	FluctuateLoad                    = "fluctuateload"
+	FluctuateLoadDefault             = false
+	FluctuateLowLoadInterval         = "fluctuatelowloadinterval"
+	FluctuateLowLoadIntervalDefault  = 50
+	FluctuatePeakLoadInterval        = "fluctuatepeakloadinterval"
+	FluctuatePeakLoadIntervalDefault = 10
+	FluctuateLoadRatio               = "fluctuateloadratio"
+	FluctuateLoadRatioDefault        = 10
+	FluctuateSineA                   = "fluctuatesinea"
+	FluctuateSineADefault            = 500.0
+	FluctuateSineB                   = "fluctuatesineb"
+	FluctuateSineBDefault            = 0.05
+	FluctuateSineC                   = "fluctuatesinec"
+	FluctuateSineCDefault            = 0.0
+	FluctuateSineD                   = "fluctuatesined"
+	FluctuateSineDDefault            = 500.0
 
-	MeasurementType          = "measurementtype"
-	MeasurementTypeDefault   = "histogram"
-	MeasurementRawOutputFile = "measurement.output_file"
+	WaitingQueue            = "waitingqueue"
+	WaitingQueueDefault     = false
+	WaitingQueueSize        = "waitingqueuesize"
+	WaitingQueueSizeDefault = 10000
 
-	Command = "command"
+	NeedShuffleRegion            = "needshuffleregion"
+	NeedShuffleRegionDefault     = false
+	ShuffleRegionInterval        = "shuffleregioninterval"
+	ShuffleRegionIntervalDefault = 240
 
-	OutputStyle = "outputstyle"
+	TraceReplay        = "tracereplay"
+	TraceReplayDefault = false
+	ReplayThreadCount  = "replaythreadcount"
+	ApplyThreadCount   = "applythreadcount"
+
+	KvSizeUseParetoDistInRegion = "kvSizeUseParetoDistInRegion"
+
+	MixGraphBench        = "mixgraph"
+	MixGraphBenchDefault = false
+	MixGetRatio          = "mixgetratio"
+	MixGetRatioDefault   = float64(0.83)
+	MixPutRatio          = "mixputratio"
+	MixPutRatioDefault   = float64(0.14)
+	MixSeekRatio         = "mixseekratio"
+	MixSeekRatioDefault  = float64(0.03)
+	KeyRangeNum          = "keyrangenum"
+	KeyRangeNumDefault   = int64(30)
+	KeyRangeDistA        = "keyrangedista"
+	KeyRangeDistADefault = float64(14.18)
+	KeyRangeDistB        = "keyrangedistb"
+	KeyRangeDistBDefault = float64(-2.917)
+	KeyRangeDistC        = "keyrangedistc"
+	KeyRangeDistCDefault = float64(0.0164)
+	KeyRangeDistD        = "keyrangedistd"
+	KeyRangeDistDDefault = float64(-0.08082)
+	KeyDistA             = "keydista"
+	KeyDistADefault      = float64(0.002312)
+	KeyDistB             = "keydistb"
+	KeyDistBDefault      = float64(0.3467)
+	ValueTheta           = "valuetheta"
+	ValueThetaDefault    = float64(0)
+	ValueK               = "valuek"
+	ValueKDefault        = float64(0.2615)
+	ValueSigma           = "valuesigma"
+	ValueSigmaDefault    = float64(25.45)
+	IterTheta            = "itertheta"
+	IterThetaDefault     = float64(0)
+	IterK                = "iterk"
+	IterKDefault         = float64(2.517)
+	IterSigma            = "itersigma"
+	IterSigmaDefault     = float64(14.236)
+	LogInterval          = "measurement.interval"
 )

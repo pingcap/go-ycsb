@@ -16,6 +16,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"sync"
@@ -27,6 +28,9 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
+var KVReqGenChan chan *ycsb.KVRequest
+var KVReqDoChan chan *ycsb.KVRequest
+
 type worker struct {
 	p               *properties.Properties
 	workDB          ycsb.DB
@@ -37,8 +41,10 @@ type worker struct {
 	opCount         int64
 	targetOpsPerMs  float64
 	threadID        int
+	threadIDStr     string
 	targetOpsTickNs int64
 	opsDone         int64
+	overflowOpCount int64
 }
 
 func newWorker(p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db ycsb.DB) *worker {
@@ -50,6 +56,7 @@ func newWorker(p *properties.Properties, threadID int, threadCount int, workload
 		w.doBatch = true
 	}
 	w.threadID = threadID
+	w.threadIDStr = fmt.Sprintf("tid%v", threadID)
 	w.workload = workload
 	w.workDB = db
 
@@ -114,40 +121,229 @@ func (w *worker) run(ctx context.Context) {
 	}
 
 	startTime := time.Now()
+	enableWaitingQueue := w.p.GetBool(prop.WaitingQueue, prop.WaitingQueueDefault)
 
-	for w.opCount == 0 || w.opsDone < w.opCount {
-		var err error
-		opsCount := 1
-		if w.doTransactions {
-			if w.doBatch {
-				err = w.workload.DoBatchTransaction(ctx, w.batchSize, w.workDB)
-				opsCount = w.batchSize
-			} else {
-				err = w.workload.DoTransaction(ctx, w.workDB)
+	//========qps waiting queue===============
+	if enableWaitingQueue {
+
+		MaxQueueSize := w.p.GetInt(prop.WaitingQueueSize, prop.WaitingQueueSizeDefault)
+		c := make(chan time.Time, MaxQueueSize) //max_size
+		finish := make(chan struct{})
+
+		go func() {
+			for {
+				var err error
+				opsCount := 1
+				start := <-c
+
+				if start.Before(startTime) {
+					break
+				}
+				if w.doTransactions {
+					if w.doBatch {
+						err = w.workload.DoBatchTransaction(ctx, w.batchSize, w.workDB)
+						opsCount = w.batchSize
+					} else {
+						err = w.workload.DoTransaction(ctx, w.workDB)
+					}
+				} else {
+					if w.doBatch {
+						err = w.workload.DoBatchInsert(ctx, w.batchSize, w.workDB)
+						opsCount = w.batchSize
+					} else {
+						err = w.workload.DoInsert(ctx, w.workDB)
+					}
+				}
+
+				lan := time.Since(start)
+				measurement.ThreadMeasure("AllWQ", lan)
+
+				if err != nil && !w.p.GetBool(prop.Silence, prop.SilenceDefault) {
+					fmt.Printf("operation err: %v\n", err)
+				}
+
+				if measurement.IsWarmUpFinished() {
+					w.opsDone += int64(opsCount)
+					w.throttle(ctx, startTime)
+				}
+
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 			}
-		} else {
-			if w.doBatch {
-				err = w.workload.DoBatchInsert(ctx, w.batchSize, w.workDB)
-				opsCount = w.batchSize
+			finish <- struct{}{}
+		}()
+
+		threadCount := w.p.GetInt(prop.ThreadCount, 1)
+		enableFluctLoad := w.p.GetBool(prop.FluctuateLoad, prop.FluctuateLoadDefault)
+		fluctSineA := w.p.GetFloat64(prop.FluctuateSineA, prop.FluctuateSineADefault)
+		fluctSineB := w.p.GetFloat64(prop.FluctuateSineB, prop.FluctuateSineBDefault)
+		fluctSineC := w.p.GetFloat64(prop.FluctuateSineC, prop.FluctuateSineCDefault)
+		fluctSineD := w.p.GetFloat64(prop.FluctuateSineD, prop.FluctuateSineDDefault)
+
+		opCount := int64(0)
+		timeUnit := 1.0
+		for opCount < w.opCount {
+			curQps := 1000.0 * timeUnit
+			curTime := time.Now()
+			if enableFluctLoad {
+				curSec := curTime.Sub(startTime).Seconds()
+				curQps = (fluctSineA*math.Sin(fluctSineB*curSec+fluctSineC) + fluctSineD) / float64(threadCount) * timeUnit
+				if curQps < 1 {
+					curQps = 1
+				}
+			}
+			// if w.threadID == 0 {
+			// 	fmt.Println("curQPs", curQps*float64(threadCount))
+			// }
+
+			tmpOp := int64(0)
+			wakeInterval := int64(timeUnit * float64(time.Second.Nanoseconds()) / curQps)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(time.Duration(wakeInterval)):
+					if len(c) == MaxQueueSize { // overflow, drop op
+						w.overflowOpCount += 1
+						// opCount += 1
+						// tmpOp += 1
+					} else {
+						c <- time.Now()
+						opCount += 1
+						tmpOp += 1
+					}
+				}
+				if time.Since(curTime).Seconds() > timeUnit {
+					break
+				}
+			}
+			// fmt.Println(w.threadIDStr, "sendOps", tmpOp)
+
+			// tmpOp := int64(0)
+			// for {
+			// 	now := time.Now()
+			// 	if len(c) == MaxQueueSize { // overflow, drop op
+			// 		w.overflowOpCount += 1
+			// 		// opCount += 1
+			// 		// tmpOp += 1
+			// 	} else {
+			// 		c <- now
+			// 		opCount += 1
+			// 		tmpOp += 1
+			// 	}
+
+			// 	if now.Sub(curTime).Seconds() > timeUnit || tmpOp > int64(curQps) {
+			// 		break
+			// 	}
+			// }
+			// leftDur := time.Until(curTime.Add(time.Duration(int64(timeUnit) * time.Second.Nanoseconds())))
+			// select {
+			// case <-ctx.Done():
+			// case <-time.After(leftDur):
+			// }
+
+		}
+
+		c <- startTime.Add(-1000)
+		<-finish
+	} else { // normal logic
+		useTraceReplay := w.p.GetBool(prop.TraceReplay, prop.TraceReplayDefault)
+
+		for w.opCount == 0 || w.opsDone < w.opCount {
+			var err error
+			opsCount := 1
+			start := time.Now()
+			if w.doTransactions {
+				if w.doBatch {
+					err = w.workload.DoBatchTransaction(ctx, w.batchSize, w.workDB)
+					opsCount = w.batchSize
+				} else {
+					err = w.workload.DoTransaction(ctx, w.workDB)
+				}
 			} else {
-				err = w.workload.DoInsert(ctx, w.workDB)
+				if w.doBatch {
+					err = w.workload.DoBatchInsert(ctx, w.batchSize, w.workDB)
+					opsCount = w.batchSize
+				} else {
+					err = w.workload.DoInsert(ctx, w.workDB)
+				}
+			}
+			lan := time.Since(start)
+
+			if !useTraceReplay {
+				measurement.ThreadMeasure(w.threadIDStr, lan)
+			}
+
+			if err != nil && !w.p.GetBool(prop.Silence, prop.SilenceDefault) {
+				fmt.Printf("operation err: %v\n", err)
+			}
+
+			if measurement.IsWarmUpFinished() {
+				w.opsDone += int64(opsCount)
+				w.throttle(ctx, startTime)
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}
+}
+
+func KVReplay(ctx context.Context, p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db ycsb.DB) {
+	enableFluctLoad := p.GetBool(prop.FluctuateLoad, prop.FluctuateLoadDefault)
+	fluctSineA := p.GetFloat64(prop.FluctuateSineA, prop.FluctuateSineADefault)
+	fluctSineB := p.GetFloat64(prop.FluctuateSineB, prop.FluctuateSineBDefault)
+	fluctSineC := p.GetFloat64(prop.FluctuateSineC, prop.FluctuateSineCDefault)
+	fluctSineD := p.GetFloat64(prop.FluctuateSineD, prop.FluctuateSineDDefault)
+	startTime := time.Now()
+
+	opCount := int64(0)
+	timeUnit := 1.0
+	for {
+		curQps := 1000.0 * timeUnit
+		curTime := time.Now()
+		if enableFluctLoad {
+			curSec := curTime.Sub(startTime).Seconds()
+			curQps = (fluctSineA*math.Sin(fluctSineB*curSec+fluctSineC) + fluctSineD) / float64(threadCount) * timeUnit
+			//curQps = ((fluctSineA*math.Sin(fluctSineB*curSec+fluctSineC) + fluctSineD) + (0.3 * fluctSineA * math.Sin(40*fluctSineB*curSec+fluctSineC))) / float64(threadCount) * timeUnit
+			if curQps < 1 {
+				curQps = 1
 			}
 		}
 
-		if err != nil && !w.p.GetBool(prop.Silence, prop.SilenceDefault) {
-			fmt.Printf("operation err: %v\n", err)
+		tmpOp := int64(0)
+		wakeInterval := int64(timeUnit * float64(time.Second.Nanoseconds()) / curQps)
+		for {
+			kvReq := <-KVReqGenChan
+			time.Sleep(time.Duration(wakeInterval))
+			kvReq.StartTime = time.Now()
+			if len(KVReqDoChan) >= 1000000-1 {
+				continue
+			}
+			KVReqDoChan <- kvReq
+			opCount += 1
+			tmpOp += 1
+			if time.Since(curTime).Seconds() > timeUnit {
+				break
+			}
 		}
+	}
+}
 
-		if measurement.IsWarmUpFinished() {
-			w.opsDone += int64(opsCount)
-			w.throttle(ctx, startTime)
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
+func KVApply(ctx context.Context, p *properties.Properties, threadID int, threadCount int, workload ycsb.Workload, db ycsb.DB) {
+	ctx = workload.InitThread(ctx, threadID, threadCount)
+	ctx = db.InitThread(ctx, threadID, threadCount)
+	for {
+		kvReq := <-KVReqDoChan
+		workload.ProcessKVRequest(ctx, db, kvReq)
+		lan := time.Since(kvReq.StartTime)
+		measurement.ThreadMeasure("AllWQ", lan)
 	}
 }
 
@@ -168,6 +364,15 @@ func NewClient(p *properties.Properties, workload ycsb.Workload, db ycsb.DB) *Cl
 func (c *Client) Run(ctx context.Context) {
 	var wg sync.WaitGroup
 	threadCount := c.p.GetInt(prop.ThreadCount, 1)
+
+	enableWaitingQueue := c.p.GetBool(prop.WaitingQueue, prop.WaitingQueueDefault)
+	useTraceReplay := c.p.GetBool(prop.TraceReplay, prop.TraceReplayDefault)
+	KVReqGenChan = make(chan *ycsb.KVRequest, 1000000)
+	KVReqDoChan = make(chan *ycsb.KVRequest, 1000000)
+
+	if useTraceReplay {
+		threadCount = 16
+	}
 
 	wg.Add(threadCount)
 	measureCtx, measureCancel := context.WithCancel(ctx)
@@ -195,12 +400,19 @@ func (c *Client) Run(ctx context.Context) {
 		for {
 			select {
 			case <-t.C:
-				measurement.Summary()
+				if enableWaitingQueue || useTraceReplay {
+					measurement.ThreadOutput()
+				}
+				measurement.Output()
 			case <-measureCtx.Done():
+				measurement.ThreadOutput()
 				return
 			}
 		}
 	}()
+
+	mu := sync.Mutex{}
+	totalOverflowOps := int64(0)
 
 	for i := 0; i < threadCount; i++ {
 		go func(threadId int) {
@@ -212,10 +424,27 @@ func (c *Client) Run(ctx context.Context) {
 			w.run(ctx)
 			c.db.CleanupThread(ctx)
 			c.workload.CleanupThread(ctx)
+
+			mu.Lock()
+			totalOverflowOps += w.overflowOpCount
+			mu.Unlock()
 		}(i)
 	}
 
+	applyCount := c.p.GetInt(prop.ApplyThreadCount, 512)
+	for i := 0; i < applyCount; i++ {
+		go KVApply(ctx, c.p, i, applyCount, c.workload, c.db)
+	}
+
+	replayCount := c.p.GetInt(prop.ReplayThreadCount, 512)
+	for i := 0; i < replayCount; i++ {
+		go KVReplay(ctx, c.p, i, replayCount, c.workload, c.db)
+	}
+
 	wg.Wait()
+
+	fmt.Println("Total Overflow Op Count:", totalOverflowOps)
+
 	if !c.p.GetBool(prop.DoTransactions, true) {
 		// when loading is finished, try to analyze table if possible.
 		if analyzeDB, ok := c.db.(ycsb.AnalyzeDB); ok {

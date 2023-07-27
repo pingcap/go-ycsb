@@ -15,8 +15,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -29,7 +27,7 @@ import (
 
 	// Register workload
 
-	"github.com/spf13/cobra"
+	"fmt"
 
 	"github.com/pingcap/go-ycsb/pkg/client"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
@@ -37,6 +35,9 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/util"
 	_ "github.com/pingcap/go-ycsb/pkg/workload"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
+	"github.com/spf13/cobra"
+
+	log "github.com/sirupsen/logrus"
 
 	// Register basic database
 	_ "github.com/pingcap/go-ycsb/db/basic"
@@ -50,8 +51,6 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/aerospike"
 	// Register Badger database
 	_ "github.com/pingcap/go-ycsb/db/badger"
-	// Register FoundationDB database
-	_ "github.com/pingcap/go-ycsb/db/foundationdb"
 	// Register RocksDB database
 	_ "github.com/pingcap/go-ycsb/db/rocksdb"
 	// Register Spanner database
@@ -70,12 +69,6 @@ import (
 	_ "github.com/pingcap/go-ycsb/db/boltdb"
 	// Register minio
 	_ "github.com/pingcap/go-ycsb/db/minio"
-	// Register elastic
-	_ "github.com/pingcap/go-ycsb/db/elasticsearch"
-	// Register etcd
-	_ "github.com/pingcap/go-ycsb/db/etcd"
-	// Register dynamodb
-	_ "github.com/pingcap/go-ycsb/db/dynamodb"
 )
 
 var (
@@ -93,6 +86,8 @@ var (
 )
 
 func initialGlobal(dbName string, onProperties func()) {
+	log.SetLevel(log.WarnLevel)
+
 	globalProps = properties.NewProperties()
 	if len(propertyFiles) > 0 {
 		globalProps = properties.MustLoadFiles(propertyFiles, properties.UTF8, false)
@@ -100,9 +95,6 @@ func initialGlobal(dbName string, onProperties func()) {
 
 	for _, prop := range propertyValues {
 		seps := strings.SplitN(prop, "=", 2)
-		if len(seps) != 2 {
-			log.Fatalf("bad property: `%s`, expected format `name=value`", prop)
-		}
 		globalProps.Set(seps[0], seps[1])
 	}
 

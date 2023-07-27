@@ -34,6 +34,7 @@ func (adb *aerospikedb) InitThread(ctx context.Context, threadID int, threadCoun
 
 // CleanupThread cleans up the state when the worker finished.
 func (adb *aerospikedb) CleanupThread(ctx context.Context) {
+	return
 }
 
 // Read reads a record from the database and returns a map of each field/value pair.

@@ -16,18 +16,16 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
 	"database/sql"
-	"database/sql/driver"
-	"encoding/hex"
 	"fmt"
 	"strings"
-	"sync/atomic"
 
-	"github.com/go-sql-driver/mysql"
-	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
+
+	// mysql package
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
@@ -40,42 +38,9 @@ const (
 	mysqlDBName     = "mysql.db"
 	mysqlForceIndex = "mysql.force_index"
 	// TODO: support batch and auto commit
-
-	tidbClusterIndex = "tidb.cluster_index"
-	tidbInstances    = "tidb.instances"
 )
 
-type muxDriver struct {
-	cursor    uint64
-	instances []string
-	internal  driver.Driver
-}
-
-func (drv *muxDriver) Open(name string) (driver.Conn, error) {
-	k := atomic.AddUint64(&drv.cursor, 1)
-	return drv.internal.Open(drv.instances[int(k)%len(drv.instances)])
-}
-
-func openTiDBInstances(addrs []string, user string, pass string, db string) (*sql.DB, error) {
-	instances := make([]string, len(addrs))
-	hash := sha1.New()
-	for i, addr := range addrs {
-		hash.Write([]byte("+" + addr))
-		instances[i] = fmt.Sprintf("%s:%s@tcp(%s)/%s", user, pass, addr, db)
-	}
-	digest := hash.Sum(nil)
-	driver := "tidb:" + hex.EncodeToString(digest[:])
-	for _, n := range sql.Drivers() {
-		if n == driver {
-			return sql.Open(driver, "")
-		}
-	}
-	sql.Register(driver, &muxDriver{instances: instances, internal: &mysql.MySQLDriver{}})
-	return sql.Open(driver, "")
-}
-
 type mysqlCreator struct {
-	name string
 }
 
 type mysqlDB struct {
@@ -107,25 +72,10 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	user := p.GetString(mysqlUser, "root")
 	password := p.GetString(mysqlPassword, "")
 	dbName := p.GetString(mysqlDBName, "test")
-	tidbList := p.GetString(tidbInstances, "")
 
-	var (
-		db    *sql.DB
-		err   error
-		tidbs []string
-	)
-	for _, tidb := range strings.Split(tidbList, ",") {
-		tidb = strings.TrimSpace(tidb)
-		if len(tidb) > 0 {
-			tidbs = append(tidbs, tidb)
-		}
-	}
-	if len(tidbs) > 0 {
-		db, err = openTiDBInstances(tidbs, user, password, dbName)
-	} else {
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
-		db, err = sql.Open("mysql", dsn)
-	}
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, dbName)
+	var err error
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -142,17 +92,17 @@ func (c mysqlCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 	d.bufPool = util.NewBufPool()
 
-	if err := d.createTable(c.name); err != nil {
+	if err := d.createTable(); err != nil {
 		return nil, err
 	}
 
 	return d, nil
 }
 
-func (db *mysqlDB) createTable(driverName string) error {
+func (db *mysqlDB) createTable() error {
 	tableName := db.p.GetString(prop.TableName, prop.TableNameDefault)
-	if db.p.GetBool(prop.DropData, prop.DropDataDefault) &&
-		!db.p.GetBool(prop.DoTransactions, true) {
+
+	if db.p.GetBool(prop.DropData, prop.DropDataDefault) && !db.p.GetBool(prop.DoTransactions, true) {
 		if _, err := db.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)); err != nil {
 			return err
 		}
@@ -165,15 +115,15 @@ func (db *mysqlDB) createTable(driverName string) error {
 	s := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (YCSB_KEY VARCHAR(64) PRIMARY KEY", tableName)
 	buf.WriteString(s)
 
-	if (driverName == "tidb" || driverName == "mysql") && db.p.GetBool(tidbClusterIndex, true) {
-		buf.WriteString(" /*T![clustered_index] CLUSTERED */")
-	}
-
 	for i := int64(0); i < fieldCount; i++ {
 		buf.WriteString(fmt.Sprintf(", FIELD%d VARCHAR(%d)", i, fieldLength))
 	}
 
 	buf.WriteString(");")
+
+	if db.verbose {
+		fmt.Println(buf.String())
+	}
 
 	_, err := db.db.Exec(buf.String())
 	return err
@@ -307,37 +257,6 @@ func (db *mysqlDB) Read(ctx context.Context, table string, key string, fields []
 	return rows[0], nil
 }
 
-func (db *mysqlDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
-	args := make([]interface{}, 0, len(keys))
-	buf := db.bufPool.Get()
-	defer db.bufPool.Put(buf)
-	if len(fields) == 0 {
-		buf = append(buf, fmt.Sprintf(`SELECT * FROM %s %s WHERE YCSB_KEY IN (`, table, db.forceIndexKeyword)...)
-	} else {
-		buf = append(buf, fmt.Sprintf(`SELECT %s FROM %s %s WHERE YCSB_KEY IN (`, strings.Join(fields, ","), table, db.forceIndexKeyword)...)
-	}
-	for i, key := range keys {
-		buf = append(buf, '?')
-		if i < len(keys)-1 {
-			buf = append(buf, ',')
-		}
-		args = append(args, key)
-	}
-	buf = append(buf, ')')
-
-	query := string(buf[:])
-	rows, err := db.queryRows(ctx, query, len(keys), args...)
-	db.clearCacheIfFailed(ctx, query, err)
-
-	if err != nil {
-		return nil, err
-	} else if len(rows) == 0 {
-		return nil, nil
-	}
-
-	return rows, nil
-}
-
 func (db *mysqlDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
@@ -368,10 +287,8 @@ func (db *mysqlDB) execQuery(ctx context.Context, query string, args ...interfac
 }
 
 func (db *mysqlDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	buf := bytes.NewBuffer(db.bufPool.Get())
-	defer func() {
-		db.bufPool.Put(buf.Bytes())
-	}()
+	buf := db.bufPool.Get()
+	defer db.bufPool.Put(buf)
 
 	buf.WriteString("UPDATE ")
 	buf.WriteString(table)
@@ -397,25 +314,12 @@ func (db *mysqlDB) Update(ctx context.Context, table string, key string, values 
 	return db.execQuery(ctx, buf.String(), args...)
 }
 
-func (db *mysqlDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	// mysql does not support BatchUpdate, fallback to Update like dbwrapper.go
-	for i := range keys {
-		err := db.Update(ctx, table, keys[i], values[i])
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	args := make([]interface{}, 0, 1+len(values))
 	args = append(args, key)
 
-	buf := bytes.NewBuffer(db.bufPool.Get())
-	defer func() {
-		db.bufPool.Put(buf.Bytes())
-	}()
+	buf := db.bufPool.Get()
+	defer db.bufPool.Put(buf)
 
 	buf.WriteString("INSERT IGNORE INTO ")
 	buf.WriteString(table)
@@ -438,66 +342,10 @@ func (db *mysqlDB) Insert(ctx context.Context, table string, key string, values 
 	return db.execQuery(ctx, buf.String(), args...)
 }
 
-func (db *mysqlDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	args := make([]interface{}, 0, (1+len(values))*len(keys))
-	buf := db.bufPool.Get()
-	defer db.bufPool.Put(buf)
-	buf = append(buf, "INSERT IGNORE INTO "...)
-	buf = append(buf, table...)
-	buf = append(buf, " (YCSB_KEY"...)
-
-	valueString := strings.Builder{}
-	valueString.WriteString("(?")
-	pairs := util.NewFieldPairs(values[0])
-	for _, p := range pairs {
-		buf = append(buf, " ,"...)
-		buf = append(buf, p.Field...)
-
-		valueString.WriteString(" ,?")
-	}
-	// Example: INSERT IGNORE INTO table ([columns]) VALUES
-	buf = append(buf, ") VALUES "...)
-	// Example: (?, ?, ?, ....)
-	valueString.WriteByte(')')
-	valueStrings := make([]string, 0, len(keys))
-	for range keys {
-		valueStrings = append(valueStrings, valueString.String())
-	}
-	// Example: INSERT IGNORE INTO table ([columns]) VALUES (?, ?, ?...), (?, ?, ?), ...
-	buf = append(buf, strings.Join(valueStrings, ",")...)
-
-	for i, key := range keys {
-		args = append(args, key)
-		pairs := util.NewFieldPairs(values[i])
-		for _, p := range pairs {
-			args = append(args, p.Value)
-		}
-	}
-
-	return db.execQuery(ctx, string(buf[:]), args...)
-}
-
 func (db *mysqlDB) Delete(ctx context.Context, table string, key string) error {
 	query := fmt.Sprintf(`DELETE FROM %s WHERE YCSB_KEY = ?`, table)
 
 	return db.execQuery(ctx, query, key)
-}
-
-func (db *mysqlDB) BatchDelete(ctx context.Context, table string, keys []string) error {
-	args := make([]interface{}, 0, len(keys))
-	buf := db.bufPool.Get()
-	defer db.bufPool.Put(buf)
-	buf = append(buf, fmt.Sprintf("DELETE FROM %s WHERE YCSB_KEY IN (", table)...)
-	for i, key := range keys {
-		buf = append(buf, '?')
-		if i < len(keys)-1 {
-			buf = append(buf, ',')
-		}
-		args = append(args, key)
-	}
-	buf = append(buf, ')')
-
-	return db.execQuery(ctx, string(buf[:]), args...)
 }
 
 func (db *mysqlDB) Analyze(ctx context.Context, table string) error {
@@ -506,7 +354,7 @@ func (db *mysqlDB) Analyze(ctx context.Context, table string) error {
 }
 
 func init() {
-	ycsb.RegisterDBCreator("mysql", mysqlCreator{name: "mysql"})
-	ycsb.RegisterDBCreator("tidb", mysqlCreator{name: "tidb"})
-	ycsb.RegisterDBCreator("mariadb", mysqlCreator{name: "mariadb"})
+	ycsb.RegisterDBCreator("mysql", mysqlCreator{})
+	ycsb.RegisterDBCreator("tidb", mysqlCreator{})
+	ycsb.RegisterDBCreator("mariadb", mysqlCreator{})
 }

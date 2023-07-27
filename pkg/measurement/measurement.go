@@ -14,8 +14,8 @@
 package measurement
 
 import (
-	"bufio"
-	"os"
+	"fmt"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -25,80 +25,87 @@ import (
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
-var header = []string{"Operation", "Takes(s)", "Count", "OPS", "Avg(us)", "Min(us)", "Max(us)", "99th(us)", "99.9th(us)", "99.99th(us)"}
-
 type measurement struct {
 	sync.RWMutex
 
 	p *properties.Properties
 
-	measurer ycsb.Measurer
+	opMeasurement map[string]ycsb.Measurement
 }
 
-func (m *measurement) measure(op string, start time.Time, lan time.Duration) {
-	m.Lock()
-	m.measurer.Measure(op, start, lan)
-	m.Unlock()
+func (m *measurement) measure(op string, lan time.Duration) {
+	m.RLock()
+	opM, ok := m.opMeasurement[op]
+	m.RUnlock()
+
+	if !ok {
+		opM = newHistogram(m.p)
+		m.Lock()
+		m.opMeasurement[op] = opM
+		m.Unlock()
+	}
+
+	opM.Measure(lan)
 }
 
 func (m *measurement) output() {
 	m.RLock()
 	defer m.RUnlock()
-
-	outFile := m.p.GetString(prop.MeasurementRawOutputFile, "")
-	var w *bufio.Writer
-	if outFile == "" {
-		w = bufio.NewWriter(os.Stdout)
-	} else {
-		f, err := os.Create(outFile)
-		if err != nil {
-			panic("failed to create output file: " + err.Error())
-		}
-		defer f.Close()
-		w = bufio.NewWriter(f)
+	keys := make([]string, len(m.opMeasurement))
+	var i = 0
+	for k := range m.opMeasurement {
+		keys[i] = k
+		i += 1
 	}
+	sort.Strings(keys)
 
-	err := globalMeasure.measurer.Output(w)
-	if err != nil {
-		panic("failed to write output: " + err.Error())
-	}
-
-	err = w.Flush()
-	if err != nil {
-		panic("failed to flush output: " + err.Error())
+	for _, op := range keys {
+		fmt.Printf("%-6s - %s\n", op, m.opMeasurement[op].Summary())
 	}
 }
 
-func (m *measurement) summary() {
+func (m *measurement) info() map[string]ycsb.MeasurementInfo {
 	m.RLock()
-	globalMeasure.measurer.Summary()
-	m.RUnlock()
+	defer m.RUnlock()
+
+	opMeasurementInfo := make(map[string]ycsb.MeasurementInfo, len(m.opMeasurement))
+	for op, opM := range m.opMeasurement {
+		opMeasurementInfo[op] = opM.Info()
+	}
+	return opMeasurementInfo
+}
+
+func (m *measurement) getOpName() []string {
+	m.RLock()
+	defer m.RUnlock()
+
+	res := make([]string, 0, len(m.opMeasurement))
+	for op := range m.opMeasurement {
+		res = append(res, op)
+	}
+	return res
 }
 
 // InitMeasure initializes the global measurement.
 func InitMeasure(p *properties.Properties) {
 	globalMeasure = new(measurement)
 	globalMeasure.p = p
-	measurementType := p.GetString(prop.MeasurementType, prop.MeasurementTypeDefault)
-	switch measurementType {
-	case "histogram":
-		globalMeasure.measurer = InitHistograms(p)
-	case "raw", "csv":
-		globalMeasure.measurer = InitCSV()
-	default:
-		panic("unsupported measurement type: " + measurementType)
-	}
+	globalMeasure.opMeasurement = make(map[string]ycsb.Measurement, 16)
 	EnableWarmUp(p.GetInt64(prop.WarmUpTime, 0) > 0)
+
+	threadMeasure = new(measurement)
+	threadMeasure.p = p
+	threadMeasure.opMeasurement = make(map[string]ycsb.Measurement)
 }
 
-// Output prints the complete measurements.
+// Output prints the measurement summary.
 func Output() {
 	globalMeasure.output()
 }
 
-// Summary prints the measurement summary.
-func Summary() {
-	globalMeasure.summary()
+// ThreadOutput prints the measurement summary of threads.
+func ThreadOutput() {
+	threadMeasure.output()
 }
 
 // EnableWarmUp sets whether to enable warm-up.
@@ -116,11 +123,34 @@ func IsWarmUpFinished() bool {
 }
 
 // Measure measures the operation.
-func Measure(op string, start time.Time, lan time.Duration) {
+func Measure(op string, lan time.Duration) {
 	if IsWarmUpFinished() {
-		globalMeasure.measure(op, start, lan)
+		globalMeasure.measure(op, lan)
 	}
 }
 
+// ThreadMeasure measures the thead.
+func ThreadMeasure(tid string, lan time.Duration) {
+	threadMeasure.measure(tid, lan)
+}
+
+// Info returns all the operations MeasurementInfo.
+// The key of returned map is the operation name.
+func Info() map[string]ycsb.MeasurementInfo {
+	return globalMeasure.info()
+}
+
+// ThreadInfo returns all the operations MeasurementInfo.
+// The key of returned map is the operation name.
+func ThreadInfo() map[string]ycsb.MeasurementInfo {
+	return threadMeasure.info()
+}
+
+// GetOpNames returns a string slice which contains all the operation name measured.
+func GetOpNames() []string {
+	return globalMeasure.getOpName()
+}
+
 var globalMeasure *measurement
+var threadMeasure *measurement
 var warmUp int32 // use as bool, 1 means in warmup progress, 0 means warmup finished.

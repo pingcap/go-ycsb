@@ -33,11 +33,7 @@ const (
 	cassandraCluster     = "cassandra.cluster"
 	cassandraKeyspace    = "cassandra.keyspace"
 	cassandraConnections = "cassandra.connections"
-	cassandraUsername    = "cassandra.username"
-	cassandraPassword    = "cassandra.password"
 
-	cassandraUsernameDefault    = "cassandra"
-	cassandraPasswordDefault    = "cassandra"
 	cassandraClusterDefault     = "127.0.0.1:9042"
 	cassandraKeyspaceDefault    = "test"
 	cassandraConnectionsDefault = 2 // refer to https://github.com/gocql/gocql/blob/master/cluster.go#L52
@@ -77,10 +73,6 @@ func (c cassandraCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	cluster.NumConns = p.GetInt(cassandraConnections, cassandraConnectionsDefault)
 	cluster.Timeout = 30 * time.Second
 	cluster.Consistency = gocql.Quorum
-
-	username := p.GetString(cassandraUsername, cassandraUsernameDefault)
-	password := p.GetString(cassandraPassword, cassandraPasswordDefault)
-	cluster.Authenticator = gocql.PasswordAuthenticator{Username: username, Password: password}
 
 	session, err := cluster.CreateSession()
 	if err != nil {
@@ -197,10 +189,8 @@ func (db *cassandraDB) execQuery(ctx context.Context, query string, args ...inte
 }
 
 func (db *cassandraDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	buf := bytes.NewBuffer(db.bufPool.Get())
-	defer func() {
-		db.bufPool.Put(buf.Bytes())
-	}()
+	buf := db.bufPool.Get()
+	defer db.bufPool.Put(buf)
 
 	buf.WriteString("UPDATE ")
 	buf.WriteString(fmt.Sprintf("%s.%s", db.keySpace, table))
@@ -230,10 +220,8 @@ func (db *cassandraDB) Insert(ctx context.Context, table string, key string, val
 	args := make([]interface{}, 0, 1+len(values))
 	args = append(args, key)
 
-	buf := bytes.NewBuffer(db.bufPool.Get())
-	defer func() {
-		db.bufPool.Put(buf.Bytes())
-	}()
+	buf := db.bufPool.Get()
+	defer db.bufPool.Put(buf)
 
 	buf.WriteString("INSERT INTO ")
 	buf.WriteString(fmt.Sprintf("%s.%s", db.keySpace, table))

@@ -11,8 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build libsqlite3
-
 package sqlite
 
 import (
@@ -23,38 +21,31 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
 
 	"github.com/magiconair/properties"
 	// sqlite package
-	"github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
 )
 
 // Sqlite properties
 const (
-	sqliteDBPath              = "sqlite.db"
-	sqliteMode                = "sqlite.mode"
-	sqliteJournalMode         = "sqlite.journalmode"
-	sqliteCache               = "sqlite.cache"
-	sqliteMaxOpenConns        = "sqlite.maxopenconns"
-	sqliteMaxIdleConns        = "sqlite.maxidleconns"
-	sqliteOptimistic          = "sqlite.optimistic"
-	sqliteOptimisticBackoffMs = "sqlite.optimistic_backoff_ms"
+	sqliteDBPath      = "sqlite.db"
+	sqliteMode        = "sqlite.mode"
+	sqliteJournalMode = "sqlite.journalmode"
+	sqliteCache       = "sqlite.cache"
 )
 
 type sqliteCreator struct {
 }
 
 type sqliteDB struct {
-	p          *properties.Properties
-	db         *sql.DB
-	verbose    bool
-	optimistic bool
-	backoffMs  int
+	p       *properties.Properties
+	db      *sql.DB
+	verbose bool
 
 	bufPool *util.BufPool
 }
@@ -72,8 +63,6 @@ func (c sqliteCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	mode := p.GetString(sqliteMode, "rwc")
 	journalMode := p.GetString(sqliteJournalMode, "WAL")
 	cache := p.GetString(sqliteCache, "shared")
-	maxOpenConns := p.GetInt(sqliteMaxOpenConns, 1)
-	maxIdleConns := p.GetInt(sqliteMaxIdleConns, 2)
 
 	v := url.Values{}
 	v.Set("cache", cache)
@@ -86,11 +75,8 @@ func (c sqliteCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		return nil, err
 	}
 
-	db.SetMaxOpenConns(maxOpenConns)
-	db.SetMaxIdleConns(maxIdleConns)
+	db.SetMaxOpenConns(1)
 
-	d.optimistic = p.GetBool(sqliteOptimistic, false)
-	d.backoffMs = p.GetInt(sqliteOptimisticBackoffMs, 5)
 	d.verbose = p.GetBool(prop.Verbose, prop.VerboseDefault)
 	d.db = db
 
@@ -143,36 +129,12 @@ func (db *sqliteDB) CleanupThread(ctx context.Context) {
 
 }
 
-func (db *sqliteDB) optimisticTx(ctx context.Context, f func(tx *sql.Tx) error) error {
-	for {
-		tx, err := db.db.BeginTx(ctx, nil)
-		if err != nil {
-			return err
-		}
-
-		if err = f(tx); err != nil {
-			tx.Rollback()
-			return err
-		}
-
-		err = tx.Commit()
-		if err != nil && db.optimistic {
-			if err, ok := err.(sqlite3.Error); ok && (err.Code == sqlite3.ErrBusy ||
-				err.ExtendedCode == sqlite3.ErrIoErrUnlock) {
-				time.Sleep(time.Duration(db.backoffMs) * time.Millisecond)
-				continue
-			}
-		}
-		return err
-	}
-}
-
-func (db *sqliteDB) doQueryRows(ctx context.Context, tx *sql.Tx, query string, count int, args ...interface{}) ([]map[string][]byte, error) {
+func (db *sqliteDB) queryRows(ctx context.Context, query string, count int, args ...interface{}) ([]map[string][]byte, error) {
 	if db.verbose {
 		fmt.Printf("%s %v\n", query, args)
 	}
 
-	rows, err := tx.QueryContext(ctx, query, args...)
+	rows, err := db.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +167,7 @@ func (db *sqliteDB) doQueryRows(ctx context.Context, tx *sql.Tx, query string, c
 	return vs, rows.Err()
 }
 
-func (db *sqliteDB) doRead(ctx context.Context, tx *sql.Tx, table string, key string, fields []string) (map[string][]byte, error) {
+func (db *sqliteDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = ?`, table)
@@ -213,7 +175,7 @@ func (db *sqliteDB) doRead(ctx context.Context, tx *sql.Tx, table string, key st
 		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY = ?`, strings.Join(fields, ","), table)
 	}
 
-	rows, err := db.doQueryRows(ctx, tx, query, 1, key)
+	rows, err := db.queryRows(ctx, query, 1, key)
 
 	if err != nil {
 		return nil, err
@@ -224,17 +186,7 @@ func (db *sqliteDB) doRead(ctx context.Context, tx *sql.Tx, table string, key st
 	return rows[0], nil
 }
 
-func (db *sqliteDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
-	var output map[string][]byte
-	err := db.optimisticTx(ctx, func(tx *sql.Tx) error {
-		res, err := db.doRead(ctx, tx, table, key, fields)
-		output = res
-		return err
-	})
-	return output, err
-}
-
-func (db *sqliteDB) doScan(ctx context.Context, tx *sql.Tx, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
+func (db *sqliteDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
 	var query string
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, table)
@@ -242,26 +194,27 @@ func (db *sqliteDB) doScan(ctx context.Context, tx *sql.Tx, table string, startK
 		query = fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY >= ? LIMIT ?`, strings.Join(fields, ","), table)
 	}
 
-	rows, err := db.doQueryRows(ctx, tx, query, count, startKey, count)
+	rows, err := db.queryRows(ctx, query, count, startKey, count)
 
 	return rows, err
 }
 
-func (db *sqliteDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
-	var output []map[string][]byte
-	err := db.optimisticTx(ctx, func(tx *sql.Tx) error {
-		res, err := db.doScan(ctx, tx, table, startKey, count, fields)
-		output = res
+func (db *sqliteDB) execQuery(ctx context.Context, query string, args ...interface{}) error {
+	if db.verbose {
+		fmt.Printf("%s %v\n", query, args)
+	}
+
+	_, err := db.db.ExecContext(ctx, query, args)
+	if err != nil {
 		return err
-	})
-	return output, err
+	}
+
+	return err
 }
 
-func (db *sqliteDB) doUpdate(ctx context.Context, tx *sql.Tx, table string, key string, values map[string][]byte) error {
-	buf := bytes.NewBuffer(db.bufPool.Get())
-	defer func() {
-		db.bufPool.Put(buf.Bytes())
-	}()
+func (db *sqliteDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
+	buf := db.bufPool.Get()
+	defer db.bufPool.Put(buf)
 
 	buf.WriteString("UPDATE ")
 	buf.WriteString(table)
@@ -284,24 +237,15 @@ func (db *sqliteDB) doUpdate(ctx context.Context, tx *sql.Tx, table string, key 
 
 	args = append(args, key)
 
-	_, err := tx.ExecContext(ctx, buf.String(), args...)
-	return err
+	return db.execQuery(ctx, buf.String(), args...)
 }
 
-func (db *sqliteDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
-	return db.optimisticTx(ctx, func(tx *sql.Tx) error {
-		return db.doUpdate(ctx, tx, table, key, values)
-	})
-}
-
-func (db *sqliteDB) doInsert(ctx context.Context, tx *sql.Tx, table string, key string, values map[string][]byte) error {
+func (db *sqliteDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
 	args := make([]interface{}, 0, 1+len(values))
 	args = append(args, key)
 
-	buf := bytes.NewBuffer(db.bufPool.Get())
-	defer func() {
-		db.bufPool.Put(buf.Bytes())
-	}()
+	buf := db.bufPool.Get()
+	defer db.bufPool.Put(buf)
 
 	buf.WriteString("INSERT OR IGNORE INTO ")
 	buf.WriteString(table)
@@ -321,80 +265,15 @@ func (db *sqliteDB) doInsert(ctx context.Context, tx *sql.Tx, table string, key 
 
 	buf.WriteByte(')')
 
-	_, err := tx.ExecContext(ctx, buf.String(), args...)
-	if err != nil && db.verbose {
-		fmt.Printf("error(doInsert): %s: %+v\n", buf.String(), err)
-	}
-	return err
-}
-
-func (db *sqliteDB) Insert(ctx context.Context, table string, key string, values map[string][]byte) error {
-	return db.optimisticTx(ctx, func(tx *sql.Tx) error { return db.doInsert(ctx, tx, table, key, values) })
-}
-
-func (db *sqliteDB) doDelete(ctx context.Context, tx *sql.Tx, table string, key string) error {
-	query := fmt.Sprintf(`DELETE FROM %s WHERE YCSB_KEY = ?`, table)
-	_, err := tx.ExecContext(ctx, query, key)
-	return err
+	return db.execQuery(ctx, buf.String(), args...)
 }
 
 func (db *sqliteDB) Delete(ctx context.Context, table string, key string) error {
-	return db.optimisticTx(ctx, func(tx *sql.Tx) error { return db.doDelete(ctx, tx, table, key) })
-}
+	query := fmt.Sprintf(`DELETE FROM %s WHERE YCSB_KEY = ?`, table)
 
-func (db *sqliteDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	return db.optimisticTx(ctx, func(tx *sql.Tx) error {
-		for i := 0; i < len(keys); i++ {
-			err := db.doInsert(ctx, tx, table, keys[i], values[i])
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
-
-func (db *sqliteDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
-	var output []map[string][]byte
-	err := db.optimisticTx(ctx, func(tx *sql.Tx) error {
-		for i := 0; i < len(keys); i++ {
-			res, err := db.doRead(ctx, tx, table, keys[i], fields)
-			if err != nil {
-				return err
-			}
-			output = append(output, res)
-		}
-		return nil
-	})
-	return output, err
-}
-
-func (db *sqliteDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
-	return db.optimisticTx(ctx, func(tx *sql.Tx) error {
-		for i := 0; i < len(keys); i++ {
-			err := db.doUpdate(ctx, tx, table, keys[i], values[i])
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
-
-func (db *sqliteDB) BatchDelete(ctx context.Context, table string, keys []string) error {
-	return db.optimisticTx(ctx, func(tx *sql.Tx) error {
-		for i := 0; i < len(keys); i++ {
-			err := db.doDelete(ctx, tx, table, keys[i])
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	return db.execQuery(ctx, query, key)
 }
 
 func init() {
 	ycsb.RegisterDBCreator("sqlite", sqliteCreator{})
 }
-
-var _ ycsb.BatchDB = (*sqliteDB)(nil)

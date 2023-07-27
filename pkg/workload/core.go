@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/magiconair/properties"
+	"github.com/pingcap/go-ycsb/pkg/client"
 	"github.com/pingcap/go-ycsb/pkg/generator"
 	"github.com/pingcap/go-ycsb/pkg/measurement"
 	"github.com/pingcap/go-ycsb/pkg/prop"
@@ -39,7 +40,8 @@ const stateKey = contextKey("core")
 type coreState struct {
 	r *rand.Rand
 	// fieldNames is a copy of core.fieldNames to be goroutine-local
-	fieldNames []string
+	fieldNames   []string
+	curValueSize int64
 }
 
 type operationType int64
@@ -76,8 +78,38 @@ type core struct {
 	zeroPadding                  int64
 	insertionRetryLimit          int64
 	insertionRetryInterval       int64
+	fieldLength                  int64
+	maxScanLength                int64
 
 	valuePool sync.Pool
+
+	runMixGraphBench  bool
+	useDefaultRequest bool
+	variedSize        bool
+	queryChooser      ycsb.Generator
+	genExp            *generator.TwoTermExpKeys
+	usePrefixModeling bool
+	keyDistA          float64
+	keyDistB          float64
+	valueTheta        float64
+	valueK            float64
+	valueSigma        float64
+	iterTheta         float64
+	iterK             float64
+	iterSigma         float64
+	keyRangeNum       int64
+	avgValueSizes     []int64
+	keyRangeFreqs     []int64
+	keyRangeSumVSize  []int64
+	keyRangeSize      int64
+
+	traceReplay bool
+
+	nextShuffleRegionTime       time.Time
+	shuffleRegionInterval       uint64
+	needShuffleRegion           bool
+	kvSizeUseParetoDistInRegion bool
+	sync.RWMutex
 }
 
 func getFieldLengthGenerator(p *properties.Properties) ycsb.Generator {
@@ -95,6 +127,8 @@ func getFieldLengthGenerator(p *properties.Properties) ycsb.Generator {
 		fieldLengthGenerator = generator.NewZipfianWithRange(1, fieldLength, generator.ZipfianConstant)
 	case "histogram":
 		fieldLengthGenerator = generator.NewHistogramFromFile(fieldLengthHistogram)
+	case "pareto":
+		fieldLengthGenerator = generator.NewPareto(fieldLength, generator.ParetoTheta, generator.ParetoK, generator.ParetoSigma)
 	default:
 		util.Fatalf("unknown field length distribution %s", fieldLengthDistribution)
 	}
@@ -133,11 +167,6 @@ func createOperationGenerator(p *properties.Properties) *generator.Discrete {
 	return operationChooser
 }
 
-// Load implements the Workload Load interface.
-func (c *core) Load(ctx context.Context, db ycsb.DB, totalCount int64) error {
-	return nil
-}
-
 // InitThread implements the Workload InitThread interface.
 func (c *core) InitThread(ctx context.Context, _ int, _ int) context.Context {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -157,6 +186,28 @@ func (c *core) CleanupThread(_ context.Context) {
 
 // Close implements the Workload Close interface.
 func (c *core) Close() error {
+	// sort.Ints(c.keyRangeFreqs)
+	freqSum := int64(0)
+	vsizeSum := int64(0)
+	for i, freq := range c.keyRangeFreqs {
+		freqSum += freq
+		vsizeSum += c.keyRangeSumVSize[i]
+	}
+	freqSum /= 100
+	vsizeSum /= 100
+	if freqSum == 0 || vsizeSum == 0 {
+		return nil
+	}
+	fmt.Println("avg valueSize:", vsizeSum/freqSum, "\n region load info:")
+	for i, freq := range c.keyRangeFreqs {
+		if freq > 0 {
+			freqRatio := float64(freq) / float64(freqSum)
+			valueSizeRatio := float64(c.keyRangeSumVSize[i]) / float64(vsizeSum)
+			if freqRatio >= 0.05 || valueSizeRatio >= 0.05 {
+				fmt.Println("range ", i, ": freq ratio (%) ", freqRatio, ", valueSize ratio (%)", valueSizeRatio, "; avg valueSize", float64(c.keyRangeSumVSize[i])/float64(freq))
+			}
+		}
+	}
 	return nil
 }
 
@@ -221,7 +272,11 @@ func (c *core) putValues(values map[string][]byte) {
 func (c *core) buildRandomValue(state *coreState) []byte {
 	// TODO: use pool for the buffer
 	r := state.r
-	buf := c.getValueBuffer(int(c.fieldLengthGenerator.Next(r)))
+	size := c.fieldLengthGenerator.Next(r)
+	if c.runMixGraphBench || c.variedSize {
+		size = state.curValueSize
+	}
+	buf := c.getValueBuffer(int(size))
 	util.RandBytes(r, buf)
 	return buf
 }
@@ -230,6 +285,9 @@ func (c *core) buildDeterministicValue(state *coreState, key string, fieldKey st
 	// TODO: use pool for the buffer
 	r := state.r
 	size := c.fieldLengthGenerator.Next(r)
+	if c.runMixGraphBench || c.variedSize {
+		size = state.curValueSize
+	}
 	buf := c.getValueBuffer(int(size + 21))
 	b := bytes.NewBuffer(buf[0:0])
 	b.WriteString(key)
@@ -355,8 +413,222 @@ func (c *core) DoBatchInsert(ctx context.Context, batchSize int, db ycsb.DB) err
 	return err
 }
 
+// PowerCdfInversion is the inverse function of power distribution (y=ax^b)
+func PowerCdfInversion(u float64, a float64, b float64) int64 {
+	ret := math.Pow((u / a), (1 / b))
+	return int64(math.Ceil(ret))
+}
+
+// ParetoCdfInversion is the inverse function of Pareto distribution
+func ParetoCdfInversion(u float64, theta float64, k float64, sigma float64) int64 {
+	val := 0.0
+	if k == 0.0 {
+		val = theta - sigma*math.Log(u)
+	} else {
+		val = theta + sigma*(math.Pow(u, -1*k)-1)/k
+	}
+	return int64(math.Ceil(val))
+}
+
+func (c *core) InitMixGraphBench() {
+	c.runMixGraphBench = c.p.GetBool(prop.MixGraphBench, prop.MixGraphBenchDefault)
+
+	ratio := []float64{
+		c.p.GetFloat64(prop.MixGetRatio, prop.MixGetRatioDefault),
+		c.p.GetFloat64(prop.MixPutRatio, prop.MixPutRatioDefault),
+		c.p.GetFloat64(prop.MixSeekRatio, prop.MixSeekRatioDefault),
+	}
+
+	queryChooser := generator.NewDiscrete()
+	for i, r := range ratio {
+		queryChooser.Add(r, int64(i))
+	}
+	c.queryChooser = queryChooser
+
+	c.useDefaultRequest = c.p.GetBool("usedefaultrequest", false)
+
+	c.keyRangeNum = c.p.GetInt64(prop.KeyRangeNum, prop.KeyRangeNumDefault)
+	keyRangeDistA := c.p.GetFloat64(prop.KeyRangeDistA, prop.KeyRangeDistADefault)
+	keyRangeDistB := c.p.GetFloat64(prop.KeyRangeDistB, prop.KeyRangeDistBDefault)
+	keyRangeDistC := c.p.GetFloat64(prop.KeyRangeDistC, prop.KeyRangeDistCDefault)
+	keyRangeDistD := c.p.GetFloat64(prop.KeyRangeDistD, prop.KeyRangeDistDDefault)
+	if keyRangeDistA != 0.0 || keyRangeDistB != 0.0 || keyRangeDistC != 0.0 || keyRangeDistD != 0.0 {
+		c.usePrefixModeling = true
+		c.genExp = generator.NewTwoTermExpKeys(c.p.GetBool("zipfianrange", false), c.recordCount, c.keyRangeNum, keyRangeDistA, keyRangeDistB, keyRangeDistC, keyRangeDistD)
+	}
+	rangeNum := c.keyRangeNum + 1
+	c.keyRangeFreqs = make([]int64, rangeNum)
+	c.keyRangeSumVSize = make([]int64, rangeNum)
+	c.keyRangeSize = c.recordCount / c.keyRangeNum
+
+	c.keyDistA = c.p.GetFloat64(prop.KeyDistA, prop.KeyDistADefault)
+	c.keyDistB = c.p.GetFloat64(prop.KeyDistB, prop.KeyDistBDefault)
+	// if c.keyDistA == 0 || c.keyDistB == 0 {
+	// 	c.useDefaultRequest = true
+	// }
+	fmt.Println("usePrefixModeling ", c.usePrefixModeling, ", useDefaultRequest ", c.useDefaultRequest)
+	c.valueTheta = c.p.GetFloat64(prop.ValueTheta, prop.ValueThetaDefault)
+	c.valueK = c.p.GetFloat64(prop.ValueK, prop.ValueKDefault)
+	c.valueSigma = c.p.GetFloat64(prop.ValueSigma, prop.ValueSigmaDefault)
+	c.iterTheta = c.p.GetFloat64(prop.IterTheta, prop.IterThetaDefault)
+	c.iterK = c.p.GetFloat64(prop.IterK, prop.IterKDefault)
+	c.iterSigma = c.p.GetFloat64(prop.IterSigma, prop.IterSigmaDefault)
+
+	c.variedSize = c.p.GetBool("variedsize", false)
+	c.avgValueSizes = []int64{}
+
+	r := rand.New(rand.NewSource(2))
+	avg := int64(0)
+	smallValPos := []int64{}
+	bigValPos := []int64{}
+	for i := int64(0); i < c.keyRangeNum+1; i++ {
+		u := r.Float64()
+		cv := ParetoCdfInversion(u, c.valueTheta, c.valueK, c.valueSigma)
+		if cv <= 0 {
+			cv = 10
+		}
+
+		if cv >= 10 && cv <= 100 {
+			smallValPos = append(smallValPos, i)
+		}
+		if cv >= 1024*3 && cv <= 10240 {
+			bigValPos = append(bigValPos, i)
+		}
+
+		avg += cv
+		c.avgValueSizes = append(c.avgValueSizes, cv)
+	}
+	avg /= c.keyRangeNum
+
+	exp := c.valueSigma / (1.0 - c.valueK)
+	fmt.Printf("avg avg %v, exp %v\n", avg, exp)
+
+	c.nextShuffleRegionTime = time.Now().Add(time.Duration(c.shuffleRegionInterval * uint64(time.Second)))
+	c.shuffleRegionInterval = c.p.GetUint64(prop.ShuffleRegionInterval, prop.ShuffleRegionIntervalDefault)
+	c.needShuffleRegion = c.p.GetBool(prop.NeedShuffleRegion, prop.NeedShuffleRegionDefault)
+	c.kvSizeUseParetoDistInRegion = c.p.GetBool(prop.KvSizeUseParetoDistInRegion, false)
+	if !c.needShuffleRegion {
+		c.genExp.Adjust(smallValPos, bigValPos)
+		c.genExp.PrintKeyRangeInfo(c.avgValueSizes)
+	}
+	c.traceReplay = c.p.GetBool(prop.TraceReplay, prop.TraceReplayDefault)
+}
+
+func (c *core) MixGraphBench(ctx context.Context, db ycsb.DB) *ycsb.KVRequest {
+	var initRand, randV, keyRand, keySeed int64
+
+	state := ctx.Value(stateKey).(*coreState)
+	r := state.r
+
+	initRand = r.Int63() % c.recordCount
+	randV = initRand % c.recordCount
+	u := float64(randV) / float64(c.recordCount)
+
+	if c.needShuffleRegion && time.Now().After(c.nextShuffleRegionTime) {
+		c.Lock()
+		if time.Now().After(c.nextShuffleRegionTime) {
+			c.genExp.Shuffle()
+			c.nextShuffleRegionTime = time.Now().Add(time.Duration(c.shuffleRegionInterval * uint64(time.Second)))
+		}
+		c.Unlock()
+	}
+
+	if c.useDefaultRequest {
+		keyRand = c.nextKeyNum(state)
+	} else if c.usePrefixModeling {
+		keyRand = c.genExp.DistGetKeyID(false, r, initRand, c.keyDistA, c.keyDistB)
+	} else {
+		keySeed = PowerCdfInversion(u, c.keyDistA, c.keyDistB)
+		keyRand = util.Hash64(keySeed) % c.recordCount
+	}
+	keyName := c.buildKeyName(keyRand)
+	queryType := c.queryChooser.Next(r) //or generated by randV
+
+	curRange := keyRand / c.keyRangeSize
+	c.keyRangeFreqs[keyRand/c.keyRangeSize]++
+
+	kvReq := &ycsb.KVRequest{
+		QueryType: queryType,
+		KeyName:   keyName,
+	}
+
+	if queryType == 0 {
+		var fields []string
+		if !c.readAllFields {
+			fieldName := state.fieldNames[c.fieldChooser.Next(r)]
+			fields = append(fields, fieldName)
+		} else {
+			fields = state.fieldNames
+		}
+
+		kvReq.Fields = fields
+	} else if queryType == 1 {
+		// state.curValueSize = ParetoCdfInversion(u, c.valueTheta, c.valueK, c.valueSigma)
+		if c.kvSizeUseParetoDistInRegion {
+			state.curValueSize = ParetoCdfInversion(u, c.valueTheta, c.valueK, float64(c.avgValueSizes[curRange]))
+		} else {
+			state.curValueSize = int64(float64(c.avgValueSizes[curRange]) * (0.5*u + 0.75))
+		}
+		if state.curValueSize <= 0 {
+			state.curValueSize = 10
+		} else if state.curValueSize > c.fieldLength {
+			state.curValueSize = state.curValueSize % c.fieldLength
+		}
+
+		c.keyRangeSumVSize[keyRand/c.keyRangeSize] += state.curValueSize
+
+		var values map[string][]byte
+		if c.writeAllFields {
+			values = c.buildValues(state, keyName)
+		} else {
+			values = c.buildSingleValue(state, keyName)
+		}
+
+		kvReq.Values = values
+	} else {
+		scanLen := ParetoCdfInversion(u, c.iterTheta, c.iterK, c.iterSigma) % c.maxScanLength
+
+		var fields []string
+		if !c.readAllFields {
+			fieldName := state.fieldNames[c.fieldChooser.Next(r)]
+			fields = append(fields, fieldName)
+		} else {
+			fields = state.fieldNames
+		}
+
+		kvReq.Fields = fields
+		kvReq.ScanLen = int(scanLen)
+	}
+
+	return kvReq
+}
+
+func (c *core) ProcessKVRequest(ctx context.Context, db ycsb.DB, kvReq *ycsb.KVRequest) error {
+	switch kvReq.QueryType {
+	case 0:
+		_, err := db.Read(ctx, c.table, kvReq.KeyName, kvReq.Fields)
+		return err
+	case 1:
+		defer c.putValues(kvReq.Values)
+		return db.Insert(ctx, c.table, kvReq.KeyName, kvReq.Values)
+	default:
+		_, err := db.Scan(ctx, c.table, kvReq.KeyName, kvReq.ScanLen, kvReq.Fields)
+		return err
+	}
+}
+
 // DoTransaction implements the Workload DoTransaction interface.
 func (c *core) DoTransaction(ctx context.Context, db ycsb.DB) error {
+	if c.runMixGraphBench {
+		kvReq := c.MixGraphBench(ctx, db)
+		if c.traceReplay {
+			client.KVReqGenChan <- kvReq
+			return nil
+		} else {
+			return c.ProcessKVRequest(ctx, db, kvReq)
+		}
+	}
+
 	state := ctx.Value(stateKey).(*coreState)
 	r := state.r
 
@@ -408,7 +680,10 @@ func (c *core) nextKeyNum(state *coreState) int64 {
 			keyNum = c.transactionInsertKeySequence.Last() - c.keyChooser.Next(r)
 		}
 	} else {
-		keyNum = c.keyChooser.Next(r)
+		keyNum = math.MaxInt64
+		for keyNum > c.transactionInsertKeySequence.Last() {
+			keyNum = c.keyChooser.Next(r)
+		}
 	}
 	return keyNum
 }
@@ -441,7 +716,7 @@ func (c *core) doTransactionRead(ctx context.Context, db ycsb.DB, state *coreSta
 func (c *core) doTransactionReadModifyWrite(ctx context.Context, db ycsb.DB, state *coreState) error {
 	start := time.Now()
 	defer func() {
-		measurement.Measure("READ_MODIFY_WRITE", start, time.Now().Sub(start))
+		measurement.Measure("READ_MODIFY_WRITE", time.Now().Sub(start))
 	}()
 
 	r := state.r
@@ -615,6 +890,7 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 		c.fieldNames[i] = fmt.Sprintf("field%d", i)
 	}
 	c.fieldLengthGenerator = getFieldLengthGenerator(p)
+	c.fieldLength = p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
 	c.recordCount = p.GetInt64(prop.RecordCount, prop.RecordCountDefault)
 	if c.recordCount == 0 {
 		c.recordCount = int64(math.MaxInt32)
@@ -623,6 +899,7 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 	requestDistrib := p.GetString(prop.RequestDistribution, prop.RequestDistributionDefault)
 	maxScanLength := p.GetInt64(prop.MaxScanLength, prop.MaxScanLengthDefault)
 	scanLengthDistrib := p.GetString(prop.ScanLengthDistribution, prop.ScanLengthDistributionDefault)
+	c.maxScanLength = maxScanLength
 
 	insertStart := p.GetInt64(prop.InsertStart, prop.InsertStartDefault)
 	insertCount := p.GetInt64(prop.InsertCount, c.recordCount-insertStart)
@@ -647,27 +924,24 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 
 	c.keySequence = generator.NewCounter(insertStart)
 	c.operationChooser = createOperationGenerator(p)
-	var keyrangeLowerBound int64 = insertStart
-	var keyrangeUpperBound int64 = insertStart + insertCount - 1
 
 	c.transactionInsertKeySequence = generator.NewAcknowledgedCounter(c.recordCount)
 	switch requestDistrib {
 	case "uniform":
-		c.keyChooser = generator.NewUniform(keyrangeLowerBound, keyrangeUpperBound)
+		c.keyChooser = generator.NewUniform(insertStart, insertStart+insertCount-1)
 	case "sequential":
-		c.keyChooser = generator.NewSequential(keyrangeLowerBound, keyrangeUpperBound)
+		c.keyChooser = generator.NewSequential(insertStart, insertStart+insertCount-1)
 	case "zipfian":
 		insertProportion := p.GetFloat64(prop.InsertProportion, prop.InsertProportionDefault)
 		opCount := p.GetInt64(prop.OperationCount, 0)
 		expectedNewKeys := int64(float64(opCount) * insertProportion * 2.0)
-		keyrangeUpperBound = insertStart + insertCount + expectedNewKeys
-		c.keyChooser = generator.NewScrambledZipfian(keyrangeLowerBound, keyrangeUpperBound, generator.ZipfianConstant)
+		c.keyChooser = generator.NewScrambledZipfian(insertStart, insertStart+insertCount+expectedNewKeys, generator.ZipfianConstant)
 	case "latest":
 		c.keyChooser = generator.NewSkewedLatest(c.transactionInsertKeySequence)
 	case "hotspot":
 		hotsetFraction := p.GetFloat64(prop.HotspotDataFraction, prop.HotspotDataFractionDefault)
 		hotopnFraction := p.GetFloat64(prop.HotspotOpnFraction, prop.HotspotOpnFractionDefault)
-		c.keyChooser = generator.NewHotspot(keyrangeLowerBound, keyrangeUpperBound, hotsetFraction, hotopnFraction)
+		c.keyChooser = generator.NewHotspot(insertStart, insertStart+insertCount-1, hotsetFraction, hotopnFraction)
 	case "exponential":
 		percentile := p.GetFloat64(prop.ExponentialPercentile, prop.ExponentialPercentileDefault)
 		frac := p.GetFloat64(prop.ExponentialFrac, prop.ExponentialFracDefault)
@@ -675,7 +949,6 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 	default:
 		util.Fatalf("unknown request distribution %s", requestDistrib)
 	}
-	fmt.Println(fmt.Sprintf("Using request distribution '%s' a keyrange of [%d %d]", requestDistrib, keyrangeLowerBound, keyrangeUpperBound))
 
 	c.fieldChooser = generator.NewUniform(0, c.fieldCount-1)
 	switch scanLengthDistrib {
@@ -697,10 +970,11 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 		},
 	}
 
+	c.InitMixGraphBench()
+
 	return c, nil
 }
 
 func init() {
 	ycsb.RegisterWorkloadCreator("core", coreCreator{})
-	ycsb.RegisterWorkloadCreator("site.ycsb.workloads.CoreWorkload", coreCreator{})
 }
