@@ -5,6 +5,27 @@ ENV GOPATH /go
 RUN apk update && apk upgrade && \
     apk add --no-cache git build-base wget
 
+# Download dumb-init according to the operating system
+RUN if [ $(uname -m) = "aarch64" ]; then \
+        wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_aarch64; \
+        && chmod +x /usr/local/bin/dumb-init \
+    fi
+
+RUN if [ $(uname -m) = "x86_64" ]; then \
+        wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64; \
+        && chmod +x /usr/local/bin/dumb-init \
+    fi
+
+RUN if [ $(uname -m) = "s390x" ]; then \
+        wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_s390x; \
+        && chmod +x /usr/local/bin/dumb-init \
+    fi
+
+RUN if [ $(uname -m) = "ppc64le" ]; then \
+        wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_ppc64le; \
+        && chmod +x /usr/local/bin/dumb-init \
+    fi
+
 RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64 \
  && chmod +x /usr/local/bin/dumb-init
 
