@@ -113,28 +113,29 @@ func (db *txnDB) Scan(ctx context.Context, table string, startKey string, count 
 	return res, nil
 }
 
-// unfinished Update, no need for scan there's no proto for this action
+// unfinished Update, no need for batch there's no proto for this action?
 func (db *txnDB) Update(ctx context.Context, table string, key string, values map[string][]byte) error {
 	fmt.Println("unsure Update()")
 	// original version
-	rowKey := db.getRowKey(table, key)
+	// rowKey := db.getRowKey(table, key)
 	m, err := db.Read(ctx, table, key, nil)
-	fmt.Println(m)
+	// fmt.Println(m)
 	if err != nil {
 		return err
 	}
 	for field, value := range values {
 		m[field] = value
 	}
-	buf := db.bufPool.Get()
-	buf, err = db.r.Encode(buf, values)
-	if err != nil {
-		return err
-	}
 
-	batch := new(leveldb.Batch)
-	batch.Put(rowKey, buf)
-	return db.db.Write(batch, nil)
+	// buf := db.bufPool.Get()
+	// buf, err = db.r.Encode(buf, values)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// batch := new(leveldb.Batch)
+	// batch.Put(rowKey, buf)
+	return db.Insert(ctx, table, key, m)
 }
 
 // unfinished batchUpdate, no need for scan there's no proto for this action
@@ -171,7 +172,7 @@ func (db *txnDB) Insert(ctx context.Context, table string, key string, values ma
 	buf := db.bufPool.Get()
 	buf, err := db.r.Encode(buf, values)
 
-	fmt.Println("Insert() ===== key :" + util.String(rowKey) + "value :" + util.String(buf))
+	// fmt.Println("Insert() ===== key :" + util.String(rowKey) + "value :" + util.String(buf))
 	if err != nil {
 		return err
 	}
