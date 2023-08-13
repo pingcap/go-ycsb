@@ -5,6 +5,7 @@ import (
 
 	brpc_go "github.com/icexin/brpc-go"
 	"github.com/pingcap/go-ycsb/db/taas_proto"
+	"github.com/pingcap/go-ycsb/pkg/util"
 )
 
 type LeveldbClient struct {
@@ -15,7 +16,7 @@ func (c *LeveldbClient) Get(key []byte) (value []byte, err error) {
 	getClient := taas_proto.NewKvDBGetServiceClient(c.conn)
 
 	kv_pair := &taas_proto.KvDBData{
-		Key: string(key),
+		Key: util.String(key),
 	}
 
 	request := &taas_proto.KvDBRequest{
@@ -29,10 +30,11 @@ func (c *LeveldbClient) Get(key []byte) (value []byte, err error) {
 }
 
 func (c *LeveldbClient) Put(key, value []byte) error {
+	// value 无法转化为有效的UTF-8 string类型，proto中都是用string
 	putClient := taas_proto.NewKvDBPutServiceClient(c.conn)
 	kv_pair := &taas_proto.KvDBData{
-		Key:   string(key),
-		Value: string(value),
+		Key:   util.String(key),
+		Value: util.String(value),
 	}
 
 	request := &taas_proto.KvDBRequest{
