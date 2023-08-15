@@ -16,6 +16,7 @@ package ycsb
 import (
 	"context"
 	"fmt"
+
 	"github.com/magiconair/properties"
 )
 

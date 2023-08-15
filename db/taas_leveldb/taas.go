@@ -1,9 +1,11 @@
-package taas_tikv
+package taas_leveldb
 
+//#include ""
 import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,43 +15,40 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	zmq "github.com/pebbe/zmq4"
-	"github.com/pingcap/errors"
 	"github.com/pingcap/go-ycsb/db/taas_proto"
-	tikverr "github.com/tikv/client-go/v2/error"
 )
 
-//#include ""
-
-var TaasServerIp = "172.30.67.185"
-var LocalServerIp = "172.30.67.187"
+var TaasServerIp = "127.0.0.1"
+var LocalServerIp = "127.0.0.1"
+var HbaseServerIp = "127.0.0.1"
 var OpNum = 10
 
-type TaasTxn struct {
+type TaasTxn struct { // 用于存储压缩后的事务数据
 	GzipedTransaction []byte
 }
 
-var TaasTxnCH = make(chan TaasTxn, 100000)
-var UnPackCH = make(chan string, 100000)
+var TaasTxnCH = make(chan TaasTxn, 100000) // 创建通道，存储txn数据
+var UnPackCH = make(chan string, 100000)   // 创建通道，存储解压后的数据
 
 var ChanList []chan string
 var InitOk uint64 = 0
 var atomicCounter uint64 = 0
-var SuccessTransactionCounter, FailedTransactionCounter, TotalTransactionCounter uint64 = 0, 0, 0
-var SuccessReadCounter, FailedReadCounter, TotalReadCounter uint64 = 0, 0, 0
-var SuccessUpdateCounter, FailedUpdateounter, TotalUpdateCounter uint64 = 0, 0, 0
-var TotalLatency, TikvReadLatency, TikvTotalLatency uint64 = 0, 0, 0
-var latency []uint64
+
+var SuccessTransactionCounter, FailedTransactionCounter, TotalTransactionCounter uint64 = 0, 0, 0 // 成功事务、失败事务、总事务
+var SuccessReadCounter, FailedReadCounter, TotalReadCounter uint64 = 0, 0, 0                      // 成功读取、失败读取、总读取
+var SuccessUpdateCounter, FailedUpdateounter, TotalUpdateCounter uint64 = 0, 0, 0                 // 成功更新、失败更新、总更新
+var TotalLatency, TikvReadLatency, TikvTotalLatency uint64 = 0, 0, 0                              // 总延迟、读延迟
+var latency []uint64                                                                              // 存储延迟数据
 
 func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
 	for InitOk == 0 {
 		time.Sleep(50)
 	}
-	//fmt.Println("taas_tikv commit")
-	//fmt.Println("taas_tikv commit")
+
 	t1 := time.Now().UnixNano()
 	txnId := atomic.AddUint64(&atomicCounter, 1) // return new value
 	atomic.AddUint64(&TotalTransactionCounter, 1)
-	txnSendToTaas := taas_proto.Transaction{
+	txnSendToTaas := taas_proto.Transaction{ // 储发送给Taas的事务数据
 		StartEpoch:  0,
 		CommitEpoch: 5,
 		Csn:         uint64(time.Now().UnixNano()),
@@ -63,26 +62,21 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 
 	var readOpNum, writeOpNum uint64 = 0, 0
 	time1 := time.Now()
-	tx, err := db.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
 	for i, key := range keys {
-		if values[i] == nil { //read
+		if values[i] == nil { // 如果values[i]为nil，则表示读取操作
 			readOpNum++
 			rowKey := db.getRowKey(table, key)
 			time2 := time.Now()
-			rowData, err := tx.Get(ctx, rowKey)
+			rowData, err := db.db.Get(rowKey, nil)
 			timeLen2 := time.Now().Sub(time2)
 			atomic.AddUint64(&TikvReadLatency, uint64(timeLen2))
 
-			if tikverr.IsErrNotFound(err) {
+			if err != nil {
 				return err
 			} else if rowData == nil {
-				return err
+				return errors.New("txn read failed")
 			}
-			sendRow := taas_proto.Row{
+			sendRow := taas_proto.Row{ // 用于存储发送给Taas的行数据
 				OpType: taas_proto.OpType_Read,
 				Key:    *(*[]byte)(unsafe.Pointer(&rowKey)),
 				Data:   rowData,
@@ -108,21 +102,19 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 		}
 
 	}
-	if err = tx.Commit(ctx); err != nil {
-		return err
-	}
+
 	timeLen := time.Now().Sub(time1)
 	atomic.AddUint64(&TikvTotalLatency, uint64(timeLen))
 	//fmt.Println("; read op : " + strconv.FormatUint(readOpNum, 10) + ", write op : " + strconv.FormatUint(writeOpNum, 10))
 
-	sendMessage := &taas_proto.Message{
+	sendMessage := &taas_proto.Message{ // 存储发送给Taas的消息数据
 		Type: &taas_proto.Message_Txn{Txn: &txnSendToTaas},
 	}
-	var bufferBeforeGzip bytes.Buffer
-	sendBuffer, _ := proto.Marshal(sendMessage)
+	var bufferBeforeGzip bytes.Buffer           // 存储压缩前的数据
+	sendBuffer, _ := proto.Marshal(sendMessage) // 序列化
 	bufferBeforeGzip.Reset()
-	gw := gzip.NewWriter(&bufferBeforeGzip)
-	_, err = gw.Write(sendBuffer)
+	gw := gzip.NewWriter(&bufferBeforeGzip) // 用于压缩数据
+	_, err := gw.Write(sendBuffer)
 	if err != nil {
 		return err
 	}
@@ -130,10 +122,10 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 	if err != nil {
 		return err
 	}
-	GzipedTransaction := bufferBeforeGzip.Bytes()
-	GzipedTransaction = GzipedTransaction
+	GzipedTransaction := bufferBeforeGzip.Bytes() // 获取压缩后的数据
+	// GzipedTransaction = GzipedTransaction
 	//fmt.Println("Send to Taas")
-	TaasTxnCH <- TaasTxn{GzipedTransaction}
+	TaasTxnCH <- TaasTxn{GzipedTransaction} // 发送压缩后的数据
 
 	result, ok := <-(ChanList[txnId%2048])
 	//fmt.Println("Receive From Taas")
@@ -165,19 +157,19 @@ func (db *txnDB) CommitToTaas(ctx context.Context, table string, keys []string, 
 
 func SendTxnToTaas() {
 	socket, _ := zmq.NewSocket(zmq.PUSH)
-	err := socket.SetSndbuf(10000000)
+	err := socket.SetSndbuf(10000000) // 设置socket的发送缓冲区大小
 	if err != nil {
 		return
 	}
-	err = socket.SetRcvbuf(10000000)
+	err = socket.SetRcvbuf(10000000) // 设置socket的接收缓冲区大小
 	if err != nil {
 		return
 	}
-	err = socket.SetSndhwm(10000000)
+	err = socket.SetSndhwm(10000000) // 设置发送高水位标记
 	if err != nil {
 		return
 	}
-	err = socket.SetRcvhwm(10000000)
+	err = socket.SetRcvhwm(10000000) // 设置接收高水位标记
 	if err != nil {
 		return
 	}
@@ -188,9 +180,9 @@ func SendTxnToTaas() {
 	}
 	fmt.Println("连接Taas Send " + TaasServerIp)
 	for {
-		value, ok := <-TaasTxnCH
+		value, ok := <-TaasTxnCH // 从通道中获取value和状态
 		if ok {
-			_, err := socket.Send(string(value.GzipedTransaction), 0)
+			_, err := socket.Send(string(value.GzipedTransaction), 0) // 发送value
 			//fmt.Println("taas send thread")
 			if err != nil {
 				return
@@ -226,33 +218,33 @@ func ListenFromTaas() {
 		log.Fatal(err)
 	}
 	for {
-		taasReply, err := socket.Recv(0)
+		taasReply, err := socket.Recv(0) // 从socket中接收数据taasReply和状态err
 		if err != nil {
 			fmt.Println("taas.go 115")
 			log.Fatal(err)
 		}
-		UnPackCH <- taasReply
+		UnPackCH <- taasReply // 将taasReply解压后的数据发送到通道中
 	}
 }
 
 func UGZipBytes(in []byte) []byte {
-	reader, err := gzip.NewReader(bytes.NewReader(in))
+	reader, err := gzip.NewReader(bytes.NewReader(in)) // 用于解压数据
 	if err != nil {
 		var out []byte
 		return out
 	}
 	defer reader.Close()
-	out, _ := ioutil.ReadAll(reader)
+	out, _ := ioutil.ReadAll(reader) // 读取解压后的数据
 	return out
 }
 
 func UnPack() {
 	for {
-		taasReply, ok := <-UnPackCH
+		taasReply, ok := <-UnPackCH // 从通道中获取replay
 		if ok {
-			UnGZipedReply := UGZipBytes([]byte(taasReply))
-			testMessage := &taas_proto.Message{}
-			err := proto.Unmarshal(UnGZipedReply, testMessage)
+			UnGZipedReply := UGZipBytes([]byte(taasReply))     // 解压replay数据
+			testMessage := &taas_proto.Message{}               // 存储解压后的数据
+			err := proto.Unmarshal(UnGZipedReply, testMessage) // 反序列化
 			if err != nil {
 				fmt.Println("taas.go 142")
 				log.Fatal(err)

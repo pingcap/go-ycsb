@@ -1,5 +1,11 @@
 # go-ycsb
 
+```
+./bin/go-ycsb load taas_leveldb -P workloads/workloada -p tikv.pd="127.0.0.1:2379" -p taasServerIp="127.0.0.1" -p localServerIp="127.0.0.1" -p threadcount=32 -p tikv.type="txn" -p recordcount=10000 -p operationcount=10000 -p opNum=20
+ ./bin/go-ycsb run taas_leveldb -P workloads/workloada -p tikv.pd="127.0.0.1:2379" -p taasServerIp="127.0.0.1" -p localServerIp="127.0.0.1" -p threadcount=1 -p tikv.type="txn" -p recordcount=10000 -p operationcount=10000 -p opNum=20
+```
+
+
 go-ycsb is a Go port of [YCSB](https://github.com/brianfrankcooper/YCSB). It fully supports all YCSB generators and the Core workload so we can do the basic CRUD benchmarks with Go.
 
 ## Why another Go YCSB?
