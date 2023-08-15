@@ -126,11 +126,15 @@ func initialGlobal(dbName string, onProperties func()) {
 	if len(tableName) == 0 {
 		tableName = globalProps.GetString(prop.TableName, prop.TableNameDefault)
 	}
+	var err error
+
+	if _, _, err = globalProps.Set(prop.TableName, tableName); err != nil {
+		panic(err)
+	}
 
 	workloadName := globalProps.GetString(prop.Workload, "core")
 	workloadCreator := ycsb.GetWorkloadCreator(workloadName)
 
-	var err error
 	if globalWorkload, err = workloadCreator.Create(globalProps); err != nil {
 		util.Fatalf("create workload %s failed %v", workloadName, err)
 	}

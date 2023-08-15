@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/pingcap/go-ycsb/pkg/prop"
 	"io/ioutil"
 	"log"
 	"strings"
@@ -81,14 +82,12 @@ func (m *mongoDB) Scan(ctx context.Context, table string, startKey string, count
 		return nil, fmt.Errorf("Scan error: %s", err.Error())
 	}
 	defer cursor.Close(ctx)
+
 	var docs []map[string][]byte
-	for cursor.Next(ctx) {
-		var doc map[string][]byte
-		if err := cursor.Decode(&doc); err != nil {
-			return docs, fmt.Errorf("Scan error: %s", err.Error())
-		}
-		docs = append(docs, doc)
+	if err = cursor.All(ctx, &docs); err != nil {
+		return nil, err
 	}
+
 	return docs, nil
 }
 
@@ -171,7 +170,8 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 			cliOpts.TLSConfig.RootCAs = caCertPool
 		}
 	}
-
+	t := uint64(p.GetInt64(prop.ThreadCount, prop.ThreadCountDefault))
+	cliOpts.SetMaxPoolSize(t)
 	username, usrExist := p.Get(mongodbUsername)
 	password, pwdExist := p.Get(mongodbPassword)
 	if usrExist && pwdExist {
