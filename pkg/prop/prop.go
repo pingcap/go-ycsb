@@ -71,6 +71,8 @@ const (
 	RequestDistributionDefault = "uniform"
 	ZeroPadding                = "zeropadding"
 	ZeroPaddingDefault         = int64(1)
+	MinScanLength              = "minscanlength"
+	MinScanLengthDefault       = int64(1)
 	MaxScanLength              = "maxscanlength"
 	MaxScanLengthDefault       = int64(1000)
 	// "uniform", "zipfian"
