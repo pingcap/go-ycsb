@@ -19,15 +19,16 @@ import (
 )
 
 type dynamodbWrapper struct {
-	client             *dynamodb.Client
-	tablename          *string
-	primarykey         string
-	primarykeyPtr      *string
-	readCapacityUnits  int64
-	writeCapacityUnits int64
-	consistentRead     bool
-	deleteAfterRun     bool
-	command            string
+	client                          *dynamodb.Client
+	tablename                       *string
+	primarykey                      string
+	primarykeyPtr                   *string
+	readCapacityUnits               int64
+	writeCapacityUnits              int64
+	consistentRead                  bool
+	deleteAfterRun                  bool
+	command                         string
+	disableValidateResponseChecksum bool
 }
 
 func (r *dynamodbWrapper) Close() error {
@@ -199,6 +200,7 @@ func (r dynamoDbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	endpoint := p.GetString(endpointField, endpointFieldDefault)
 	region := p.GetString(regionField, regionFieldDefault)
 	rds.command, _ = p.Get(prop.Command)
+	rds.disableValidateResponseChecksum = p.GetBool(disableValidateResponseChecksum, disableValidateResponseChecksumDefault)
 	var err error = nil
 	var cfg aws.Config
 	if strings.Contains(endpoint, "localhost") && strings.Compare(region, "localhost") != 0 {
@@ -226,7 +228,9 @@ func (r dynamoDbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}
 	// Create DynamoDB client
-	rds.client = dynamodb.NewFromConfig(cfg)
+	rds.client = dynamodb.NewFromConfig(cfg, func(options *dynamodb.Options) {
+		options.DisableValidateResponseChecksum = rds.disableValidateResponseChecksum
+	})
 	exists, err := rds.tableExists()
 
 	if strings.Compare("load", rds.command) == 0 {
@@ -284,10 +288,12 @@ const (
 	// GetItem provides an eventually consistent read by default.
 	// If your application requires a strongly consistent read, set ConsistentRead to true.
 	// Although a strongly consistent read might take more time than an eventually consistent read, it always returns the last updated value.
-	consistentReadFieldName             = "dynamodb.consistent.reads"
-	consistentReadFieldNameDefault      = false
-	deleteTableAfterRunFieldName        = "dynamodb.delete.after.run.stage"
-	deleteTableAfterRunFieldNameDefault = false
+	consistentReadFieldName                = "dynamodb.consistent.reads"
+	consistentReadFieldNameDefault         = false
+	deleteTableAfterRunFieldName           = "dynamodb.delete.after.run.stage"
+	deleteTableAfterRunFieldNameDefault    = false
+	disableValidateResponseChecksum        = "dynamodb.disableValidateResponseChecksum"
+	disableValidateResponseChecksumDefault = false
 )
 
 func init() {
