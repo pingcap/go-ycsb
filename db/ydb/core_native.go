@@ -14,7 +14,7 @@ import (
 )
 
 type driverNative struct {
-	db  ydb.Connection
+	db  *ydb.Driver
 	dsn string
 }
 

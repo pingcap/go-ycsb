@@ -62,7 +62,7 @@ func (d *driverSql) queryRows(ctx context.Context, query string, count int, para
 		}
 
 		return rows.Err()
-	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	}, retry.WithIdempotent(true))
 
 	return vs, err
 }
@@ -71,7 +71,7 @@ func (d *driverSql) executeDataQuery(ctx context.Context, query string, params *
 	return retry.Do(ctx, d.db, func(ctx context.Context, cc *sql.Conn) error {
 		_, err := cc.ExecContext(ctx, query, params)
 		return err
-	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	}, retry.WithIdempotent(true))
 }
 
 func (d *driverSql) executeSchemeQuery(ctx context.Context, query string) error {
@@ -79,7 +79,7 @@ func (d *driverSql) executeSchemeQuery(ctx context.Context, query string) error 
 		func(ctx context.Context, cc *sql.Conn) error {
 			_, err := cc.ExecContext(ctx, query)
 			return err
-		}, retry.WithDoRetryOptions(retry.WithIdempotent(true)),
+		}, retry.WithIdempotent(true),
 	)
 }
 

@@ -127,7 +127,7 @@
 
 ## Scheduler's worker pool size, i.e. the number of write threads.
 ## It should be less than total CPU cores. When there are frequent write operations, set it to a
-## higher value. More specifically, you can run `top -H -p tikv-pid` to check whether the threads
+## higher value. More specifically, you can run `top -H -param tikv-pid` to check whether the threads
 ## named `sched-worker-pool` are busy.
 # scheduler-worker-pool-size = 4
 
