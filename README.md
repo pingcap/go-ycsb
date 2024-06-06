@@ -98,6 +98,7 @@ Available Commands:
 - MongoDB
 - Redis and Redis Cluster
 - BoltDB
+- bbolt
 - etcd
 - DynamoDB
 
@@ -310,6 +311,19 @@ Common configurations:
 |bolt.read_only|false|Open the database in read-only mode|
 |bolt.mmap_flags|0|Set the DB.MmapFlags flag before memory mapping the file|
 |bolt.initial_mmap_size|0|The initial mmap size of the database in bytes. If <= 0, the initial map size is 0. If the size is smaller than the previous database, it takes no effect|
+
+### bbolt
+
+| field                   | default value  | description                                                                                                                                               |
+|-------------------------|----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| bbolt.path              | "/tmp/bboltdb" | The database file path. If the file does not exists then it will be created automatically                                                                 |
+| bbolt.timeout           | 0              | The amount of time to wait to obtain a file lock. When set to zero it will wait indefinitely. This option is only available on Darwin and Linux           |
+| bbolt.no_grow_sync      | false          | Sets DB.NoGrowSync flag before memory mapping the file                                                                                                    |
+| bbolt.read_only         | false          | Open the database in read-only mode                                                                                                                       |
+| bbolt.mmap_flags        | 0              | Set the DB.MmapFlags flag before memory mapping the file                                                                                                  |
+| bbolt.initial_mmap_size | 0              | The initial mmap size of the database in bytes. If <= 0, the initial map size is 0. If the size is smaller than the previous database, it takes no effect |
+| bbolt.freelist_type     | "array"        | The type of freelist to use, can be either "array" or "hashmap"                                                                                           |
+
 
 ### etcd
 
