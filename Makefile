@@ -19,6 +19,11 @@ ifndef CROSS_COMPILE
 
 ifeq ($(SQLITE_CHECK), 0)
 	TAGS += libsqlite3
+	ifeq ($(shell uname -s), Darwin)
+		ifeq ($(shell uname -m), arm64)
+			DYNAMIC_TAGS = -tags dynamic
+		endif
+	endif
 endif
 
 ifeq ($(ROCKSDB_CHECK), 0)
@@ -36,9 +41,12 @@ build:
 ifeq ($(TAGS),)
 	$(CGO_FLAGS) go build -o bin/go-ycsb cmd/go-ycsb/*
 else
-	$(CGO_FLAGS) go build -tags "$(TAGS)" -o bin/go-ycsb cmd/go-ycsb/*
+	$(CGO_FLAGS) go build -tags "$(TAGS)" $(DYNAMIC_TAGS) -o bin/go-ycsb cmd/go-ycsb/*
 endif
 
 check:
 	golint -set_exit_status db/... cmd/... pkg/...
+
+clean:
+	rm -rf bin
 

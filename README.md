@@ -100,6 +100,7 @@ Available Commands:
 - BoltDB
 - etcd
 - DynamoDB
+- Memcached
 
 ## Output configuration
 
@@ -336,7 +337,13 @@ Common configurations:
 |dynamodb.consistent.reads|false|Reads on DynamoDB provide an eventually consistent read by default. If your benchmark/use-case requires a strongly consistent read, set this option to true|
 |dynamodb.delete.after.run.stage|false|Detele the database table after the run stage|
 
+### Memcached
 
+|field|default value|description|
+|-|-|-|
+|memcached.hosts|"localhost:11211"|The server hosts lists, splited by comma|
+|memcached.timeout|"500ms"|The socket read/write timeout|
+|memcached.maxIdleConns|2|The maximum number of idle connections that will be maintained per address|
 
 ## TODO
 
