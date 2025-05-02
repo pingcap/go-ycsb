@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	goredis "github.com/go-redis/redis/v9"
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/util"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 const HASH_DATATYPE string = "hash"
