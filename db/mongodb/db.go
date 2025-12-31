@@ -159,14 +159,32 @@ func (c mongodbCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 			}
 			caCertPool := x509.NewCertPool()
 			if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
-				log.Fatalf("certifacte %s could not be parsed", caFile)
+				log.Fatalf("certificate %s could not be parsed", caFile)
 			}
 
 			cliOpts.TLSConfig.RootCAs = caCertPool
 		}
 	}
+
+	// Check if the loadBalanced option is explicitly set
+	if connString.LoadBalancedSet {
+		// If loadBalanced is set, use its value
+		if connString.LoadBalanced {
+			log.Println("Setting loadBalanced to true")
+			cliOpts.SetLoadBalanced(true)
+		} else {
+			log.Println("Setting loadBalanced to false")
+			cliOpts.SetLoadBalanced(false)
+		}
+	} else {
+		// Default to false if not set
+		log.Println("Setting loadBalanced to false")
+		cliOpts.SetLoadBalanced(false)
+	}
+
 	t := uint64(p.GetInt64(prop.ThreadCount, prop.ThreadCountDefault))
 	cliOpts.SetMaxPoolSize(t)
+
 	username, usrExist := p.Get(mongodbUsername)
 	password, pwdExist := p.Get(mongodbPassword)
 	if usrExist && pwdExist {
