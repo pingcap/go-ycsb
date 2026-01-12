@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/magiconair/properties"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	// Register workload
 
@@ -115,6 +116,13 @@ func initialGlobal(dbName string, onProperties func()) {
 	addr := globalProps.GetString(prop.DebugPprof, prop.DebugPprofDefault)
 	go func() {
 		http.ListenAndServe(addr, nil)
+	}()
+
+	metricsAddr := globalProps.GetString(prop.MetricsAddr, prop.MetricsAddrDefault)
+	go func() {
+		fmt.Printf("Starting metrics server at %s\n", metricsAddr)
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(metricsAddr, nil)
 	}()
 
 	measurement.InitMeasure(globalProps)

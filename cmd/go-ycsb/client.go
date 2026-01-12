@@ -16,6 +16,7 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pingcap/go-ycsb/pkg/client"
@@ -49,8 +50,22 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 		}
 	})
 
+	// Prepare to hide sensitive information
+	sensitiveProperties := make([]string, 0)
+	if globalProps.GetString(prop.SensitiveProperties, "") != "" {
+		sensitiveProperties = strings.Split(globalProps.GetString(prop.SensitiveProperties, ""), ",")
+	}
+
 	fmt.Println("***************** properties *****************")
 	for key, value := range globalProps.Map() {
+		if len(sensitiveProperties) > 0 {
+			for _, sensitive := range sensitiveProperties {
+				if key == sensitive {
+					value = strings.Repeat("*", len(value))
+					break
+				}
+			}
+		}
 		fmt.Printf("\"%s\"=\"%s\"\n", key, value)
 	}
 	fmt.Println("**********************************************")

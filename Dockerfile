@@ -1,4 +1,4 @@
-FROM golang:1.18.4-alpine3.16
+FROM golang:1.24.3-alpine3.21
 
 ENV GOPATH /go
 
@@ -6,7 +6,7 @@ RUN apk update && apk upgrade && \
     apk add --no-cache git build-base wget
 
 RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64 \
- && chmod +x /usr/local/bin/dumb-init
+    && chmod +x /usr/local/bin/dumb-init
 
 RUN mkdir -p /go/src/github.com/pingcap/go-ycsb
 WORKDIR /go/src/github.com/pingcap/go-ycsb
@@ -20,7 +20,7 @@ COPY . .
 
 RUN GO111MODULE=on go build -o /go-ycsb ./cmd/*
 
-FROM alpine:3.8 
+FROM alpine:3.21
 
 COPY --from=0 /go-ycsb /go-ycsb
 COPY --from=0 /usr/local/bin/dumb-init /usr/local/bin/dumb-init

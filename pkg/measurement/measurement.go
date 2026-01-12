@@ -16,6 +16,8 @@ package measurement
 import (
 	"bufio"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,6 +25,7 @@ import (
 	"github.com/magiconair/properties"
 	"github.com/pingcap/go-ycsb/pkg/prop"
 	"github.com/pingcap/go-ycsb/pkg/ycsb"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var header = []string{"Operation", "Takes(s)", "Count", "OPS", "Avg(us)", "Min(us)", "Max(us)", "50th(us)", "90th(us)", "95th(us)", "99th(us)", "99.9th(us)", "99.99th(us)"}
@@ -32,12 +35,15 @@ type measurement struct {
 
 	p *properties.Properties
 
+	ph *prometheus.HistogramVec
+
 	measurer ycsb.Measurer
 }
 
 func (m *measurement) measure(op string, start time.Time, lan time.Duration) {
 	m.Lock()
 	m.measurer.Measure(op, start, lan)
+	m.ph.WithLabelValues(op).Observe(float64(lan.Microseconds()))
 	m.Unlock()
 }
 
@@ -75,6 +81,19 @@ func (m *measurement) summary() {
 	m.RUnlock()
 }
 
+func convertHistogramBuckets(buckets string) []float64 {
+	bucketStrs := strings.Split(buckets, ",")
+	bucketFloats := make([]float64, len(bucketStrs))
+	for i, bucketStr := range bucketStrs {
+		bucketFloat, err := strconv.ParseFloat(strings.TrimSpace(bucketStr), 64)
+		if err != nil {
+			panic("failed to parse histogram bucket: " + err.Error())
+		}
+		bucketFloats[i] = bucketFloat
+	}
+	return bucketFloats
+}
+
 // InitMeasure initializes the global measurement.
 func InitMeasure(p *properties.Properties) {
 	globalMeasure = new(measurement)
@@ -88,6 +107,13 @@ func InitMeasure(p *properties.Properties) {
 	default:
 		panic("unsupported measurement type: " + measurementType)
 	}
+	histogramBuckets := p.GetString(prop.MetricsHistBuckets, prop.MetricsHistBucketsDefault)
+	globalMeasure.ph = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "ycsb_cmd_duration_microseconds",
+		Help:    "YCSB duration of operation in microseconds",
+		Buckets: convertHistogramBuckets(histogramBuckets),
+	}, []string{"operation"})
+	prometheus.MustRegister(globalMeasure.ph)
 	EnableWarmUp(p.GetInt64(prop.WarmUpTime, 0) > 0)
 }
 

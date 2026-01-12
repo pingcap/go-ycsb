@@ -124,4 +124,14 @@ const (
 	MeasurementHistogramPercentileExportDefault         = false
 	MeasurementHistogramPercentileExportFilepath        = "histogram.percentiles.export.filepath"
 	MeasurementHistogramPercentileExportFilepathDefault = "./"
+
+	// Prometheus metrics properties
+	MetricsAddr               = "metrics.address"
+	MetricsAddrDefault        = ":8765"
+	MetricsHistBuckets        = "metrics.histogram.buckets"
+	MetricsHistBucketsDefault = "1,10,100,1000,2000,3000,4000,5000,6000,7000,8000,9000,10000,20000,30000,40000,50000,60000,70000,80000,90000,100000,1000000,10000000,100000000"
+
+	// Security
+	SensitiveProperties        = "sensitive_properties"
+	SensitivePropertiesDefault = "" // comma separated list of sensitive properties, for example: mysql.password,mysql.user
 )
