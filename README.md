@@ -349,6 +349,7 @@ Common configurations:
 |s3.use_path_style|false|Set `true` for LocalStack; forces path-style requests|
 |s3.update_overwrite|true|Set `false` for update to perform a read-modify-write operation|
 |s3.scan_keys_only|false|Set `true` to have scan return only the keys of the objects|
+ |s3.client_pool_size|1|The number of S3 clients to create for the benchmark, these will be distributed evenly across the threads|
 
 ## TODO
 
