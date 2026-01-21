@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/pingcap/go-ycsb/pkg/prop"
 	"io"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -46,6 +47,11 @@ const (
 	// S3 scan keys only
 	s3ScanKeysOnly    = "s3.scan_keys_only"
 	s3ScanKeysOnlyDef = false
+
+	// S3 client pool size (number of s3 clients distributed equally to the benchmarking threads)
+	s3ClientPoolSize               = "s3.client_pool_size"
+	s3ClientPoolSizeDef            = 0
+	maxRecommendedS3ClientPoolSize = 64
 )
 
 // s3Creator implements ycsb.DBCreator for the S3 backend.
@@ -61,6 +67,23 @@ func (s s3Creator) Create(p *properties.Properties) (ycsb.DB, error) {
 	usePathStyle := p.GetBool(s3UsePathStyle, s3UsePathStyleDef)
 	updateOverwrite := p.GetBool(s3UpdateOverwrite, s3UpdateOverwriteDef)
 	scanKeysOnly := p.GetBool(s3ScanKeysOnly, s3ScanKeysOnlyDef)
+	threads := p.GetInt64(prop.ThreadCount, prop.ThreadCountDefault)
+	clientPoolSize := p.GetInt(s3ClientPoolSize, s3ClientPoolSizeDef)
+
+	// Set the client pool size based on the number of threads if it's not set. Up to maxRecommendedS3ClientPoolSize
+	// threads, each thread will have it's own client, if there are more, only maxRecommendedS3ClientPoolSize clients
+	// are created. With a high number of threads, client creation can be expensive.
+	if clientPoolSize == s3ClientPoolSizeDef {
+		if threads > maxRecommendedS3ClientPoolSize {
+			clientPoolSize = maxRecommendedS3ClientPoolSize
+		} else {
+			clientPoolSize = int(threads)
+		}
+	}
+
+	if clientPoolSize < 1 {
+		clientPoolSize = 1
+	}
 
 	// Assemble AWS SDK loading options.
 	loadOpts := []func(*config.LoadOptions) error{
@@ -87,16 +110,20 @@ func (s s3Creator) Create(p *properties.Properties) (ycsb.DB, error) {
 		return nil, err
 	}
 
-	client := awss3.NewFromConfig(cfg, func(o *awss3.Options) {
-		o.UsePathStyle = usePathStyle
-	})
+	// Create multiple S3 clients for the pool
+	clients := make([]*awss3.Client, clientPoolSize)
+	for i := 0; i < clientPoolSize; i++ {
+		clients[i] = awss3.NewFromConfig(cfg, func(o *awss3.Options) {
+			o.UsePathStyle = usePathStyle
+		})
+	}
 
-	// Ensure bucket exists (best-effort).
+	// Ensure bucket exists (best-effort) using the first client.
 	ctx := context.TODO()
-	_, err = client.HeadBucket(ctx, &awss3.HeadBucketInput{Bucket: &bucket})
+	_, err = clients[0].HeadBucket(ctx, &awss3.HeadBucketInput{Bucket: &bucket})
 	if err != nil {
 		// Attempt to create bucket if not found.
-		_, cErr := client.CreateBucket(ctx, &awss3.CreateBucketInput{
+		_, cErr := clients[0].CreateBucket(ctx, &awss3.CreateBucketInput{
 			Bucket: &bucket,
 		})
 		if cErr != nil {
@@ -110,7 +137,7 @@ func (s s3Creator) Create(p *properties.Properties) (ycsb.DB, error) {
 	}
 
 	return &s3DB{
-		client:          client,
+		clients:         clients,
 		bucket:          bucket,
 		updateOverwrite: updateOverwrite,
 		scanKeysOnly:    scanKeysOnly,
@@ -119,8 +146,8 @@ func (s s3Creator) Create(p *properties.Properties) (ycsb.DB, error) {
 
 // s3DB implements the ycsb.DB interface for S3-compatible services.
 type s3DB struct {
-	client *awss3.Client
-	bucket string
+	clients []*awss3.Client
+	bucket  string
 
 	// if true, update will overwrite existing object
 	// otherwise, update will perform a read-modify-write operation
@@ -130,22 +157,49 @@ type s3DB struct {
 	scanKeysOnly bool
 }
 
+// contextKey is a type for context keys to avoid collisions
+type contextKey string
+
+const clientIndexKey contextKey = "s3ClientIndex"
+
 // Close closes the driver. No-op for now.
 func (db *s3DB) Close() error { return nil }
 
-// InitThread initializes any per-worker state. Currently returns the input context unchanged.
+// InitThread initializes any per-worker state and assigns a client to this thread.
+// The assignment distributes threads uniformly across the client pool.
 func (db *s3DB) InitThread(ctx context.Context, threadID int, threadCount int) context.Context {
-	return ctx
+	clientPoolSize := len(db.clients)
+
+	// If we have as many or more clients than threads, each thread gets its own client
+	if clientPoolSize >= threadCount {
+		return context.WithValue(ctx, clientIndexKey, threadID%clientPoolSize)
+	}
+
+	// Otherwise, distribute threads uniformly across clients
+	// This ensures the most even distribution possible
+	clientIndex := (threadID * clientPoolSize) / threadCount
+	return context.WithValue(ctx, clientIndexKey, clientIndex)
 }
 
 // CleanupThread cleans up per-worker state. No-op.
 func (db *s3DB) CleanupThread(ctx context.Context) {}
 
+// getClient retrieves the S3 client assigned to the current thread from context.
+// If no client is assigned (shouldn't happen in normal operation), it defaults to the first client.
+func (db *s3DB) getClient(ctx context.Context) *awss3.Client {
+	if idx, ok := ctx.Value(clientIndexKey).(int); ok && idx < len(db.clients) {
+		return db.clients[idx]
+	}
+	// Fallback to first client if context doesn't have a client index
+	return db.clients[0]
+}
+
 // Read fetches a record by key.
 func (db *s3DB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
 	objectKey := db.composeObjectKey(table, key)
 
-	out, err := db.client.GetObject(ctx, &awss3.GetObjectInput{
+	client := db.getClient(ctx)
+	out, err := client.GetObject(ctx, &awss3.GetObjectInput{
 		Bucket: &db.bucket,
 		Key:    &objectKey,
 	})
@@ -212,13 +266,14 @@ func (db *s3DB) Scan(ctx context.Context, table string, startKey string, count i
 	var contToken *string
 	remaining := count - len(results)
 
+	client := db.getClient(ctx)
 	for remaining > 0 {
 		maxKeys := int32(remaining)
 		if maxKeys > 1000 {
 			maxKeys = 1000
 		}
 
-		out, err := db.client.ListObjectsV2(ctx, &awss3.ListObjectsV2Input{
+		out, err := client.ListObjectsV2(ctx, &awss3.ListObjectsV2Input{
 			Bucket:            &db.bucket,
 			Prefix:            &prefix,
 			StartAfter:        &startAfter,
@@ -298,7 +353,8 @@ func (db *s3DB) Insert(ctx context.Context, table string, key string, values map
 		return err
 	}
 
-	_, err = db.client.PutObject(ctx, &awss3.PutObjectInput{
+	client := db.getClient(ctx)
+	_, err = client.PutObject(ctx, &awss3.PutObjectInput{
 		Bucket: &db.bucket,
 		Key:    &objectKey,
 		Body:   bytes.NewReader(payload),
@@ -309,7 +365,8 @@ func (db *s3DB) Insert(ctx context.Context, table string, key string, values map
 // Delete removes a record.
 func (db *s3DB) Delete(ctx context.Context, table string, key string) error {
 	objectKey := db.composeObjectKey(table, key)
-	_, err := db.client.DeleteObject(ctx, &awss3.DeleteObjectInput{
+	client := db.getClient(ctx)
+	_, err := client.DeleteObject(ctx, &awss3.DeleteObjectInput{
 		Bucket: &db.bucket,
 		Key:    &objectKey,
 	})
