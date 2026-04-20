@@ -26,7 +26,10 @@ import (
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
@@ -39,8 +42,11 @@ import (
 )
 
 const (
-	spannerDBName      = "spanner.db"
-	spannerCredentials = "spanner.credentials"
+	spannerDBName           = "spanner.db"
+	spannerCredentials      = "spanner.credentials"
+	spannerEndpoint         = "spanner.endpoint"
+	spannerInsecure         = "spanner.insecure"
+	spannerExperimentalHost = "spanner.experimental_host"
 )
 
 type spannerCreator struct {
@@ -63,20 +69,35 @@ func (c spannerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	d := new(spannerDB)
 	d.p = p
 
-	credentials := p.GetString(spannerCredentials, "")
-	if len(credentials) == 0 {
-		// no credentials provided, try using ~/.spanner/credentials.json"
-		usr, err := user.Current()
-		if err != nil {
-			return nil, err
-		}
-		credentials = path.Join(usr.HomeDir, ".spanner/credentials.json")
+	endpoint := p.GetString(spannerEndpoint, "")
+	isInsecure := p.GetBool(spannerInsecure, false)
+	isExperimentalHost := p.GetBool(spannerExperimentalHost, false)
+
+	var opts []option.ClientOption
+	if endpoint != "" {
+		opts = append(opts, option.WithEndpoint(endpoint))
 	}
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credentials)
+	if isInsecure {
+		opts = append(opts,
+			option.WithoutAuthentication(),
+			option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		)
+	} else {
+		credentials := p.GetString(spannerCredentials, "")
+		if len(credentials) == 0 {
+			// no credentials provided, try using ~/.spanner/credentials.json"
+			usr, err := user.Current()
+			if err != nil {
+				return nil, err
+			}
+			credentials = path.Join(usr.HomeDir, ".spanner/credentials.json")
+		}
+		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credentials)
+	}
 
 	ctx := context.Background()
 
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	adminClient, err := database.NewDatabaseAdminClient(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +115,8 @@ func (c spannerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		return nil, err
 	}
 
-	client, err := spanner.NewClient(ctx, dbName)
+	clientConfig := spanner.ClientConfig{IsExperimentalHost: isExperimentalHost}
+	client, err := spanner.NewClientWithConfig(ctx, dbName, clientConfig, opts...)
 	if err != nil {
 		return nil, err
 	}
