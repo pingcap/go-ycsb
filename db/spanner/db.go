@@ -49,16 +49,19 @@ const (
 	spannerInsecure         = "spanner.insecure"
 	spannerExperimentalHost = "spanner.experimental_host"
 	spannerMaxCommitDelayMs = "spanner.max_commit_delay_ms"
+	spannerUseReadAPI       = "spanner.use_read_api"
 )
 
 type spannerCreator struct {
 }
 
 type spannerDB struct {
-	p         *properties.Properties
-	client    *spanner.Client
-	verbose   bool
-	applyOpts []spanner.ApplyOption
+	p          *properties.Properties
+	client     *spanner.Client
+	verbose    bool
+	applyOpts  []spanner.ApplyOption
+	useReadAPI bool
+	allCols    []string
 }
 
 type contextKey string
@@ -128,6 +131,14 @@ func (c spannerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	if ms := p.GetInt(spannerMaxCommitDelayMs, -1); ms >= 0 {
 		delay := time.Duration(ms) * time.Millisecond
 		d.applyOpts = append(d.applyOpts, spanner.ApplyCommitOptions(spanner.CommitOptions{MaxCommitDelay: &delay}))
+	}
+
+	d.useReadAPI = p.GetBool(spannerUseReadAPI, false)
+	fieldCount := p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
+	d.allCols = make([]string, 0, fieldCount+1)
+	d.allCols = append(d.allCols, "YCSB_KEY")
+	for i := int64(0); i < fieldCount; i++ {
+		d.allCols = append(d.allCols, fmt.Sprintf("FIELD%d", i))
 	}
 
 	if err = d.createTable(ctx, adminClient, dbName); err != nil {
@@ -318,6 +329,10 @@ func rowToMap(row *spanner.Row) (map[string][]byte, error) {
 }
 
 func (db *spannerDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
+	if db.useReadAPI {
+		return db.readViaReadAPI(ctx, table, key, fields)
+	}
+
 	var query string
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = @key`, table)
@@ -337,6 +352,21 @@ func (db *spannerDB) Read(ctx context.Context, table string, key string, fields 
 	}
 
 	return rows[0], nil
+}
+
+func (db *spannerDB) readViaReadAPI(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
+	cols := fields
+	if len(cols) == 0 {
+		cols = db.allCols
+	}
+	row, err := db.client.Single().ReadRow(ctx, table, spanner.Key{key}, cols)
+	if err != nil {
+		if spanner.ErrCode(err) == codes.NotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return rowToMap(row)
 }
 
 func (db *spannerDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
