@@ -376,6 +376,48 @@ func (db *spannerDB) Insert(ctx context.Context, table string, key string, mutat
 	return err
 }
 
+func (db *spannerDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	ms := make([]*spanner.Mutation, 0, len(keys))
+	for i := range keys {
+		cols, vals := createMutations(keys[i], values[i])
+		ms = append(ms, spanner.InsertOrUpdate(table, cols, vals))
+	}
+	_, err := db.client.Apply(ctx, ms)
+	return err
+}
+
+func (db *spannerDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	ms := make([]*spanner.Mutation, 0, len(keys))
+	for i := range keys {
+		cols, vals := createMutations(keys[i], values[i])
+		ms = append(ms, spanner.Update(table, cols, vals))
+	}
+	_, err := db.client.Apply(ctx, ms)
+	return err
+}
+
+func (db *spannerDB) BatchDelete(ctx context.Context, table string, keys []string) error {
+	ms := make([]*spanner.Mutation, 0, len(keys))
+	for _, k := range keys {
+		ms = append(ms, spanner.Delete(table, spanner.Key{k}))
+	}
+	_, err := db.client.Apply(ctx, ms)
+	return err
+}
+
+func (db *spannerDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
+	var proj string
+	if len(fields) == 0 {
+		proj = "*"
+	} else {
+		proj = strings.Join(fields, ",")
+	}
+	query := fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY IN UNNEST(@keys)`, proj, table)
+	stmt := spanner.NewStatement(query)
+	stmt.Params["keys"] = keys
+	return db.queryRows(ctx, stmt, len(keys))
+}
+
 func (db *spannerDB) Delete(ctx context.Context, table string, key string) error {
 	m := spanner.Delete(table, spanner.Key{key})
 	_, err := db.client.Apply(ctx, []*spanner.Mutation{m})
