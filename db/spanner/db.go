@@ -258,29 +258,33 @@ func (db *spannerDB) queryRows(ctx context.Context, stmt spanner.Statement, coun
 			return nil, err
 		}
 
-		rowSize := row.Size()
-		m := make(map[string][]byte, rowSize)
-		dest := make([]interface{}, rowSize)
-		for i := 0; i < rowSize; i++ {
-			v := new(spanner.NullString)
-			dest[i] = v
-		}
-
-		if err := row.Columns(dest...); err != nil {
+		m, err := rowToMap(row)
+		if err != nil {
 			return nil, err
 		}
-
-		for i := 0; i < rowSize; i++ {
-			v := dest[i].(*spanner.NullString)
-			if v.Valid {
-				m[row.ColumnName(i)] = util.Slice(v.StringVal)
-			}
-		}
-
 		vs = append(vs, m)
 	}
 
 	return vs, nil
+}
+
+func rowToMap(row *spanner.Row) (map[string][]byte, error) {
+	n := row.Size()
+	dest := make([]interface{}, n)
+	for i := range dest {
+		dest[i] = new(spanner.NullString)
+	}
+	if err := row.Columns(dest...); err != nil {
+		return nil, err
+	}
+	m := make(map[string][]byte, n)
+	for i, d := range dest {
+		v := d.(*spanner.NullString)
+		if v.Valid {
+			m[row.ColumnName(i)] = util.Slice(v.StringVal)
+		}
+	}
+	return m, nil
 }
 
 func (db *spannerDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
