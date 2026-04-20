@@ -22,6 +22,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
@@ -47,15 +48,17 @@ const (
 	spannerEndpoint         = "spanner.endpoint"
 	spannerInsecure         = "spanner.insecure"
 	spannerExperimentalHost = "spanner.experimental_host"
+	spannerMaxCommitDelayMs = "spanner.max_commit_delay_ms"
 )
 
 type spannerCreator struct {
 }
 
 type spannerDB struct {
-	p       *properties.Properties
-	client  *spanner.Client
-	verbose bool
+	p         *properties.Properties
+	client    *spanner.Client
+	verbose   bool
+	applyOpts []spanner.ApplyOption
 }
 
 type contextKey string
@@ -121,6 +124,11 @@ func (c spannerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		return nil, err
 	}
 	d.client = client
+
+	if ms := p.GetInt(spannerMaxCommitDelayMs, -1); ms >= 0 {
+		delay := time.Duration(ms) * time.Millisecond
+		d.applyOpts = append(d.applyOpts, spanner.ApplyCommitOptions(spanner.CommitOptions{MaxCommitDelay: &delay}))
+	}
 
 	if err = d.createTable(ctx, adminClient, dbName); err != nil {
 		return nil, err
@@ -365,14 +373,14 @@ func createMutations(key string, mutations map[string][]byte) ([]string, []inter
 func (db *spannerDB) Update(ctx context.Context, table string, key string, mutations map[string][]byte) error {
 	keys, values := createMutations(key, mutations)
 	m := spanner.Update(table, keys, values)
-	_, err := db.client.Apply(ctx, []*spanner.Mutation{m})
+	_, err := db.client.Apply(ctx, []*spanner.Mutation{m}, db.applyOpts...)
 	return err
 }
 
 func (db *spannerDB) Insert(ctx context.Context, table string, key string, mutations map[string][]byte) error {
 	keys, values := createMutations(key, mutations)
 	m := spanner.InsertOrUpdate(table, keys, values)
-	_, err := db.client.Apply(ctx, []*spanner.Mutation{m})
+	_, err := db.client.Apply(ctx, []*spanner.Mutation{m}, db.applyOpts...)
 	return err
 }
 
@@ -382,7 +390,7 @@ func (db *spannerDB) BatchInsert(ctx context.Context, table string, keys []strin
 		cols, vals := createMutations(keys[i], values[i])
 		ms = append(ms, spanner.InsertOrUpdate(table, cols, vals))
 	}
-	_, err := db.client.Apply(ctx, ms)
+	_, err := db.client.Apply(ctx, ms, db.applyOpts...)
 	return err
 }
 
@@ -392,7 +400,7 @@ func (db *spannerDB) BatchUpdate(ctx context.Context, table string, keys []strin
 		cols, vals := createMutations(keys[i], values[i])
 		ms = append(ms, spanner.Update(table, cols, vals))
 	}
-	_, err := db.client.Apply(ctx, ms)
+	_, err := db.client.Apply(ctx, ms, db.applyOpts...)
 	return err
 }
 
@@ -401,7 +409,7 @@ func (db *spannerDB) BatchDelete(ctx context.Context, table string, keys []strin
 	for _, k := range keys {
 		ms = append(ms, spanner.Delete(table, spanner.Key{k}))
 	}
-	_, err := db.client.Apply(ctx, ms)
+	_, err := db.client.Apply(ctx, ms, db.applyOpts...)
 	return err
 }
 
@@ -420,7 +428,7 @@ func (db *spannerDB) BatchRead(ctx context.Context, table string, keys []string,
 
 func (db *spannerDB) Delete(ctx context.Context, table string, key string) error {
 	m := spanner.Delete(table, spanner.Key{key})
-	_, err := db.client.Apply(ctx, []*spanner.Mutation{m})
+	_, err := db.client.Apply(ctx, []*spanner.Mutation{m}, db.applyOpts...)
 	return err
 }
 
