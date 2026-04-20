@@ -26,6 +26,8 @@ import (
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 
@@ -114,11 +116,12 @@ func (db *spannerDB) createDatabase(ctx context.Context, adminClient *database.D
 	database, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{
 		Name: dbName,
 	})
-	if err != nil {
+	notFound := status.Code(err) == codes.NotFound
+	if err != nil && !notFound {
 		return "", err
 	}
 
-	if database.State == adminpb.Database_STATE_UNSPECIFIED {
+	if notFound || database.State == adminpb.Database_STATE_UNSPECIFIED {
 		op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 			Parent:          matches[1],
 			CreateStatement: "CREATE DATABASE `" + matches[2] + "`",
