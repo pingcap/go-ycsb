@@ -22,10 +22,16 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 
@@ -37,17 +43,25 @@ import (
 )
 
 const (
-	spannerDBName      = "spanner.db"
-	spannerCredentials = "spanner.credentials"
+	spannerDBName           = "spanner.db"
+	spannerCredentials      = "spanner.credentials"
+	spannerEndpoint         = "spanner.endpoint"
+	spannerInsecure         = "spanner.insecure"
+	spannerExperimentalHost = "spanner.experimental_host"
+	spannerMaxCommitDelayMs = "spanner.max_commit_delay_ms"
+	spannerUseReadAPI       = "spanner.use_read_api"
 )
 
 type spannerCreator struct {
 }
 
 type spannerDB struct {
-	p       *properties.Properties
-	client  *spanner.Client
-	verbose bool
+	p          *properties.Properties
+	client     *spanner.Client
+	verbose    bool
+	applyOpts  []spanner.ApplyOption
+	useReadAPI bool
+	allCols    []string
 }
 
 type contextKey string
@@ -61,20 +75,35 @@ func (c spannerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 	d := new(spannerDB)
 	d.p = p
 
-	credentials := p.GetString(spannerCredentials, "")
-	if len(credentials) == 0 {
-		// no credentials provided, try using ~/.spanner/credentials.json"
-		usr, err := user.Current()
-		if err != nil {
-			return nil, err
-		}
-		credentials = path.Join(usr.HomeDir, ".spanner/credentials.json")
+	endpoint := p.GetString(spannerEndpoint, "")
+	isInsecure := p.GetBool(spannerInsecure, false)
+	isExperimentalHost := p.GetBool(spannerExperimentalHost, false)
+
+	var opts []option.ClientOption
+	if endpoint != "" {
+		opts = append(opts, option.WithEndpoint(endpoint))
 	}
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credentials)
+	if isInsecure {
+		opts = append(opts,
+			option.WithoutAuthentication(),
+			option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+		)
+	} else {
+		credentials := p.GetString(spannerCredentials, "")
+		if len(credentials) == 0 {
+			// no credentials provided, try using ~/.spanner/credentials.json"
+			usr, err := user.Current()
+			if err != nil {
+				return nil, err
+			}
+			credentials = path.Join(usr.HomeDir, ".spanner/credentials.json")
+		}
+		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credentials)
+	}
 
 	ctx := context.Background()
 
-	adminClient, err := database.NewDatabaseAdminClient(ctx)
+	adminClient, err := database.NewDatabaseAdminClient(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -92,11 +121,25 @@ func (c spannerCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		return nil, err
 	}
 
-	client, err := spanner.NewClient(ctx, dbName)
+	clientConfig := spanner.ClientConfig{IsExperimentalHost: isExperimentalHost}
+	client, err := spanner.NewClientWithConfig(ctx, dbName, clientConfig, opts...)
 	if err != nil {
 		return nil, err
 	}
 	d.client = client
+
+	if ms := p.GetInt(spannerMaxCommitDelayMs, -1); ms >= 0 {
+		delay := time.Duration(ms) * time.Millisecond
+		d.applyOpts = append(d.applyOpts, spanner.ApplyCommitOptions(spanner.CommitOptions{MaxCommitDelay: &delay}))
+	}
+
+	d.useReadAPI = p.GetBool(spannerUseReadAPI, false)
+	fieldCount := p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
+	d.allCols = make([]string, 0, fieldCount+1)
+	d.allCols = append(d.allCols, "YCSB_KEY")
+	for i := int64(0); i < fieldCount; i++ {
+		d.allCols = append(d.allCols, fmt.Sprintf("FIELD%d", i))
+	}
 
 	if err = d.createTable(ctx, adminClient, dbName); err != nil {
 		return nil, err
@@ -114,11 +157,12 @@ func (db *spannerDB) createDatabase(ctx context.Context, adminClient *database.D
 	database, err := adminClient.GetDatabase(ctx, &adminpb.GetDatabaseRequest{
 		Name: dbName,
 	})
-	if err != nil {
+	notFound := status.Code(err) == codes.NotFound
+	if err != nil && !notFound {
 		return "", err
 	}
 
-	if database.State == adminpb.Database_STATE_UNSPECIFIED {
+	if notFound || database.State == adminpb.Database_STATE_UNSPECIFIED {
 		op, err := adminClient.CreateDatabase(ctx, &adminpb.CreateDatabaseRequest{
 			Parent:          matches[1],
 			CreateStatement: "CREATE DATABASE `" + matches[2] + "`",
@@ -255,32 +299,40 @@ func (db *spannerDB) queryRows(ctx context.Context, stmt spanner.Statement, coun
 			return nil, err
 		}
 
-		rowSize := row.Size()
-		m := make(map[string][]byte, rowSize)
-		dest := make([]interface{}, rowSize)
-		for i := 0; i < rowSize; i++ {
-			v := new(spanner.NullString)
-			dest[i] = v
-		}
-
-		if err := row.Columns(dest...); err != nil {
+		m, err := rowToMap(row)
+		if err != nil {
 			return nil, err
 		}
-
-		for i := 0; i < rowSize; i++ {
-			v := dest[i].(*spanner.NullString)
-			if v.Valid {
-				m[row.ColumnName(i)] = util.Slice(v.StringVal)
-			}
-		}
-
 		vs = append(vs, m)
 	}
 
 	return vs, nil
 }
 
+func rowToMap(row *spanner.Row) (map[string][]byte, error) {
+	n := row.Size()
+	dest := make([]interface{}, n)
+	for i := range dest {
+		dest[i] = new(spanner.NullString)
+	}
+	if err := row.Columns(dest...); err != nil {
+		return nil, err
+	}
+	m := make(map[string][]byte, n)
+	for i, d := range dest {
+		v := d.(*spanner.NullString)
+		if v.Valid {
+			m[row.ColumnName(i)] = util.Slice(v.StringVal)
+		}
+	}
+	return m, nil
+}
+
 func (db *spannerDB) Read(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
+	if db.useReadAPI {
+		return db.readViaReadAPI(ctx, table, key, fields)
+	}
+
 	var query string
 	if len(fields) == 0 {
 		query = fmt.Sprintf(`SELECT * FROM %s WHERE YCSB_KEY = @key`, table)
@@ -300,6 +352,21 @@ func (db *spannerDB) Read(ctx context.Context, table string, key string, fields 
 	}
 
 	return rows[0], nil
+}
+
+func (db *spannerDB) readViaReadAPI(ctx context.Context, table string, key string, fields []string) (map[string][]byte, error) {
+	cols := fields
+	if len(cols) == 0 {
+		cols = db.allCols
+	}
+	row, err := db.client.Single().ReadRow(ctx, table, spanner.Key{key}, cols)
+	if err != nil {
+		if spanner.ErrCode(err) == codes.NotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return rowToMap(row)
 }
 
 func (db *spannerDB) Scan(ctx context.Context, table string, startKey string, count int, fields []string) ([]map[string][]byte, error) {
@@ -336,20 +403,62 @@ func createMutations(key string, mutations map[string][]byte) ([]string, []inter
 func (db *spannerDB) Update(ctx context.Context, table string, key string, mutations map[string][]byte) error {
 	keys, values := createMutations(key, mutations)
 	m := spanner.Update(table, keys, values)
-	_, err := db.client.Apply(ctx, []*spanner.Mutation{m})
+	_, err := db.client.Apply(ctx, []*spanner.Mutation{m}, db.applyOpts...)
 	return err
 }
 
 func (db *spannerDB) Insert(ctx context.Context, table string, key string, mutations map[string][]byte) error {
 	keys, values := createMutations(key, mutations)
 	m := spanner.InsertOrUpdate(table, keys, values)
-	_, err := db.client.Apply(ctx, []*spanner.Mutation{m})
+	_, err := db.client.Apply(ctx, []*spanner.Mutation{m}, db.applyOpts...)
 	return err
+}
+
+func (db *spannerDB) BatchInsert(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	ms := make([]*spanner.Mutation, 0, len(keys))
+	for i := range keys {
+		cols, vals := createMutations(keys[i], values[i])
+		ms = append(ms, spanner.InsertOrUpdate(table, cols, vals))
+	}
+	_, err := db.client.Apply(ctx, ms, db.applyOpts...)
+	return err
+}
+
+func (db *spannerDB) BatchUpdate(ctx context.Context, table string, keys []string, values []map[string][]byte) error {
+	ms := make([]*spanner.Mutation, 0, len(keys))
+	for i := range keys {
+		cols, vals := createMutations(keys[i], values[i])
+		ms = append(ms, spanner.Update(table, cols, vals))
+	}
+	_, err := db.client.Apply(ctx, ms, db.applyOpts...)
+	return err
+}
+
+func (db *spannerDB) BatchDelete(ctx context.Context, table string, keys []string) error {
+	ms := make([]*spanner.Mutation, 0, len(keys))
+	for _, k := range keys {
+		ms = append(ms, spanner.Delete(table, spanner.Key{k}))
+	}
+	_, err := db.client.Apply(ctx, ms, db.applyOpts...)
+	return err
+}
+
+func (db *spannerDB) BatchRead(ctx context.Context, table string, keys []string, fields []string) ([]map[string][]byte, error) {
+	var proj string
+	if len(fields) == 0 {
+		proj = "*"
+	} else {
+		proj = strings.Join(fields, ",")
+	}
+	query := fmt.Sprintf(`SELECT %s FROM %s WHERE YCSB_KEY IN UNNEST(@keys)`, proj, table)
+	stmt := spanner.NewStatement(query)
+	stmt.Params["keys"] = keys
+	return db.queryRows(ctx, stmt, len(keys))
 }
 
 func (db *spannerDB) Delete(ctx context.Context, table string, key string) error {
 	m := spanner.Delete(table, spanner.Key{key})
-	_, err := db.client.Apply(ctx, []*spanner.Mutation{m})
+	_, err := db.client.Apply(ctx, []*spanner.Mutation{m}, db.applyOpts...)
 	return err
 }
 
