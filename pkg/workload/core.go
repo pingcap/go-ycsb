@@ -408,7 +408,16 @@ func (c *core) nextKeyNum(state *coreState) int64 {
 			keyNum = c.transactionInsertKeySequence.Last() - c.keyChooser.Next(r)
 		}
 	} else {
+		// The zipfian chooser's range is extended by the expected number of
+		// run-phase inserts (see expectedNewKeys) so that the scrambled
+		// mapping of popular keys stays stable while the keyspace grows.
+		// Keys in the extension only exist once actually inserted, so redraw
+		// until the chosen key is within the acknowledged range. Mirrors the
+		// guard in upstream YCSB CoreWorkload.nextKeynum.
 		keyNum = c.keyChooser.Next(r)
+		for keyNum > c.transactionInsertKeySequence.Last() {
+			keyNum = c.keyChooser.Next(r)
+		}
 	}
 	return keyNum
 }
