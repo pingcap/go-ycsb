@@ -272,7 +272,7 @@ func (c *core) DoInsert(ctx context.Context, db ycsb.DB) error {
 	var err error
 	for {
 		err = db.Insert(ctx, c.table, dbKey, values)
-		if err != nil {
+		if err == nil {
 			break
 		}
 
@@ -610,6 +610,9 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 	c.p = p
 	c.table = p.GetString(prop.TableName, prop.TableNameDefault)
 	c.fieldCount = p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
+	if c.fieldCount <= 0 {
+		util.Fatalf("%s must be > 0, got %d", prop.FieldCount, c.fieldCount)
+	}
 	c.fieldNames = make([]string, c.fieldCount)
 	for i := int64(0); i < c.fieldCount; i++ {
 		c.fieldNames[i] = fmt.Sprintf("field%d", i)
