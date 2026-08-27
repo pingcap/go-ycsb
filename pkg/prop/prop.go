@@ -47,13 +47,63 @@ const (
 	FieldLengthDistributionDefault = "constant"
 	FieldLength                    = "fieldlength"
 	FieldLengthDefault             = int64(100)
+	// Lower bound for "uniform"/"zipfian" fieldlengthdistribution. Lets a
+	// workload model field sizes that vary within a range (e.g. 8-24 bytes)
+	// instead of always starting at 1 byte.
+	FieldLengthMinimum        = "fieldlengthminimum"
+	FieldLengthMinimumDefault = int64(1)
 	// Used if fieldlengthdistribution is "histogram"
-	FieldLengthHistogramFile         = "fieldlengthhistogram"
-	FieldLengthHistogramFileDefault  = "hist.txt"
-	ReadAllFields                    = "readallfields"
-	ReadALlFieldsDefault             = true
-	WriteAllFields                   = "writeallfields"
-	WriteAllFieldsDefault            = false
+	FieldLengthHistogramFile        = "fieldlengthhistogram"
+	FieldLengthHistogramFileDefault = "hist.txt"
+	ReadAllFields                   = "readallfields"
+	ReadALlFieldsDefault            = true
+	WriteAllFields                  = "writeallfields"
+	WriteAllFieldsDefault           = false
+	// FieldNamePrefix/FieldNameStartIndex control how the generated field
+	// names (field0, field1, ...) are built, e.g. fieldnameprefix=feature_
+	// fieldnamestartindex=1 produces feature_1..feature_N.
+	FieldNamePrefix            = "fieldnameprefix"
+	FieldNamePrefixDefault     = "field"
+	FieldNameStartIndex        = "fieldnamestartindex"
+	FieldNameStartIndexDefault = int64(0)
+	// LastFieldName, if set, overrides the name of the final generated field.
+	// Useful for modeling a trailing metadata column alongside numbered
+	// feature fields, e.g. lastfieldname=event_ts.
+	LastFieldName        = "lastfieldname"
+	LastFieldNameDefault = ""
+	// FieldValueType controls the CONTENT of generated field values, not
+	// just their size. Feature-store fields are typically typed scalars
+	// (Feast: INT32/INT64/FLOAT32/FLOAT64/BOOL/STRING/UNIX_TIMESTAMP;
+	// Featureform: Int/Int32/Int64/Float32/Float64/Bool/String/Timestamp)
+	// rather than opaque bytes, so a workload can opt into realistic typed
+	// content instead of the default random-byte payload.
+	// One of: "random" (default, opaque random bytes), "numeric" (a mix of
+	// integer/float/boolean scalars), "integer", "float", "boolean",
+	// "timestamp" (RFC3339, e.g. for an event-time metadata field).
+	FieldValueType        = "fieldvaluetype"
+	FieldValueTypeDefault = "random"
+	// LastFieldValueType, if set, overrides the value type of the final
+	// generated field (see LastFieldName), e.g. lastfieldvaluetype=timestamp
+	// to give a trailing event_ts field realistic RFC3339 content while
+	// numbered feature fields stay numeric.
+	LastFieldValueType        = "lastfieldvaluetype"
+	LastFieldValueTypeDefault = ""
+	// Magnitude/precision for "integer" and "float" fieldvaluetype content.
+	// Defaults model the shape of typical feature-store scalars - e.g.
+	// Feast's driver-ranking demo features conv_rate/acc_rate (floats in
+	// [0,1)) and avg_daily_trips (a small bounded count) - rather than
+	// digit-filling to a target byte length.
+	FieldValueIntegerMin        = "fieldvalueintegermin"
+	FieldValueIntegerMinDefault = int64(0)
+	FieldValueIntegerMax        = "fieldvalueintegermax"
+	FieldValueIntegerMaxDefault = int64(100000)
+	FieldValueFloatMin          = "fieldvaluefloatmin"
+	FieldValueFloatMinDefault   = float64(0.0)
+	FieldValueFloatMax          = "fieldvaluefloatmax"
+	FieldValueFloatMaxDefault   = float64(1.0)
+	// Decimal places for "float" fieldvaluetype content, e.g. "0.8472".
+	FieldValueFloatPrecision         = "fieldvaluefloatprecision"
+	FieldValueFloatPrecisionDefault  = int64(4)
 	DataIntegrity                    = "dataintegrity"
 	DataIntegrityDefault             = false
 	ReadProportion                   = "readproportion"

@@ -25,6 +25,7 @@ const HMGET string = "HMGET"
 
 type redisClient interface {
 	Get(ctx context.Context, key string) *goredis.StringCmd
+	HGetAll(ctx context.Context, key string) *goredis.MapStringStringCmd
 	Do(ctx context.Context, args ...interface{}) *goredis.Cmd
 	Pipeline() goredis.Pipeliner
 	Scan(ctx context.Context, cursor uint64, match string, count int64) *goredis.ScanCmd
@@ -75,6 +76,29 @@ func (r *redis) Read(ctx context.Context, table string, key string, fields []str
 			data[fieldName] = []byte(s)
 		}
 	case HASH_DATATYPE:
+		// Whole-entity read: nil/empty fields, or the full field set, maps to
+		// HGETALL rather than an HMGET enumerating every field. This matches
+		// how a feature-store style entity-major hash is served in production
+		// and lets Redis walk the hash directly instead of parsing a field list.
+		if len(fields) == 0 || int64(len(fields)) == r.fieldcount {
+			mapReply, errI := r.client.HGetAll(ctx, getKeyName(table, key)).Result()
+			if errI != nil {
+				err = errI
+				return
+			}
+			// Redis never stores a hash with zero fields (deleting the last
+			// field deletes the key), so an empty reply unambiguously means
+			// the key doesn't exist - surface that as an error rather than a
+			// silent empty-but-successful read, matching the HMGET path below.
+			if len(mapReply) == 0 {
+				err = fmt.Errorf("redis: no such key %q", getKeyName(table, key))
+				return
+			}
+			for fieldName, value := range mapReply {
+				data[fieldName] = []byte(value)
+			}
+			return
+		}
 		args := make([]interface{}, 0, len(fields)+2)
 		args = append(args, HMGET, getKeyName(table, key))
 		for _, fieldName := range fields {
