@@ -1,0 +1,116 @@
+# Feature-store workload: entity-major online serving.
+#
+# Models the same layout as the redis-benchmarks-specification playbook
+# "memtier_benchmark-playbook-feature-store-hash-10M-entities-50-features":
+# https://github.com/redis/redis-benchmarks-specification/blob/main/redis_benchmarks_specification/test-suites/memtier_benchmark-playbook-feature-store-hash-10M-entities-50-features-template.yml
+#
+#   - ENTITY-MAJOR storage: each entity is one record (a Redis hash / a Mongo
+#     document) holding all of that entity's feature values, keyed
+#     <keyprefix><entity-id>.
+#   - Each record holds 50 numbered feature fields (feature_1..feature_50)
+#     plus one trailing event_ts metadata field: 51 fields total.
+#   - Field values are realistic typed scalars, not opaque bytes - matching
+#     how feature stores actually represent a feature (Feast: INT32/INT64/
+#     FLOAT32/FLOAT64/BOOL/UNIX_TIMESTAMP; Featureform: Int/Float/Bool/
+#     Timestamp). By default: feature_N fields are a numeric mix (rates/
+#     scores in [0,1), bounded counts, booleans - see fieldvalueinteger*/
+#     fieldvaluefloat* below to tune the ranges), and event_ts is a real
+#     RFC3339 timestamp. Set fieldvaluetype=random / lastfieldvaluetype=
+#     (empty) to instead reproduce the reference spec's memtier
+#     --random-data byte-for-byte (opaque bytes, only SIZE matters, 8-24
+#     bytes via fieldlength/fieldlengthminimum below) - note the numeric
+#     default changes the resident memory footprint vs. the reference
+#     spec's ~17GB, since Redis listpack-encodes digit-only values as
+#     integers.
+#   - Whole-entity online serving read: one round-trip fetching every field
+#     (Redis: HGETALL; Mongo: findOne projecting all 51 field names, i.e.
+#     the whole document).
+#   - Whole-row feature materialization write: one round-trip writing every
+#     field (Redis: HSET key f1 v1 ... f51 v51; Mongo: $set of every field).
+#   - Read-dominated online serving, ~95:5 (HGETALL:HSET == 19:1), against a
+#     Zipfian-skewed key population (a "hot" subset of entities is served
+#     disproportionately more often, as in real online inference traffic).
+#
+# Works out of the box against any database adapter, since the field
+# generation this workload relies on (typed values, field naming) lives in
+# the DB-agnostic core workload - `redis` (redis.datatype=hash, the default)
+# gets a whole-entity HGETALL/HSET fast path (see db/redis/db.go's Read),
+# `mongodb` stores each entity as a document with no extra configuration
+# needed.
+#
+# Usage:
+#   ./bin/go-ycsb load redis   -P workloads/workload_feature_store -p redis.addr=127.0.0.1:6379
+#   ./bin/go-ycsb run  redis   -P workloads/workload_feature_store -p redis.addr=127.0.0.1:6379
+#   ./bin/go-ycsb load mongodb -P workloads/workload_feature_store -p mongodb.url="mongodb://127.0.0.1:27017/ycsb"
+#   ./bin/go-ycsb run  mongodb -P workloads/workload_feature_store -p mongodb.url="mongodb://127.0.0.1:27017/ycsb"
+#
+# Scale down recordcount/operationcount for a quick local smoke test, e.g.
+#   -p recordcount=100000 -p operationcount=1000000
+
+workload=core
+
+# One hash per entity: feature_store:user_features:entity:<id>
+table=feature_store
+keyprefix=user_features:entity:
+
+# 10M entities, matching the reference dataset. Lower for local testing.
+recordcount=10000000
+operationcount=10000000
+threadcount=25
+
+# Entity ids are assigned sequentially during Load (1, 2, 3, ...) rather
+# than hashed/scrambled, matching the reference preload's sequential
+# key-minimum/key-maximum walk.
+insertorder=ordered
+
+# 50 numbered feature fields (feature_1..feature_50) + a trailing event_ts
+# metadata field = 51 fields per entity.
+fieldcount=51
+fieldnameprefix=feature_
+fieldnamestartindex=1
+lastfieldname=event_ts
+
+# Only used when fieldvaluetype=random (see below): 8-24 byte values,
+# matching memtier's --data-size-range=8-24.
+fieldlength=24
+fieldlengthminimum=8
+fieldlengthdistribution=uniform
+
+# Value content: feature_N fields get a realistic numeric (int/float/bool)
+# mix shaped like real Feast/Featureform feature values, and event_ts gets
+# a real RFC3339 timestamp.
+fieldvaluetype=numeric
+lastfieldvaluetype=timestamp
+
+# Tune the numeric ranges/precision to match your own features, e.g. a
+# bounded count column instead of the [0,100000] default:
+#fieldvalueintegermin=0
+#fieldvalueintegermax=100000
+#fieldvaluefloatmin=0.0
+#fieldvaluefloatmax=1.0
+#fieldvaluefloatprecision=4
+
+# To instead reproduce the reference spec exactly (opaque random bytes,
+# only SIZE matters), uncomment:
+#fieldvaluetype=random
+#lastfieldvaluetype=
+
+# Whole-entity serving: HGETALL / full-document read, HSET-all-fields /
+# full-document write - never a single-field read or partial update.
+readallfields=true
+writeallfields=true
+
+# Read-dominated online serving, ~95:5 (HGETALL:HSET ratio 19:1).
+readproportion=0.95
+updateproportion=0.05
+insertproportion=0
+scanproportion=0
+readmodifywriteproportion=0
+
+# Serving traffic favors a hot subset of entities, as in real online
+# inference load, rather than hitting the whole keyspace uniformly.
+requestdistribution=zipfian
+
+# Redis-specific: entity-major hash storage (the layout this workload
+# models). Ignored by other databases.
+redis.datatype=hash

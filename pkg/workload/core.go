@@ -52,15 +52,33 @@ const (
 	readModifyWrite
 )
 
+// Field value content types (prop.FieldValueType / prop.LastFieldValueType).
+const (
+	fieldValueTypeRandom    = "random"
+	fieldValueTypeNumeric   = "numeric"
+	fieldValueTypeInteger   = "integer"
+	fieldValueTypeFloat     = "float"
+	fieldValueTypeBoolean   = "boolean"
+	fieldValueTypeTimestamp = "timestamp"
+)
+
 // Core is the core benchmark scenario. Represents a set of clients doing simple CRUD operations.
 type core struct {
 	p *properties.Properties
 
-	table      string
-	fieldCount int64
-	fieldNames []string
+	table         string
+	fieldCount    int64
+	fieldNames    []string
+	lastFieldName string
 
 	fieldLengthGenerator ycsb.Generator
+	fieldValueType       string
+	lastFieldValueType   string
+	fieldValueIntegerMin int64
+	fieldValueIntegerMax int64
+	fieldValueFloatMin   float64
+	fieldValueFloatMax   float64
+	fieldValueFloatPrec  int64
 	readAllFields        bool
 	writeAllFields       bool
 	dataIntegrity        bool
@@ -84,15 +102,16 @@ func getFieldLengthGenerator(p *properties.Properties) ycsb.Generator {
 	var fieldLengthGenerator ycsb.Generator
 	fieldLengthDistribution := p.GetString(prop.FieldLengthDistribution, prop.FieldLengthDistributionDefault)
 	fieldLength := p.GetInt64(prop.FieldLength, prop.FieldLengthDefault)
+	fieldLengthMinimum := p.GetInt64(prop.FieldLengthMinimum, prop.FieldLengthMinimumDefault)
 	fieldLengthHistogram := p.GetString(prop.FieldLengthHistogramFile, prop.FieldLengthHistogramFileDefault)
 
 	switch strings.ToLower(fieldLengthDistribution) {
 	case "constant":
 		fieldLengthGenerator = generator.NewConstant(fieldLength)
 	case "uniform":
-		fieldLengthGenerator = generator.NewUniform(1, fieldLength)
+		fieldLengthGenerator = generator.NewUniform(fieldLengthMinimum, fieldLength)
 	case "zipfian":
-		fieldLengthGenerator = generator.NewZipfianWithRange(1, fieldLength, generator.ZipfianConstant)
+		fieldLengthGenerator = generator.NewZipfianWithRange(fieldLengthMinimum, fieldLength, generator.ZipfianConstant)
 	case "histogram":
 		fieldLengthGenerator = generator.NewHistogramFromFile(fieldLengthHistogram)
 	default:
@@ -179,7 +198,7 @@ func (c *core) buildSingleValue(state *coreState, key string) map[string][]byte 
 	if c.dataIntegrity {
 		buf = c.buildDeterministicValue(state, key, fieldKey)
 	} else {
-		buf = c.buildRandomValue(state)
+		buf = c.buildFieldValue(state, fieldKey)
 	}
 
 	values[fieldKey] = buf
@@ -195,7 +214,7 @@ func (c *core) buildValues(state *coreState, key string) map[string][]byte {
 		if c.dataIntegrity {
 			buf = c.buildDeterministicValue(state, key, fieldKey)
 		} else {
-			buf = c.buildRandomValue(state)
+			buf = c.buildFieldValue(state, fieldKey)
 		}
 
 		values[fieldKey] = buf
@@ -209,6 +228,9 @@ func (c *core) getValueBuffer(size int) []byte {
 		return buf[0:size]
 	}
 
+	// If pooled buffer is too small, put it back and allocate a new one
+	// The new larger buffer will be returned to the pool later
+	c.valuePool.Put(buf)
 	return make([]byte, size)
 }
 
@@ -224,6 +246,85 @@ func (c *core) buildRandomValue(state *coreState) []byte {
 	buf := c.getValueBuffer(int(c.fieldLengthGenerator.Next(r)))
 	util.RandBytes(r, buf)
 	return buf
+}
+
+// buildFieldValue generates a field's content according to fieldValueType
+// (or lastFieldValueType, for the trailing lastFieldName field), letting a
+// workload model realistic typed scalars - as feature stores such as Feast
+// (INT32/INT64/FLOAT32/FLOAT64/BOOL/STRING/UNIX_TIMESTAMP) and Featureform
+// (Int/Float/Bool/String/Timestamp) do - instead of opaque random bytes.
+func (c *core) buildFieldValue(state *coreState, fieldKey string) []byte {
+	valueType := c.fieldValueType
+	if c.lastFieldValueType != "" && fieldKey == c.lastFieldName {
+		valueType = c.lastFieldValueType
+	}
+
+	switch valueType {
+	case fieldValueTypeInteger:
+		return c.buildIntegerValue(state)
+	case fieldValueTypeFloat:
+		return c.buildFloatValue(state)
+	case fieldValueTypeBoolean:
+		return c.buildBooleanValue(state)
+	case fieldValueTypeTimestamp:
+		return c.buildTimestampValue(state)
+	case fieldValueTypeNumeric:
+		// A realistic mix of the scalar kinds a feature store actually
+		// serves: mostly numeric (float/int), occasionally boolean.
+		switch state.r.Intn(10) {
+		case 0, 1:
+			return c.buildBooleanValue(state)
+		case 2, 3, 4, 5:
+			return c.buildFloatValue(state)
+		default:
+			return c.buildIntegerValue(state)
+		}
+	default:
+		return c.buildRandomValue(state)
+	}
+}
+
+// buildIntegerValue generates a decimal integer sampled uniformly from
+// [fieldValueIntegerMin, fieldValueIntegerMax] - the shape of a typical
+// feature-store count column (e.g. Feast's avg_daily_trips) - rather than
+// digit-filling to a target byte length.
+func (c *core) buildIntegerValue(state *coreState) []byte {
+	r := state.r
+	n := c.fieldValueIntegerMin + r.Int63n(c.fieldValueIntegerMax-c.fieldValueIntegerMin+1)
+	s := strconv.FormatInt(n, 10)
+	buf := c.getValueBuffer(len(s))
+	copy(buf, s)
+	return buf
+}
+
+// buildFloatValue generates a decimal float sampled uniformly from
+// [fieldValueFloatMin, fieldValueFloatMax) at fieldValueFloatPrec decimal
+// places, e.g. "0.8472" for the default [0,1) range - the shape of a typical
+// feature-store rate/score/probability column.
+func (c *core) buildFloatValue(state *coreState) []byte {
+	r := state.r
+	v := c.fieldValueFloatMin + r.Float64()*(c.fieldValueFloatMax-c.fieldValueFloatMin)
+	s := strconv.FormatFloat(v, 'f', int(c.fieldValueFloatPrec), 64)
+	buf := c.getValueBuffer(len(s))
+	copy(buf, s)
+	return buf
+}
+
+// buildBooleanValue returns the canonical "true"/"false" string a feature
+// store serializes a boolean feature as; fieldLengthGenerator does not apply
+// since a boolean has a fixed textual representation.
+func (c *core) buildBooleanValue(state *coreState) []byte {
+	if state.r.Intn(2) == 0 {
+		return []byte("true")
+	}
+	return []byte("false")
+}
+
+// buildTimestampValue returns an RFC3339 timestamp (e.g. for an event_ts
+// metadata field), sampled within the last 30 days.
+func (c *core) buildTimestampValue(state *coreState) []byte {
+	offset := time.Duration(state.r.Int63n(int64(30 * 24 * time.Hour)))
+	return []byte(time.Now().Add(-offset).UTC().Format(time.RFC3339))
 }
 
 func (c *core) buildDeterministicValue(state *coreState, key string, fieldKey string) []byte {
@@ -610,9 +711,48 @@ func (coreCreator) Create(p *properties.Properties) (ycsb.Workload, error) {
 	c.p = p
 	c.table = p.GetString(prop.TableName, prop.TableNameDefault)
 	c.fieldCount = p.GetInt64(prop.FieldCount, prop.FieldCountDefault)
+	fieldNamePrefix := p.GetString(prop.FieldNamePrefix, prop.FieldNamePrefixDefault)
+	fieldNameStartIndex := p.GetInt64(prop.FieldNameStartIndex, prop.FieldNameStartIndexDefault)
+	lastFieldName := p.GetString(prop.LastFieldName, prop.LastFieldNameDefault)
 	c.fieldNames = make([]string, c.fieldCount)
 	for i := int64(0); i < c.fieldCount; i++ {
-		c.fieldNames[i] = fmt.Sprintf("field%d", i)
+		c.fieldNames[i] = fmt.Sprintf("%s%d", fieldNamePrefix, fieldNameStartIndex+i)
+	}
+	if lastFieldName != "" && c.fieldCount > 0 {
+		c.fieldNames[c.fieldCount-1] = lastFieldName
+	}
+	c.lastFieldName = lastFieldName
+	c.fieldValueType = p.GetString(prop.FieldValueType, prop.FieldValueTypeDefault)
+	c.lastFieldValueType = p.GetString(prop.LastFieldValueType, prop.LastFieldValueTypeDefault)
+	c.fieldValueIntegerMin = p.GetInt64(prop.FieldValueIntegerMin, prop.FieldValueIntegerMinDefault)
+	c.fieldValueIntegerMax = p.GetInt64(prop.FieldValueIntegerMax, prop.FieldValueIntegerMaxDefault)
+	c.fieldValueFloatMin = p.GetFloat64(prop.FieldValueFloatMin, prop.FieldValueFloatMinDefault)
+	c.fieldValueFloatMax = p.GetFloat64(prop.FieldValueFloatMax, prop.FieldValueFloatMaxDefault)
+	c.fieldValueFloatPrec = p.GetInt64(prop.FieldValueFloatPrecision, prop.FieldValueFloatPrecisionDefault)
+	if c.fieldValueIntegerMax < c.fieldValueIntegerMin {
+		util.Fatalf("%s (%d) must be >= %s (%d)", prop.FieldValueIntegerMax, c.fieldValueIntegerMax, prop.FieldValueIntegerMin, c.fieldValueIntegerMin)
+	}
+	// diff<0 (wrapped) or diff==MaxInt64 (diff+1 would wrap) both mean the
+	// span doesn't fit the int64 range Int63n needs; either panics at value
+	// generation time instead of failing cleanly here.
+	if diff := c.fieldValueIntegerMax - c.fieldValueIntegerMin; diff < 0 || diff == math.MaxInt64 {
+		util.Fatalf("%s..%s span is too large to fit in an int64", prop.FieldValueIntegerMin, prop.FieldValueIntegerMax)
+	}
+	if c.fieldValueFloatMax < c.fieldValueFloatMin {
+		util.Fatalf("%s (%v) must be >= %s (%v)", prop.FieldValueFloatMax, c.fieldValueFloatMax, prop.FieldValueFloatMin, c.fieldValueFloatMin)
+	}
+	switch c.fieldValueType {
+	case fieldValueTypeRandom, fieldValueTypeNumeric, fieldValueTypeInteger, fieldValueTypeFloat, fieldValueTypeBoolean, fieldValueTypeTimestamp:
+	default:
+		util.Fatalf("unknown %s %q: expected random, numeric, integer, float, boolean, or timestamp", prop.FieldValueType, c.fieldValueType)
+	}
+	switch c.lastFieldValueType {
+	case "", fieldValueTypeRandom, fieldValueTypeNumeric, fieldValueTypeInteger, fieldValueTypeFloat, fieldValueTypeBoolean, fieldValueTypeTimestamp:
+	default:
+		util.Fatalf("unknown %s %q: expected random, numeric, integer, float, boolean, or timestamp", prop.LastFieldValueType, c.lastFieldValueType)
+	}
+	if c.lastFieldValueType != "" && c.lastFieldName == "" {
+		util.Fatalf("%s is set but %s is not - it has no field to apply to", prop.LastFieldValueType, prop.LastFieldName)
 	}
 	c.fieldLengthGenerator = getFieldLengthGenerator(p)
 	c.recordCount = p.GetInt64(prop.RecordCount, prop.RecordCountDefault)
