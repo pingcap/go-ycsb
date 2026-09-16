@@ -119,7 +119,7 @@ func (db *etcdDB) Read(ctx context.Context, table string, key string, _ []string
 }
 
 func (db *etcdDB) Scan(ctx context.Context, table string, startKey string, count int, _ []string) ([]map[string][]byte, error) {
-	res := make([]map[string][]byte, count)
+	res := make([]map[string][]byte, 0, count)
 	rkey := getRowKey(table, startKey)
 	options := []clientv3.OpOption{clientv3.WithFromKey(), clientv3.WithLimit(int64(count))}
 	if db.p.GetBool(etcdSerializableReads, false) {
@@ -130,8 +130,11 @@ func (db *etcdDB) Scan(ctx context.Context, table string, startKey string, count
 		return nil, err
 	}
 
-	if values.Count != int64(count) {
-		return nil, fmt.Errorf("unexpected number of result for key [%s], expected %d but was %d", rkey, count, values.Count)
+	if len(values.Kvs) > count {
+		return nil, fmt.Errorf("unexpected number of result for key [%s], expected at most %d but was %d", rkey, count, len(values.Kvs))
+	}
+	if len(values.Kvs) < count && values.More {
+		return nil, fmt.Errorf("unexpected number of result for key [%s], expected %d but was %d with more keys available", rkey, count, len(values.Kvs))
 	}
 
 	for _, v := range values.Kvs {
