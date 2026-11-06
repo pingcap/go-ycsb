@@ -83,6 +83,7 @@ import (
 var (
 	propertyFiles  []string
 	propertyValues []string
+	redactOutput   bool
 	dbName         string
 	tableName      string
 
@@ -103,6 +104,9 @@ func initialGlobal(dbName string, onProperties func()) {
 	for _, prop := range propertyValues {
 		seps := strings.SplitN(prop, "=", 2)
 		if len(seps) != 2 {
+			if redactOutput {
+				log.Fatal("bad property: expected format name=value (value withheld)")
+			}
 			log.Fatalf("bad property: `%s`, expected format `name=value`", prop)
 		}
 		globalProps.Set(seps[0], seps[1])
@@ -113,9 +117,11 @@ func initialGlobal(dbName string, onProperties func()) {
 	}
 
 	addr := globalProps.GetString(prop.DebugPprof, prop.DebugPprofDefault)
-	go func() {
-		http.ListenAndServe(addr, nil)
-	}()
+	if addr != "" {
+		go func() {
+			http.ListenAndServe(addr, nil)
+		}()
+	}
 
 	measurement.InitMeasure(globalProps)
 
@@ -178,6 +184,8 @@ func main() {
 		Use:   "go-ycsb",
 		Short: "Go YCSB",
 	}
+
+	rootCmd.PersistentFlags().BoolVar(&redactOutput, "redact", false, "Redact credentials in the property summary (does not filter driver logs)")
 
 	rootCmd.AddCommand(
 		newShellCommand(),

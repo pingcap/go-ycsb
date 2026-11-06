@@ -51,6 +51,9 @@ func runClientCommandFunc(cmd *cobra.Command, args []string, doTransactions bool
 
 	fmt.Println("***************** properties *****************")
 	for key, value := range globalProps.Map() {
+		if redactOutput {
+			value = redactPropertyValue(key, value)
+		}
 		fmt.Printf("\"%s\"=\"%s\"\n", key, value)
 	}
 	fmt.Println("**********************************************")

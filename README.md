@@ -112,6 +112,21 @@ Available Commands:
 ## Database Configuration
 
 You can pass the database configurations through `-p field=value` in the command line directly.
+For credentials, use a property file restricted to your user (for example, mode
+0600) with `-P /path/to/db.properties`, rather than command arguments that can
+appear in shell history or process listings. Property values are printed unchanged
+by default. Add `--redact` to hide recognized password/key/token fields and URLs
+containing user information in the property summary:
+
+```bash
+./bin/go-ycsb run pg -P workloads/workloada -P /path/to/db.properties --redact
+```
+
+The benchmark scripts also accept `--redact` and suppress their raw argument echo
+when it is enabled. Omitting the flag or using `--redact=false` preserves the
+original output. This flag does not filter driver errors, verbose output, profiling
+endpoints or benchmark data. Control access to stdout, stderr and stored logs; use
+a private log directory and an appropriate umask when running the benchmark scripts.
 
 Common configurations:
 
@@ -119,7 +134,11 @@ Common configurations:
 |-|-|-|
 |dropdata|false|Whether to remove all data before test|
 |verbose|false|Output the execution query|
-|debug.pprof|":6060"|Go debug profile address|
+|debug.pprof|":6060"|Go debug profile address; set an empty value to disable profiling|
+
+Profiling keeps its existing automatic startup and listen-address default. Use
+`-p debug.pprof=127.0.0.1:6060` to restrict it to loopback, or `-p debug.pprof=` to
+disable it. Profiles have no authentication; callers must restrict network access.
 
 ### MySQL & TiDB
 
@@ -349,6 +368,17 @@ Common configurations:
 |s3.use_path_style|false|Set `true` for LocalStack; forces path-style requests|
 |s3.update_overwrite|true|Set `false` for update to perform a read-modify-write operation|
 |s3.scan_keys_only|false|Set `true` to have scan return only the keys of the objects|
+
+## Running benchmarks safely
+
+Connection, credential and data-reset defaults are unchanged. Callers should use
+isolated benchmark resources and configure database TLS and credentials explicitly.
+For verified TLS, set `pg.sslmode=verify-full` or `minio.secure=true` and configure
+trusted certificates; supply MinIO credentials through a protected property file.
+Set `dynamodb.ensure.clean.table=false` to retain an existing table on load.
+Review destructive options such as `dropdata` and `dynamodb.delete.after.run.stage`;
+the example scripts may reset data during `load`. For containers, choose the runtime
+user, mount permissions and network exposure to match the environment.
 
 ## TODO
 

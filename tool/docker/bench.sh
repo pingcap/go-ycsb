@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source "$(dirname "${BASH_SOURCE[0]}")/../bench-common.sh" || exit 1
+
 TYPE=$1
 DB=$2
 
@@ -74,7 +76,12 @@ case ${DB} in
     ;;
 esac
 
-echo ${TYPE} ${DB} ${WORKLOADS} ${PROPS}
+# Match the word splitting and globbing used by the CLI invocation below.
+if benchmark_redaction_enabled ${DB} ${WORKLOADS} ${PROPS}; then
+    echo "${TYPE} ${DB}"
+else
+    echo ${TYPE} ${DB} ${WORKLOADS} ${PROPS}
+fi
 
 CMD="docker-compose -f ${BENCH_DB}.yml" 
 
