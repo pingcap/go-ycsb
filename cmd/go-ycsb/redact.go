@@ -11,14 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package prop
+package main
 
 import "strings"
 
-// LogValue hides credential properties and authenticated URLs in the property
-// summary. It does not change the values passed to database drivers.
-func LogValue(key, value string) string {
-	name := strings.ToLower(strings.NewReplacer("-", "", "_", "").Replace(key))
+var credentialKeyNormalizer = strings.NewReplacer("-", "", "_", "")
+
+// redactPropertyValue hides credentials in property summaries without changing
+// the values passed to database drivers.
+func redactPropertyValue(key, value string) string {
+	name := strings.ToLower(credentialKeyNormalizer.Replace(key))
 	for _, marker := range []string{"password", "passwd", "secret", "token", "accesskey", "apikey"} {
 		if strings.Contains(name, marker) {
 			return "[REDACTED]"

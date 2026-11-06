@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source "$(dirname "${BASH_SOURCE[0]}")/../bench-common.sh" || exit 1
+
 TYPE=$1
 DB=$2
 
@@ -74,23 +76,8 @@ case ${DB} in
     ;;
 esac
 
-# Use the same word splitting and globbing as the CLI invocation below.
-# A value-taking option consumes its next token even when it looks like a flag.
-REDACT=false
-REDACT_SKIP_VALUE=false
-for arg in ${DB} ${WORKLOADS} ${PROPS}; do
-    if [ "$REDACT_SKIP_VALUE" = true ]; then
-        REDACT_SKIP_VALUE=false
-        continue
-    fi
-    case "$arg" in
-        -p|-P|--prop|--property_file|--table|--threads|--target|--interval) REDACT_SKIP_VALUE=true ;;
-        --) break ;;
-        --redact=false|--redact=False|--redact=FALSE|--redact=f|--redact=F|--redact=0) REDACT=false ;;
-        --redact|--redact=*) REDACT=true ;;
-    esac
-done
-if [ "$REDACT" = true ]; then
+# Match the word splitting and globbing used by the CLI invocation below.
+if benchmark_redaction_enabled ${DB} ${WORKLOADS} ${PROPS}; then
     echo "${TYPE} ${DB}"
 else
     echo ${TYPE} ${DB} ${WORKLOADS} ${PROPS}
