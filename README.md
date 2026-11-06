@@ -301,6 +301,10 @@ Common configurations:
 |redis.tls_key||Path to key file|
 |redis.tls_insecure_skip_verify|false|Controls whether a client verifies the server's certificate chain and host name|
 
+When TLS files are configured, Redis initialization fails if they cannot be loaded.
+`redis.tls_cert` and `redis.tls_key` must be set together. Leaving all three TLS file
+properties unset preserves the default plaintext connection.
+
 ### BoltDB
 
 |field|default value|description|
