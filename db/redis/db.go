@@ -222,12 +222,19 @@ func (r *redis) Delete(ctx context.Context, table string, key string) error {
 type redisCreator struct{}
 
 func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
+	tlsConfig, err := parseTLS(p)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Redis TLS configuration: %w", err)
+	}
+
 	rds := &redis{}
 
 	mode := p.GetString(redisMode, redisModeDefault)
 	switch mode {
 	case "cluster":
-		clusterClient := goredis.NewClusterClient(getOptionsCluster(p))
+		opts := getOptionsCluster(p)
+		opts.TLSConfig = tlsConfig
+		clusterClient := goredis.NewClusterClient(opts)
 		// ReloadState reloads cluster state. It calls ClusterSlots func
 		// to get cluster slots information.
 		clusterClient.ReloadState(context.Background())
@@ -246,7 +253,9 @@ func (r redisCreator) Create(p *properties.Properties) (ycsb.DB, error) {
 		fallthrough
 	default:
 		mode = "single"
-		singleEndpointClient := goredis.NewClient(getOptionsSingle(p))
+		opts := getOptionsSingle(p)
+		opts.TLSConfig = tlsConfig
+		singleEndpointClient := goredis.NewClient(opts)
 		err := singleEndpointClient.Ping(context.Background()).Err()
 		if err != nil {
 			return nil, err
@@ -303,19 +312,19 @@ const (
 	redisTLSInsecureSkipVerify = "redis.tls_insecure_skip_verify"
 )
 
-func parseTLS(p *properties.Properties) *tls.Config {
+func parseTLS(p *properties.Properties) (*tls.Config, error) {
 	caPath, _ := p.Get(redisTLSCA)
 	certPath, _ := p.Get(redisTLSCert)
 	keyPath, _ := p.Get(redisTLSKey)
-	insecureSkipVerify := p.GetBool(redisTLSInsecureSkipVerify, false)
-	if (certPath != "" && keyPath != "") || (caPath != "") {
-		config, err := util.CreateTLSConfig(caPath, certPath, keyPath, insecureSkipVerify)
-		if err == nil {
-			return config
-		}
+	if (certPath == "") != (keyPath == "") {
+		return nil, fmt.Errorf("%s and %s must be set together", redisTLSCert, redisTLSKey)
+	}
+	if caPath == "" && certPath == "" {
+		return nil, nil
 	}
 
-	return nil
+	insecureSkipVerify := p.GetBool(redisTLSInsecureSkipVerify, false)
+	return util.CreateTLSConfig(caPath, certPath, keyPath, insecureSkipVerify)
 }
 
 func getOptionsSingle(p *properties.Properties) *goredis.Options {
@@ -353,7 +362,6 @@ func getOptionsSingle(p *properties.Properties) *goredis.Options {
 	// If d <= 0, connections are not closed due to a connection's idle time.
 	// -1 disables idle timeout check.
 	opts.ConnMaxIdleTime = p.GetDuration(redisIdleTimeout, -1)
-	opts.TLSConfig = parseTLS(p)
 
 	return opts
 }
@@ -396,7 +404,6 @@ func getOptionsCluster(p *properties.Properties) *goredis.ClusterOptions {
 	// If d <= 0, connections are not closed due to a connection's idle time.
 	// -1 disables idle timeout check.
 	opts.ConnMaxIdleTime = p.GetDuration(redisIdleTimeout, -1)
-	opts.TLSConfig = parseTLS(p)
 
 	return opts
 }
